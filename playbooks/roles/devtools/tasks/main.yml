@@ -23,18 +23,6 @@
   register: package_install_results
   ignore_errors: true
 
-# ... (Mantenha o resto das suas tasks: ensurepath, UV, tmux, etc.)
-- name: Rodar ensurepath do python3-pipx
-  command: python3 -m pipx ensurepath
-  changed_when: false
-  ignore_errors: true
-
-- name: Instalar UV
-  shell: |
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-  args:
-    creates: "{{ ansible_user_dir }}/.cargo/bin/uv"
-
 - name: Clonar plugins do Tmux
   become: false
   git:

@@ -1,0 +1,56 @@
+---
+# --- SETUP PYTHON (UV) ---
+- name: Instalar UV (Python Package Manager)
+  shell: |
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+  args:
+    creates: "{{ ansible_user_dir }}/.cargo/bin/uv"
+  tags: [python, uv]
+
+- name: Garantir que pipx está instalado (via sistema)
+  package:
+    name: "{{ 'python3-pipx' if ansible_os_family == 'Debian' or ansible_os_family == 'Void' else 'pipx' }}"
+    state: present
+  ignore_errors: true
+  tags: [python, pipx]
+
+- name: Garantir PATH do pipx
+  command: python3 -m pipx ensurepath
+  register: pipx_path
+  changed_when: "'Added' in pipx_path.stdout"
+  failed_when: false
+  tags: [python, pipx]
+
+# --- SETUP NODE.JS (VOLTA) ---
+- name: Verificar se Volta está instalado
+  stat:
+    path: "{{ ansible_user_dir }}/.volta/bin/volta"
+  register: volta_bin
+  tags: [node, volta]
+
+- name: Instalar Volta (Node Version Manager)
+  shell: |
+    curl https://get.volta.sh | bash
+  when: not volta_bin.stat.exists
+  tags: [node, volta]
+
+- name: Instalar Node.js LTS (via Volta)
+  command: "{{ ansible_user_dir }}/.volta/bin/volta install node"
+  changed_when: false # O volta gerencia isso bem, evita spam de "changed"
+  tags: [node]
+
+- name: Instalar Yarn e Pnpm (via Volta)
+  command: "{{ ansible_user_dir }}/.volta/bin/volta install {{ item }}"
+  loop:
+    - yarn
+    - pnpm
+  changed_when: false
+  tags: [node]
+
+# --- SETUP RUST (Opcional, mas recomendado para Void/Dev) ---
+- name: Instalar Rustup (Rust)
+  shell: |
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+  args:
+    creates: "{{ ansible_user_dir }}/.cargo/bin/rustc"
+  tags: [rust]

@@ -1,12 +1,12 @@
 ---
-# Mude de 'hosts: remote-dev' para 'hosts: all'
-- name: Provisionamento de ambiente de desenvolvimento
-  hosts: all  
+- name: Provisionamento do Workstation
+  hosts: all
   become: true
   gather_facts: true
 
   roles:
-    - devtools
-    - docker
-    - zsh
-    - dotfiles
+    - { role: devtools, tags: ['devtools', 'packages'] }
+    - { role: languages, tags: ['languages', 'node', 'python'] } # Nova Role
+    - { role: docker, tags: ['docker'] }
+    - { role: zsh, tags: ['zsh', 'shell'] }
+    - { role: dotfiles, tags: ['dotfiles', 'stow'] }

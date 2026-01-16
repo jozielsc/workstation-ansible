@@ -1,0 +1,17 @@
+# Variáveis para Fedora, RHEL, CentOS, AlmaLinux
+devtools_packages:
+  - btop
+  - git
+  - stow
+  - fzf
+  - direnv
+  - lsd
+  - python3-pip
+  - pipx             # Fedora tem o pacote 'pipx' nos repositórios oficiais
+  - unzip
+  - curl
+  - wget
+  - tmux
+  - kubernetes-client
+  - ansible
+  # - util-linux-user # Às vezes necessário no Fedora Docker images para ter chsh, mas opcional no Desktop

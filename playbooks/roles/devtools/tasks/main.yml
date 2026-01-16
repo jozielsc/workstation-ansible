@@ -2,8 +2,7 @@
 - name: Carregar variáveis específicas do SO
   ansible.builtin.include_vars:
     file: "{{ ansible_os_family }}.yml"
-    dir: vars
-  failed_when: false # Substitui ignore_errors genérico
+  failed_when: false
 
 - name: Definir pacotes padrão (Fallback)
   ansible.builtin.set_fact:

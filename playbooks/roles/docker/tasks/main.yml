@@ -10,18 +10,21 @@
     groups: docker
     append: yes
 
-# Bloco Específico: Void Linux (Runit)
-- name: Habilitar serviço docker (Void/Runit)
+# --- LÓGICA DE DETECÇÃO DE INIT SYSTEM ---
+
+# Caso 1: Void Linux (Runit)
+- name: Habilitar serviço docker (Runit/Void)
   file:
     src: /etc/sv/docker
     dest: /var/service/docker
     state: link
   when: ansible_os_family == "Void"
 
-# Bloco Genérico: Systemd (Ubuntu, Fedora, Arch, etc)
+# Caso 2: Systemd (Ubuntu, Fedora, Arch, etc.)
 - name: Habilitar serviço docker (Systemd)
   service:
     name: docker
     state: started
     enabled: yes
   when: ansible_service_mgr == "systemd"
+

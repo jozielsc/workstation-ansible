@@ -1,0 +1,15 @@
+devtools_packages:
+  - btop
+  - git
+  - stow
+  - fzf
+  - direnv
+  - lsd
+  - python3-pip
+  - pipx             # Nome diferente no Debian
+  - unzip
+  - curl
+  - wget
+  - tmux
+  - kubernetes-client # Nome diferente
+  - ansible

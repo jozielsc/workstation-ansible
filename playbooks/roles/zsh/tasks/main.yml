@@ -1,41 +1,34 @@
+---
 - name: Instala zsh
-  community.general.xbps:
+  package:
     name: zsh
     state: present
 
 - name: Define zsh como shell padrão
   user:
-    name: "{{ target_user }}"
+    name: "{{ ansible_user_id }}"
     shell: /bin/zsh
 
 - name: Instala Oh-My-Zsh
-  become_user: "{{ target_user }}"
+  become: false
   git:
     repo: https://github.com/ohmyzsh/ohmyzsh.git
-    dest: "{{ user_home }}/.oh-my-zsh"
+    dest: "{{ ansible_user_dir }}/.oh-my-zsh"
 
 - name: Instala Powerlevel10k
-  become_user: "{{ target_user }}"
+  become: false
   git:
     repo: https://github.com/romkatv/powerlevel10k.git
-    dest: "{{ user_home }}/.oh-my-zsh/custom/themes/powerlevel10k"
+    dest: "{{ ansible_user_dir }}/.oh-my-zsh/custom/themes/powerlevel10k"
 
-- name: Instala plugin zsh-autosuggestions
-  become_user: "{{ target_user }}"
+- name: Instala plugins do ZSH
+  become: false
   git:
-    repo: https://github.com/zsh-users/zsh-autosuggestions
-    dest: "{{ user_home }}/.oh-my-zsh/custom/plugins/zsh-autosuggestions"
-
-- name: Instala plugin zsh-syntax-highlighting
-  become_user: "{{ target_user }}"
-  git:
-    repo: https://github.com/zsh-users/zsh-syntax-highlighting
-    dest: "{{ user_home }}/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting"
-
-- name: Instala plugin zsh-completions
-  become_user: "{{ target_user }}"
-  git:
-    repo: https://github.com/zsh-users/zsh-completions
-    dest: "{{ user_home }}/.oh-my-zsh/custom/plugins/zsh-completions"
+    repo: "{{ item.repo }}"
+    dest: "{{ ansible_user_dir }}/.oh-my-zsh/custom/plugins/{{ item.name }}"
+  loop:
+    - { name: 'zsh-autosuggestions', repo: 'https://github.com/zsh-users/zsh-autosuggestions' }
+    - { name: 'zsh-syntax-highlighting', repo: 'https://github.com/zsh-users/zsh-syntax-highlighting' }
+    - { name: 'zsh-completions', repo: 'https://github.com/zsh-users/zsh-completions' }
 
 

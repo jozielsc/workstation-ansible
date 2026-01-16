@@ -3,13 +3,11 @@
   hosts: remote-dev
   become: true
 
-  vars:
-    target_user: "{{lookup('env', 'TARGET_USER') | default('root') }}"
-    user_home: "/home/{{ lookup('env', 'TARGET_USER') | default('root') }}"
+  # Coleta facts (informações do sistema) automaticamente
+  gather_facts: true
 
   roles:
     - devtools
     - docker
     - zsh
     - dotfiles
-    

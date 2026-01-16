@@ -1,20 +1,22 @@
+---
 - name: Clonar repositório dotfiles
-  become_user: "{{ target_user }}"
+  become: false
   git:
     repo: https://github.com/jozielsc/dotfiles
-    dest: "{{ user_home }}/.dotfiles"
+    dest: "{{ ansible_user_dir }}/.dotfiles"
+    update: yes
 
 - name: Obter lista de pacotes dotfiles
   find:
-    paths: "{{ user_home }}/.dotfiles"
+    paths: "{{ ansible_user_dir }}/.dotfiles"
     file_type: directory
     depth: 1
   register: dotfiles_packages
 
 - name: Criar links simbólicos com stow
-  command: > 
-    stow --dir={{ user_home }}/.dotfiles --target={{ user_home }} {{ item.path | basename }}
-  
+  command: >
+    stow --dir={{ ansible_user_dir }}/.dotfiles --target={{ ansible_user_dir }} {{ item.path | basename }}
   loop: "{{ dotfiles_packages.files }}"
-
+  changed_when: false 
+  # 'stow' pode ser barulhento, ajuste o changed_when se necessário
 

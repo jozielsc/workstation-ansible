@@ -1,0 +1,15 @@
+devtools_packages:
+  - btop
+  - git
+  - stow
+  - fzf
+  - direnv
+  - lsd
+  - python3-pip
+  - python3-pipx
+  - unzip
+  - curl
+  - wget
+  - tmux
+  - kubectl
+  - ansible

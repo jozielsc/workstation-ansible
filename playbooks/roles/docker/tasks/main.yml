@@ -1,23 +1,27 @@
 ---
-- name: Instala Docker e Compose
-  community.general.xbps:
-    name:
-      - docker
+- name: Instala Docker (Genérico)
+  package:
+    name: docker
     state: present
 
 - name: Adiciona usuário ao grupo docker
   user:
-    name: "{{ ansible_user }}"
+    name: "{{ ansible_user_id }}"
     groups: docker
     append: yes
 
-- name: Habilitar serviço docker 
+# Bloco Específico: Void Linux (Runit)
+- name: Habilitar serviço docker (Void/Runit)
   file:
-    src: /etc/sv/docker 
-    dest: /var/service/docker 
-    state: link 
+    src: /etc/sv/docker
+    dest: /var/service/docker
+    state: link
+  when: ansible_os_family == "Void"
 
-#- name: Garantir que o docker está rodando
-# command: "sv up docker"
-#  register: docker_status
-#  changed_when: "'already up' not in docker_status.stdout"
+# Bloco Genérico: Systemd (Ubuntu, Fedora, Arch, etc)
+- name: Habilitar serviço docker (Systemd)
+  service:
+    name: docker
+    state: started
+    enabled: yes
+  when: ansible_service_mgr == "systemd"

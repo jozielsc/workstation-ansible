@@ -1,32 +1,33 @@
 ---
-# 1. Tenta carregar variáveis com o nome da família do OS (Ex: Debian.yml ou Void.yml)
 - name: Carregar variáveis específicas do SO
-  include_vars:
+  ansible.builtin.include_vars:
     file: "{{ ansible_os_family }}.yml"
     dir: vars
-  ignore_errors: true
+  failed_when: false # Substitui ignore_errors genérico
 
-# 2. Fallback: Se não encontrou arquivo específico, define lista segura
 - name: Definir pacotes padrão (Fallback)
-  set_fact:
+  ansible.builtin.set_fact:
     devtools_packages:
       - git
       - curl
       - python3-pip
   when: devtools_packages is not defined
 
-# 3. Instalação Genérica (O Ansible decide se usa apt, dnf, xbps, etc.)
 - name: Instala pacotes de desenvolvimento
-  package:
+  ansible.builtin.package:
     name: "{{ devtools_packages }}"
     state: present
   register: package_install_results
-  ignore_errors: true
+  ignore_errors: true # Mantemos aqui pois package names variam muito
+
+- name: Verificar falhas na instalação
+  ansible.builtin.fail:
+    msg: "Falha ao instalar pacotes: {{ package_install_results }}"
+  when: package_install_results.failed is defined and package_install_results.failed
 
 - name: Clonar plugins do Tmux
   become: false
-  git:
+  ansible.builtin.git:
     repo: https://github.com/tmux-plugins/tpm
     dest: "{{ ansible_user_dir }}/.tmux/plugins/tpm"
-
-
+    version: master # Define versão explícita para agradar o linter

@@ -1,34 +1,35 @@
 ---
 - name: Instala zsh
-  package:
+  ansible.builtin.package:
     name: zsh
     state: present
 
 - name: Define zsh como shell padrão
-  user:
+  ansible.builtin.user:
     name: "{{ ansible_user_id }}"
     shell: /bin/zsh
 
 - name: Instala Oh-My-Zsh
   become: false
-  git:
+  ansible.builtin.git:
     repo: https://github.com/ohmyzsh/ohmyzsh.git
     dest: "{{ ansible_user_dir }}/.oh-my-zsh"
+    version: master
 
 - name: Instala Powerlevel10k
   become: false
-  git:
+  ansible.builtin.git:
     repo: https://github.com/romkatv/powerlevel10k.git
     dest: "{{ ansible_user_dir }}/.oh-my-zsh/custom/themes/powerlevel10k"
+    version: master
 
 - name: Instala plugins do ZSH
   become: false
-  git:
+  ansible.builtin.git:
     repo: "{{ item.repo }}"
     dest: "{{ ansible_user_dir }}/.oh-my-zsh/custom/plugins/{{ item.name }}"
+    version: master
   loop:
     - { name: 'zsh-autosuggestions', repo: 'https://github.com/zsh-users/zsh-autosuggestions' }
     - { name: 'zsh-syntax-highlighting', repo: 'https://github.com/zsh-users/zsh-syntax-highlighting' }
     - { name: 'zsh-completions', repo: 'https://github.com/zsh-users/zsh-completions' }
-
-

@@ -1,9 +1,8 @@
 ---
+# Mude de 'hosts: remote-dev' para 'hosts: all'
 - name: Provisionamento de ambiente de desenvolvimento
-  hosts: remote-dev
+  hosts: all  
   become: true
-
-  # Coleta facts (informações do sistema) automaticamente
   gather_facts: true
 
   roles:

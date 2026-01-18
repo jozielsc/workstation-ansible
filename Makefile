@@ -44,6 +44,7 @@ help:
 	@echo '    ${GREEN}docker${RESET}     Docker Engine e Compose'
 	@echo '    ${GREEN}zsh${RESET}        Shell, Oh-My-Zsh, Powerlevel10k'
 	@echo '    ${GREEN}ui${RESET}         Sway, Waybar, Nerd Fonts (Visuals)'
+	@echo '    ${GREEN}editors${RESET}    Editores'
 	@echo '    ${GREEN}dotfiles${RESET}   Links simbólicos (Stow)'
 	@echo ''
 

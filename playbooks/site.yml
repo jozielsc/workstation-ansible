@@ -24,4 +24,5 @@
     - { role: docker, tags: ['docker'] }
     - { role: zsh, tags: ['zsh', 'shell'] }
     - { role: ui, tags: ['ui', 'visuals'] }
+    - { role: editors, tags: ['editors', 'nvim'] }
     - { role: dotfiles, tags: ['dotfiles', 'stow'] }

@@ -13,3 +13,9 @@ devtools_packages:
   - tmux
   - kubernetes-client # Nome diferente
   - ansible
+  - build-essential
+  - luarocks
+  - ripgrep
+  - fd-find
+  - imagemagick
+  - ghostscript

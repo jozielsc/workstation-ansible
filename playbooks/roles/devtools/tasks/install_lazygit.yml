@@ -1,0 +1,32 @@
+---
+- name: Descobrir última versão do Lazygit
+  ansible.builtin.uri:
+    url: https://api.github.com/repos/jesseduffield/lazygit/releases/latest
+    return_content: true
+  register: lazygit_release
+  check_mode: false
+
+- name: Criar diretório temporário para Lazygit
+  ansible.builtin.tempfile:
+    state: directory
+    suffix: lazygit
+  register: lazygit_temp
+
+- name: Baixar e extrair Lazygit
+  ansible.builtin.unarchive:
+    src: "https://github.com/jesseduffield/lazygit/releases/download/{{ lazygit_release.json.tag_name }}/lazygit_{{ lazygit_release.json.tag_name | regex_replace('^v', '') }}_Linux_x86_64.tar.gz"
+    dest: "{{ lazygit_temp.path }}"
+    remote_src: true
+
+- name: Instalar binário do Lazygit
+  ansible.builtin.copy:
+    src: "{{ lazygit_temp.path }}/lazygit"
+    dest: /usr/local/bin/lazygit
+    mode: '0755'
+    remote_src: true
+  become: true
+
+- name: Remover diretório temporário
+  ansible.builtin.file:
+    path: "{{ lazygit_temp.path }}"
+    state: absent

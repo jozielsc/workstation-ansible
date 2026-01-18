@@ -13,3 +13,13 @@ devtools_packages:
   - tmux
   - kubectl
   - ansible
+  - base-devel
+  - luarocks
+  - lua-devel
+  - lua-language-server
+  - ripgrep
+  - fd
+  - ImageMagick
+  - ghostscript
+  - lazygit
+  - cmake

@@ -1,0 +1,16 @@
+---
+- name: Carregar variáveis específicas do SO
+  ansible.builtin.include_vars:
+    file: "{{ ansible_facts['os_family'] }}.yml"
+  failed_when: false
+
+- name: Definir pacotes padrão (Fallback)
+  ansible.builtin.set_fact:
+    editors_packages:
+      - neovim
+  when: editors_packages is not defined
+
+- name: Instalar editores
+  ansible.builtin.package:
+    name: "{{ editors_packages }}"
+    state: present

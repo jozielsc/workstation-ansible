@@ -3,19 +3,20 @@
   become: false
   ansible.builtin.git:
     repo: https://github.com/jozielsc/dotfiles
-    dest: "{{ ansible_user_dir }}/.dotfiles"
+    dest: "{{ user_home }}/.dotfiles"
     update: true
     version: main
 
 - name: Obter lista de pacotes dotfiles
   ansible.builtin.find:
-    paths: "{{ ansible_user_dir }}/.dotfiles"
+    paths: "{{ user_home }}/.dotfiles"
     file_type: directory
     depth: 1
   register: dotfiles_packages
 
 - name: Criar links simbólicos com stow
+  become: false
   ansible.builtin.command: >
-    stow --dir={{ ansible_user_dir }}/.dotfiles --target={{ ansible_user_dir }} {{ item.path | basename }}
+    stow --dir={{ user_home }}/.dotfiles --target={{ user_home }} {{ item.path | basename }}
   loop: "{{ dotfiles_packages.files }}"
   changed_when: false

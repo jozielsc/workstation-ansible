@@ -6,20 +6,20 @@
 
 - name: Adiciona usuário ao grupo docker
   ansible.builtin.user:
-    name: "{{ ansible_user_id }}"
+    name: "{{ user_id }}"
     groups: docker
-    append: true # Era 'yes'
+    append: true
 
 - name: Habilitar serviço docker (Runit/Void)
   ansible.builtin.file:
     src: /etc/sv/docker
     dest: /var/service/docker
     state: link
-  when: ansible_os_family == "Void"
+  when: ansible_facts['os_family'] == "Void"
 
 - name: Habilitar serviço docker (Systemd)
   ansible.builtin.service:
     name: docker
     state: started
-    enabled: true # Era 'yes'
-  when: ansible_service_mgr == "systemd"
+    enabled: true
+  when: ansible_facts['service_mgr'] == "systemd"

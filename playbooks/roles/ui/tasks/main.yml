@@ -1,0 +1,36 @@
+---
+- name: Carregar variáveis específicas do SO
+  ansible.builtin.include_vars:
+    file: "{{ ansible_facts['os_family'] }}.yml"
+  failed_when: false
+
+- name: Instalar pacotes de UI (Sway, Waybar, Terminal)
+  ansible.builtin.package:
+    name: "{{ ui_packages }}"
+    state: present
+
+- name: Garantir diretório de fontes locais
+  become: false
+  ansible.builtin.file:
+    path: "{{ user_home }}/.local/share/fonts"
+    state: directory
+    mode: '0755'
+
+- name: Verificar se a fonte Nerd Font já está instalada
+  become: false
+  ansible.builtin.stat:
+    path: "{{ user_home }}/.local/share/fonts/JetBrainsMonoNerdFont-Regular.ttf"
+  register: nerdfont_check
+
+- name: Baixar JetBrainsMono Nerd Font
+  become: false
+  ansible.builtin.unarchive:
+    src: https://github.com/ryanoasis/nerd-fonts/releases/download/v3.0.2/JetBrainsMono.zip
+    dest: "{{ user_home }}/.local/share/fonts"
+    remote_src: yes
+  when: not nerdfont_check.stat.exists
+
+- name: Atualizar cache de fontes
+  become: false
+  ansible.builtin.command: fc-cache -f -v
+  when: not nerdfont_check.stat.exists

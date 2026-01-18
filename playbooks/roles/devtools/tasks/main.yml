@@ -1,7 +1,7 @@
 ---
 - name: Carregar variáveis específicas do SO
   ansible.builtin.include_vars:
-    file: "{{ ansible_os_family }}.yml"
+    file: "{{ ansible_facts['os_family'] }}.yml"
   failed_when: false
 
 - name: Definir pacotes padrão (Fallback)
@@ -28,5 +28,5 @@
   become: false
   ansible.builtin.git:
     repo: https://github.com/tmux-plugins/tpm
-    dest: "{{ ansible_user_dir }}/.tmux/plugins/tpm"
+    dest: "{{ user_home }}/.tmux/plugins/tpm"
     version: master # Define versão explícita para agradar o linter

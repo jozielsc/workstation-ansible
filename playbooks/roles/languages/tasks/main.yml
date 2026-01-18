@@ -5,13 +5,14 @@
     set -o pipefail
     curl -LsSf https://astral.sh/uv/install.sh | sh
   args:
-    creates: "{{ ansible_user_dir }}/.cargo/bin/uv"
+    creates: "{{ user_home }}/.cargo/bin/uv"
     executable: /bin/bash
+  become: false
   tags: [python, uv]
 
 - name: Garantir que pipx está instalado (via sistema)
   ansible.builtin.package:
-    name: "{{ 'python3-pipx' if ansible_os_family == 'Debian' or ansible_os_family == 'Void' else 'pipx' }}"
+    name: "{{ 'python3-pipx' if ansible_facts['os_family'] == 'Debian' or ansible_facts['os_family'] == 'Void' else 'pipx' }}"
     state: present
   failed_when: false # Melhor que ignore_errors
   tags: [python, pipx]
@@ -21,36 +22,15 @@
   register: pipx_path
   changed_when: "'Added' in pipx_path.stdout"
   failed_when: false
+  become: false
   tags: [python, pipx]
 
-# --- SETUP NODE.JS (VOLTA) ---
-- name: Verificar se Volta está instalado
-  ansible.builtin.stat:
-    path: "{{ ansible_user_dir }}/.volta/bin/volta"
-  register: volta_bin
-  tags: [node, volta]
-
-- name: Instalar Volta (Node Version Manager)
-  ansible.builtin.shell: |
-    set -o pipefail
-    curl https://get.volta.sh | bash
-  args:
-    executable: /bin/bash
-  when: not volta_bin.stat.exists
-  changed_when: true
-  tags: [node, volta]
-
-- name: Instalar Node.js LTS (via Volta)
-  ansible.builtin.command: "{{ ansible_user_dir }}/.volta/bin/volta install node"
-  changed_when: false
-  tags: [node]
-
-- name: Instalar Yarn e Pnpm (via Volta)
-  ansible.builtin.command: "{{ ansible_user_dir }}/.volta/bin/volta install {{ item }}"
-  loop:
-    - yarn
-    - pnpm
-  changed_when: false
+# --- SETUP NODE.JS (System) ---
+- name: Instalar Node.js e NPM (Sistema)
+  ansible.builtin.package:
+    name:
+      - nodejs
+    state: present
   tags: [node]
 
 # --- SETUP RUST ---
@@ -59,6 +39,7 @@
     set -o pipefail
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
   args:
-    creates: "{{ ansible_user_dir }}/.cargo/bin/rustc"
+    creates: "{{ user_home }}/.cargo/bin/rustc"
     executable: /bin/bash
+  become: false
   tags: [rust]

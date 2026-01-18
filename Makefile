@@ -43,6 +43,7 @@ help:
 	@echo '    ${GREEN}languages${RESET}  Node.js (Volta), Python (UV), Rust'
 	@echo '    ${GREEN}docker${RESET}     Docker Engine e Compose'
 	@echo '    ${GREEN}zsh${RESET}        Shell, Oh-My-Zsh, Powerlevel10k'
+	@echo '    ${GREEN}ui${RESET}         Sway, Waybar, Nerd Fonts (Visuals)'
 	@echo '    ${GREEN}dotfiles${RESET}   Links simbólicos (Stow)'
 	@echo ''
 

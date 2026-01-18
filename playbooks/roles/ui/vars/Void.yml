@@ -1,0 +1,15 @@
+ui_packages:
+  - sway
+  - swaybg
+  - swaylock
+  - swayidle
+  - Waybar
+  - wofi
+  - foot
+  - grim
+  - slurp
+  - wl-clipboard
+  - mako
+  - noto-fonts-emoji
+  - font-awesome
+  - pavucontrol

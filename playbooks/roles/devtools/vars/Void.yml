@@ -5,7 +5,6 @@ devtools_packages:
   - fzf
   - direnv
   - lsd
-  - python3-pip
   - python3-pipx
   - unzip
   - curl
@@ -23,3 +22,5 @@ devtools_packages:
   - ghostscript
   - lazygit
   - cmake
+  - tree-sitter
+  - tree-sitter-devel

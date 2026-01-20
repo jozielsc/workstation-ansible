@@ -9,6 +9,7 @@
     executable: /bin/bash
   become: false
   tags: [python, uv]
+  when: languages_features.python | default(false)
 
 - name: Garantir que pipx está instalado (via sistema)
   ansible.builtin.package:
@@ -16,6 +17,7 @@
     state: present
   failed_when: false # Melhor que ignore_errors
   tags: [python, pipx]
+  when: languages_features.python | default(false)
 
 - name: Garantir PATH do pipx
   ansible.builtin.command: python3 -m pipx ensurepath
@@ -24,6 +26,7 @@
   failed_when: false
   become: false
   tags: [python, pipx]
+  when: languages_features.python | default(false)
 
 # --- SETUP NODE.JS (System) ---
 - name: Instalar Node.js e NPM (Sistema)
@@ -32,6 +35,7 @@
       - nodejs
     state: present
   tags: [node]
+  when: languages_features.node | default(false)
 
 # --- SETUP RUST ---
 - name: Instalar Rustup (Rust)
@@ -43,3 +47,4 @@
     executable: /bin/bash
   become: false
   tags: [rust]
+  when: languages_features.rust | default(false)

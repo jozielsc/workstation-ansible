@@ -24,14 +24,24 @@
     msg: "Falha ao instalar pacotes: {{ package_install_results }}"
   when: package_install_results.failed is defined and package_install_results.failed
 
+- name: Instalar Lazygit (Custom/Binary)
+  ansible.builtin.include_tasks: install_lazygit.yml
+  when: 
+    - devtools_features.lazygit | default(false)
+    - ansible_facts['os_family'] == 'Debian' # No Void o pacote do repo já é atual
+
 - name: Clonar plugins do Tmux
   become: false
   ansible.builtin.git:
     repo: https://github.com/tmux-plugins/tpm
     dest: "{{ user_home }}/.tmux/plugins/tpm"
-    version: master # Define versão explícita para agradar o linter
+    version: master
+  when: devtools_features.tpm | default(false)
 
-- name: Instalar Lazygit (Debian/Ubuntu)
-  ansible.builtin.include_tasks: install_lazygit.yml
-  when: ansible_facts['os_family'] == 'Debian'
+- name: Instalar pacotes extras definidos pelo usuário
+  ansible.builtin.package:
+    name: "{{ user_extra_packages }}"
+    state: present
+  ignore_errors: true
+  when: user_extra_packages is defined
 

@@ -1,0 +1,61 @@
+devtools_packages:
+  - btop
+  - git
+  - stow
+  - fzf
+  - direnv
+  - lsd
+  - python3-pipx
+  - unzip
+  - curl
+  - wget
+  - tmux
+  - kubectl
+  - ansible
+  - base-devel
+  - luarocks
+  - lua-devel
+  - lua-language-server
+  - ripgrep
+  - fd
+  - ImageMagick
+  - ghostscript
+  - cmake
+  - tree-sitter
+  - tree-sitter-devel
+
+# --- Features Complexas (Instalação Manual/Source/Binary) ---
+devtools_features:
+  lazygit: true
+  tpm: true  # Tmux Plugin Manager
+
+languages_features:
+  python: true # UV + Pipx
+  node: true   # System Node
+  rust: true   # Rustup
+
+ui_features:
+  fonts: true # Nerd Fonts
+
+editors_features: {} # Reservado para futuras configs (ex: LazyVim, VSCode)
+
+editors_packages:
+  - neovim
+  - xclip
+  - wl-clipboard
+
+ui_packages:
+  - sway
+  - swaybg
+  - swaylock
+  - swayidle
+  - Waybar
+  - wofi
+  - foot
+  - grim
+  - slurp
+  - wl-clipboard
+  - mako
+  - noto-fonts-emoji
+  - font-awesome
+  - pavucontrol

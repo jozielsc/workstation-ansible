@@ -1,0 +1,20 @@
+---
+- name: "Listar pacotes (stow directories) em {{ repo_item.dest }}"
+  ansible.builtin.find:
+    paths: "{{ repo_item.dest }}"
+    file_type: directory
+    recurse: false
+    # Ignora diretórios ocultos como .git
+    patterns: "[!.]*" 
+  register: found_packages
+
+- name: "Executar Stow para {{ repo_item.dest }}"
+  become: false
+  ansible.builtin.command: >
+    stow --verbose --dir={{ repo_item.dest }} --target={{ user_home }} {{ item.path | basename }}
+  loop: "{{ found_packages.files }}"
+  changed_when: 'LINK: ' in stow_result.stderr
+  register: stow_result
+  failed_when: 
+    - stow_result.rc != 0
+    - '"BUG" not in stow_result.stderr' # Ignora bugs conhecidos do stow se necessário

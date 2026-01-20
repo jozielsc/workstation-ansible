@@ -4,12 +4,27 @@
   become: true
   gather_facts: true
 
+  vars:
+    profile: default
+
   pre_tasks:
+    - name: Carregar variáveis do perfil
+      ansible.builtin.include_vars:
+        file: "../profiles/{{ profile }}.yml"
+      tags: ['always']
+
+    - name: Carregar sobrescritas locais (local.yml)
+      ansible.builtin.include_vars:
+        file: "../profiles/local.yml"
+      ignore_errors: true
+      tags: ['always']
+
     - name: Determinar diretório home e user do usuário real (sem sudo)
       become: false
       ansible.builtin.shell: "echo $HOME && whoami"
       register: real_user_info
       changed_when: false
+      check_mode: false
       tags: ['always']
 
     - name: Definir fatos user_home e user_id

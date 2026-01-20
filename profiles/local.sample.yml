@@ -1,0 +1,35 @@
+# --- Perfil Local de Exemplo (local.sample.yml) ---
+# Copie este arquivo para 'profiles/local.yml' para personalizar sua instalação.
+# O arquivo 'profiles/local.yml' é ignorado pelo Git, então suas alterações pessoais não serão commitadas.
+
+# Você pode sobrescrever qualquer variável definida em 'default.yml' ou nas roles.
+
+# --- Pacotes de Desenvolvimento Extras ---
+# Adicione ou remova pacotes conforme sua necessidade.
+# devtools_packages:
+#   - git
+#   - curl
+#   - htop
+
+# --- Pacotes Extras do Usuário ---
+# Esta lista é concatenada com a instalação, ideal para suas ferramentas pessoais.
+user_extra_packages:
+  - fastfetch
+  - ncdu
+
+# --- Configurações de Features ---
+devtools_features:
+  lazygit: true
+  tpm: true
+
+# --- Editores ---
+editors_packages:
+  - neovim
+  # - emacs
+
+# --- Interface Gráfica (Se aplicável) ---
+ui_packages:
+  - sway
+  - waybar
+  - wofi
+  - pavucontrol

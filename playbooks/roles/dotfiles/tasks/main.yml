@@ -1,22 +1,21 @@
 ---
-- name: Clonar repositório dotfiles
+- name: Definir repositórios de dotfiles padrão se não definidos
+  ansible.builtin.set_fact:
+    dotfiles_repos:
+      - { repo: "https://github.com/jozielsc/dotfiles", dest: "{{ user_home }}/.dotfiles" }
+  when: dotfiles_repos is not defined
+
+- name: Clonar repositórios dotfiles
   become: false
   ansible.builtin.git:
-    repo: https://github.com/jozielsc/dotfiles
-    dest: "{{ user_home }}/.dotfiles"
+    repo: "{{ item.repo }}"
+    dest: "{{ item.dest }}"
     update: true
-    version: main
+    version: "{{ item.version | default('main') }}"
+  loop: "{{ dotfiles_repos }}"
 
-- name: Obter lista de pacotes dotfiles
-  ansible.builtin.find:
-    paths: "{{ user_home }}/.dotfiles"
-    file_type: directory
-    depth: 1
-  register: dotfiles_packages
-
-- name: Criar links simbólicos com stow
-  become: false
-  ansible.builtin.command: >
-    stow --dir={{ user_home }}/.dotfiles --target={{ user_home }} {{ item.path | basename }}
-  loop: "{{ dotfiles_packages.files }}"
-  changed_when: false
+- name: Stow packages para cada repositório
+  ansible.builtin.include_tasks: stow_repo.yml
+  loop: "{{ dotfiles_repos }}"
+  loop_control:
+    loop_var: repo_item

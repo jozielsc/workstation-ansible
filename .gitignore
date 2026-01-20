@@ -1,2 +1,5 @@
 .env
 GEMINI.md
+profiles/local.yml
+profiles/local.yaml
+*.retry

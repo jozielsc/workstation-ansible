@@ -1,95 +1,82 @@
-# --- Variáveis Padrão ---
-PLAYBOOK := playbooks/site.yml
-USER ?= $(USER)
-TAGS ?= all
+# --- Variáveis Principais ---
+PLAYBOOK  := playbooks/site.yml
+PROFILE   ?= default
+TAGS      ?= all
+USER      ?= $(shell whoami)
+IP        ?= localhost
 
-# --- Configuração de Cores ---
+# --- Cores para Output ---
 GREEN  := $(shell tput -Txterm setaf 2)
 YELLOW := $(shell tput -Txterm setaf 3)
 RESET  := $(shell tput -Txterm sgr0)
 
-# --- Argumentos e Flags ---
-ANS_TAGS := --tags "$(TAGS)"
-ANS_EXTRA_FLAGS :=
+# --- Montagem dos Argumentos do Ansible ---
+ANS_TAGS        := --tags "$(TAGS)"
+ANS_EXTRA_VARS  := -e "profile=$(PROFILE)"
+ANS_FLAGS       := -K $(ANS_TAGS) $(ANS_EXTRA_VARS)
 
-# Lógica para DRY RUN (Simulação)
+# --- Modo Dry Run (Simulação) ---
 # Uso: make local DRY=1
 ifdef DRY
-	ANS_EXTRA_FLAGS += --check --diff
-	MSG_DRY := [DRY RUN MODE]
+	ANS_FLAGS += --check --diff
+	MSG_MODE  := [DRY RUN]
 else
-	MSG_DRY :=
+	MSG_MODE  := [EXECUÇÃO]
 endif
 
-.PHONY: help local remote tunnel lint deps
+# --- Comando Base ---
+ANSIBLE_CMD = ansible-playbook $(PLAYBOOK) $(ANS_FLAGS) $(ARGS)
+
+.PHONY: help help-docs local remote tunnel deps lint
+
+# --- Targets ---
 
 help:
 	@echo ''
-	@echo '${YELLOW}Workstation Ansible - Comandos Disponíveis:${RESET}'
+	@echo '${YELLOW}Workstation Ansible CLI${RESET}'
 	@echo ''
-	@echo '  ${GREEN}make local [DRY=1] [TAGS=...]${RESET}      Provisiona localhost.'
-	@echo '  ${GREEN}make remote IP=... [DRY=1] [TAGS=...]${RESET}  Provisiona remoto.'
-	@echo '  ${GREEN}make tunnel IP=... JUMP_IP=...${RESET}        Provisiona via Bastion.'
-	@echo '  ${GREEN}make deps${RESET}                             Instala roles do Galaxy.'
-	@echo '  ${GREEN}make lint${RESET}                             Verifica sintaxe.'
+	@echo '  ${GREEN}make local${RESET}       Provisiona esta máquina (localhost).'
+	@echo '  ${GREEN}make remote${RESET}      Provisiona servidor remoto via SSH.'
+	@echo '  ${GREEN}make tunnel${RESET}      Provisiona via Bastion Host.'
+	@echo '  ${GREEN}make help-docs${RESET}   Exibe documentação detalhada e exemplos.'
+
 	@echo ''
-	@echo '  ${YELLOW}Exemplos de Uso:${RESET}'
-	@echo '    make local DRY=1                 (Simulação completa)'
-	@echo '    make local TAGS=zsh              (Apenas ZSH)'
-	@echo '    make remote IP=192.168.1.50 TAGS=docker,dotfiles'
-	@echo ''
-	@echo '  ${YELLOW}Tags Disponíveis:${RESET}'
-	@echo '    ${GREEN}devtools${RESET}   Pacotes base (git, curl, tmux)'
-	@echo '    ${GREEN}languages${RESET}  Node.js (Volta), Python (UV), Rust'
-	@echo '    ${GREEN}docker${RESET}     Docker Engine e Compose'
-	@echo '    ${GREEN}zsh${RESET}        Shell, Oh-My-Zsh, Powerlevel10k'
-	@echo '    ${GREEN}ui${RESET}         Sway, Waybar, Nerd Fonts (Visuals)'
-	@echo '    ${GREEN}editors${RESET}    Editores'
-	@echo '    ${GREEN}dotfiles${RESET}   Links simbólicos (Stow)'
+	@echo '  ${YELLOW}Opções Comuns:${RESET}'
+	@echo '    TAGS=...       (zsh, docker, dotfiles, devtools, languages)'
+	@echo '    PROFILE=...    (default, minimal - ou seu custom)'
+	@echo '    DRY=1          (Modo simulação)'
+
+
+help-docs:
+	@cat docs/USAGE.md
 	@echo ''
 
 deps:
-	@echo "${GREEN}Instalando dependências do Ansible...${RESET}"
-	ansible-galaxy install -r requirements.yml 2>/dev/null || echo "Nenhum requirements.yml encontrado, ignorando."
+	@echo "${GREEN}>> Instalando dependências do Galaxy...${RESET}"
+	ansible-galaxy install -r requirements.yml 2>/dev/null || echo ">> Nenhum requirements.yml encontrado."
 
 lint:
-	@echo "${GREEN}Rodando Ansible Lint...${RESET}"
+	@echo "${GREEN}>> Executando Ansible Lint...${RESET}"
 	ansible-lint playbooks/*.yml
 
 local:
-	@echo "${GREEN}Iniciando provisionamento LOCAL $(MSG_DRY) [Tags: $(TAGS)]...${RESET}"
-	ansible-playbook $(PLAYBOOK) \
-		-i "localhost," \
-		-c local \
-		$(ANS_TAGS) \
-		$(ANS_EXTRA_FLAGS) \
-		$(ARGS) \
-		-K
+	@echo "${GREEN}>> Iniciando $(MSG_MODE) LOCAL [Tags: $(TAGS)]...${RESET}"
+	$(ANSIBLE_CMD) -i "localhost," -c local
 
 remote:
 ifndef IP
-	$(error IP não definido. Use: make remote IP=x.x.x.x)
+	$(error Defina o IP de destino: make remote IP=x.x.x.x)
 endif
-	@echo "${GREEN}Iniciando provisionamento em $(IP) $(MSG_DRY) [Tags: $(TAGS)]...${RESET}"
-	ansible-playbook $(PLAYBOOK) \
-		-i "$(IP)," \
-		-u $(USER) \
-		$(ANS_TAGS) \
-		$(ANS_EXTRA_FLAGS) \
-		-K
+	@echo "${GREEN}>> Iniciando $(MSG_MODE) REMOTE em $(IP) [Tags: $(TAGS)]...${RESET}"
+	$(ANSIBLE_CMD) -i "$(IP)," -u $(USER)
 
 tunnel:
 ifndef IP
-	$(error IP (destino) não definido.)
+	$(error Defina o IP de destino: IP=x.x.x.x)
 endif
 ifndef JUMP_IP
-	$(error JUMP_IP (bastion) não definido.)
+	$(error Defina o IP do Bastion: JUMP_IP=x.x.x.x)
 endif
-	@echo "${GREEN}Iniciando provisionamento Tunnel $(MSG_DRY) [Tags: $(TAGS)]...${RESET}"
-	ansible-playbook $(PLAYBOOK) \
-		-i "$(IP)," \
-		-u $(USER) \
-		--ssh-common-args='-o ProxyCommand="ssh -W %h:%p -q $(JUMP_USER)@$(JUMP_IP)"' \
-		$(ANS_TAGS) \
-		$(ANS_EXTRA_FLAGS) \
-		-K
+	@echo "${GREEN}>> Iniciando $(MSG_MODE) TUNNEL via $(JUMP_IP) para $(IP)...${RESET}"
+	$(ANSIBLE_CMD) -i "$(IP)," -u $(USER) \
+		--ssh-common-args='-o ProxyCommand="ssh -W %h:%p -q $(JUMP_USER)@$(JUMP_IP)"'

@@ -15,12 +15,14 @@
     path: "{{ user_home }}/.local/share/fonts"
     state: directory
     mode: '0755'
+  when: ui_features.fonts | default(false)
 
 - name: Verificar se a fonte Nerd Font já está instalada
   become: false
   ansible.builtin.stat:
     path: "{{ user_home }}/.local/share/fonts/JetBrainsMonoNerdFont-Regular.ttf"
   register: nerdfont_check
+  when: ui_features.fonts | default(false)
 
 - name: Baixar JetBrainsMono Nerd Font
   become: false
@@ -28,9 +30,13 @@
     src: https://github.com/ryanoasis/nerd-fonts/releases/download/v3.0.2/JetBrainsMono.zip
     dest: "{{ user_home }}/.local/share/fonts"
     remote_src: yes
-  when: not nerdfont_check.stat.exists
+  when: 
+    - ui_features.fonts | default(false)
+    - not nerdfont_check.stat.exists
 
 - name: Atualizar cache de fontes
   become: false
   ansible.builtin.command: fc-cache -f -v
-  when: not nerdfont_check.stat.exists
+  when: 
+    - ui_features.fonts | default(false)
+    - not nerdfont_check.stat.exists

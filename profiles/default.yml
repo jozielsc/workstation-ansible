@@ -23,7 +23,7 @@ devtools_packages:
   - cmake
   - tree-sitter
   - tree-sitter-devel
-
+  - delta
 # --- Features Complexas (Instalação Manual/Source/Binary) ---
 devtools_features:
   lazygit: true

@@ -24,6 +24,7 @@ devtools_packages:
   - tree-sitter
   - tree-sitter-devel
   - delta
+  - broot
 # --- Features Complexas (Instalação Manual/Source/Binary) ---
 devtools_features:
   lazygit: true

@@ -24,3 +24,4 @@ devtools_packages:
   - cmake
   - tree-sitter
   - tree-sitter-devel
+  - mosh

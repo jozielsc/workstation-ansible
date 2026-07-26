@@ -49,11 +49,19 @@
   tags: [rust]
   when: languages_features.rust | default(false)
 
-  # --- Golang ---
+# --- Golang ---
 - name: Instalar GOlang 
   ansible.builtin.package:
     name:
       - go
+    state: present
+  tags: [golang]
+  when: languages_features.golang | default(false)
+
+- name: Instalar lldb 
+  ansible.builtin.package:
+    name:
+      - lldb
     state: present
   tags: [golang]
   when: languages_features.golang | default(false)

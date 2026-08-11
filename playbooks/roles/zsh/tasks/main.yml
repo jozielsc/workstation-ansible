@@ -1,7 +1,9 @@
 ---
-- name: Instala zsh
+- name: Garantir pré-requisitos do Zsh (zsh, git)
   ansible.builtin.package:
-    name: zsh
+    name:
+      - zsh
+      - git
     state: present
 
 - name: Define zsh como shell padrão

@@ -1,0 +1,27 @@
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Instalar dependências básicas para o Ansible operar via docker connection
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        python3 \
+        sudo \
+        bash \
+        git \
+        curl \
+        ca-certificates && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Criar usuário não-root 'dev' com acesso sudo sem senha
+RUN useradd -m -s /bin/bash dev && \
+    echo "dev:dev" | chpasswd && \
+    mkdir -p /etc/sudoers.d && \
+    echo "dev ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/dev && \
+    chmod 0440 /etc/sudoers.d/dev
+
+WORKDIR /home/dev
+USER dev
+
+CMD ["tail", "-f", "/dev/null"]

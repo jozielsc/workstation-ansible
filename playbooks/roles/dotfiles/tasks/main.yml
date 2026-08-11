@@ -1,4 +1,11 @@
 ---
+- name: Garantir pré-requisitos do dotfiles (git, stow)
+  ansible.builtin.package:
+    name:
+      - git
+      - stow
+    state: present
+
 - name: Definir repositórios de dotfiles padrão se não definidos
   ansible.builtin.set_fact:
     dotfiles_repos:

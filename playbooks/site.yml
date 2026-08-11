@@ -35,9 +35,9 @@
 
   roles:
     - { role: devtools, tags: ['devtools', 'packages'] }
-    - { role: languages, tags: ['languages', 'node', 'python'] } # Nova Role
+    - { role: languages, tags: ['languages'] }
     - { role: docker, tags: ['docker'] }
     - { role: zsh, tags: ['zsh', 'shell'] }
-    - { role: ui, tags: ['ui', 'visuals'] }
+    - { role: ui, tags: ['ui', 'visuals', 'never'] }
     - { role: editors, tags: ['editors', 'nvim'] }
     - { role: dotfiles, tags: ['dotfiles', 'stow'] }

@@ -1,0 +1,33 @@
+---
+- name: "📌 STATUS: Configurando ambiente Python (UV + Pipx)"
+  ansible.builtin.debug:
+    msg: "🐍 LANG: Instalando ferramentas do Python (UV Package Manager e Pipx)..."
+  when: languages_features.python | default(true)
+
+- name: Instalar UV (Python Package Manager)
+  ansible.builtin.shell: |
+    set -o pipefail
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+  args:
+    creates: "{{ user_home }}/.cargo/bin/uv"
+    executable: /bin/bash
+  become: false
+  tags: [python, uv]
+  when: languages_features.python | default(true)
+
+- name: Garantir que pipx está instalado (via sistema)
+  ansible.builtin.package:
+    name: "{{ 'python3-pipx' if ansible_facts['os_family'] in ['Debian', 'Void'] else 'pipx' }}"
+    state: present
+  failed_when: false
+  tags: [python, pipx]
+  when: languages_features.python | default(true)
+
+- name: Garantir PATH do pipx
+  ansible.builtin.command: python3 -m pipx ensurepath
+  register: pipx_path
+  changed_when: "'Added' in pipx_path.stdout"
+  failed_when: false
+  become: false
+  tags: [python, pipx]
+  when: languages_features.python | default(true)

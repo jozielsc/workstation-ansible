@@ -1,0 +1,13 @@
+---
+- name: "📌 STATUS: Configurando ambiente Node.js"
+  ansible.builtin.debug:
+    msg: "🟢 LANG: Instalando Node.js e NPM do sistema..."
+  when: languages_features.node | default(true)
+
+- name: Instalar Node.js e NPM (Sistema)
+  ansible.builtin.package:
+    name:
+      - nodejs
+    state: present
+  tags: [node]
+  when: languages_features.node | default(true)

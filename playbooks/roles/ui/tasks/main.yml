@@ -4,10 +4,54 @@
     file: "{{ ansible_facts['os_family'] }}.yml"
   failed_when: false
 
-- name: Instalar pacotes de UI (Sway, Waybar, Terminal)
-  ansible.builtin.package:
-    name: "{{ ui_packages }}"
-    state: present
+- name: Definir pacotes padrão de UI se não configurados pelo SO
+  ansible.builtin.set_fact:
+    ui_packages:
+      - sway
+      - waybar
+      - wofi
+  when: ui_packages is not defined
+
+- name: Consolidação dos pacotes a instalar (UI)
+  ansible.builtin.set_fact:
+    _ui_target_packages: "{{ (ui_packages | default([])) + (ui_extra_packages | default([])) }}"
+
+- name: "📌 STATUS: Iniciando instalação da Interface Gráfica (UI)"
+  ansible.builtin.debug:
+    msg:
+      - "================================================================================="
+      - " 🖼️ ROLE: UI | SISTEMA: {{ ansible_facts['os_family'] }}"
+      - " 📦 TOTAL DE PACOTES: {{ _ui_target_packages | length }} pacotes"
+      - " 📋 PACOTES: {{ _ui_target_packages | join(', ') }}"
+      - " ⏳ Processando instalação no gerenciador de pacotes... Por favor aguarde."
+      - "================================================================================="
+
+- name: Instalação resiliente de pacotes de UI
+  block:
+    - name: Tentar instalação em lote de pacotes de UI
+      ansible.builtin.package:
+        name: "{{ _ui_target_packages }}"
+        state: present
+  rescue:
+    - name: Aviso de falha na instalação em lote - tentando pacotes de UI individualmente
+      ansible.builtin.debug:
+        msg: "⚠️ Falha na instalação em lote de UI. Alternando para instalação individual por pacote..."
+
+    - name: Instalar pacotes de UI individualmente
+      ansible.builtin.package:
+        name: "{{ item }}"
+        state: present
+      loop: "{{ _ui_target_packages }}"
+      register: _ui_indiv_results
+      failed_when: false
+
+    - name: Reportar pacotes de UI indisponíveis no repositório
+      ansible.builtin.debug:
+        msg: "⚠️ Aviso: O pacote de UI '{{ item.item }}' não foi encontrado ou falhou ao ser instalado."
+      loop: "{{ _ui_indiv_results.results | default([]) }}"
+      when: item.failed is defined and item.failed
+      loop_control:
+        label: "{{ item.item }}"
 
 - name: Garantir diretório de fontes locais
   become: false
@@ -32,6 +76,7 @@
     remote_src: yes
   when: 
     - ui_features.fonts | default(false)
+    - nerdfont_check.stat is defined
     - not nerdfont_check.stat.exists
 
 - name: Atualizar cache de fontes
@@ -39,4 +84,5 @@
   ansible.builtin.command: fc-cache -f -v
   when: 
     - ui_features.fonts | default(false)
+    - nerdfont_check.stat is defined
     - not nerdfont_check.stat.exists

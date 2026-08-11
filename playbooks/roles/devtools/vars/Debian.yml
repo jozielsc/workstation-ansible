@@ -6,12 +6,11 @@ devtools_packages:
   - direnv
   - lsd
   - python3-pip
-  - pipx             # Nome diferente no Debian
+  - pipx
   - unzip
   - curl
   - wget
   - tmux
-  - kubernetes-client # Nome diferente
   - ansible
   - build-essential
   - luarocks
@@ -19,3 +18,5 @@ devtools_packages:
   - fd-find
   - imagemagick
   - ghostscript
+  - cmake
+  - bat

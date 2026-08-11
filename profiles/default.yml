@@ -1,62 +1,32 @@
-devtools_packages:
-  - btop
-  - git
-  - stow
-  - fzf
-  - direnv
-  - lsd
-  - python3-pipx
-  - unzip
-  - curl
-  - wget
-  - tmux
-  - kubectl
-  - ansible
-  - base-devel
-  - luarocks
-  - lua-devel
-  - lua-language-server
-  - ripgrep
-  - fd
-  - ImageMagick
-  - ghostscript
-  - cmake
-  - tree-sitter
-  - tree-sitter-devel
-  - delta
-  - broot
-# --- Features Complexas (Instalação Manual/Source/Binary) ---
+# ==============================================================================
+# Perfil Padrão - Workstation Ansible
+#
+# NOTA: Os pacotes base específicos para cada distribuição Linux (Debian, Void,
+# RedHat, Arch) são carregados automaticamente de cada role (playbooks/roles/*/vars/).
+# Utilize os campos *_extra_packages abaixo para adicionar pacotes adicionais.
+# ==============================================================================
+
+# --- Pacotes e Features de Ferramentas de Desenvolvimento ---
+devtools_extra_packages: []
+
 devtools_features:
   lazygit: true
   tpm: true  # Tmux Plugin Manager
 
+# --- Linguagens de Programação ---
 languages_features:
   python: true # UV + Pipx
-  node: true   # System Node
+  node: true   # System Node.js
   rust: true   # Rustup
+  golang: true # Go compiler
+
+# --- Interface Gráfica (Sway / Wayland) ---
+ui_extra_packages: []
 
 ui_features:
-  fonts: true # Nerd Fonts
+  fonts: true # Nerd Fonts (JetBrainsMono)
 
-editors_features: {} # Reservado para futuras configs (ex: LazyVim, VSCode)
+# --- Editores ---
+editors_extra_packages: []
 
-editors_packages:
-  - neovim
-  - xclip
-  - wl-clipboard
-
-ui_packages:
-  - sway
-  - swaybg
-  - swaylock
-  - swayidle
-  - Waybar
-  - wofi
-  - foot
-  - grim
-  - slurp
-  - wl-clipboard
-  - mako
-  - noto-fonts-emoji
-  - font-awesome
-  - pavucontrol
+editors_features: {} # Configurações adicionais de editores

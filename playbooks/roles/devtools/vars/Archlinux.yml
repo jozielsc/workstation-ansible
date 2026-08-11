@@ -5,20 +5,21 @@ devtools_packages:
   - fzf
   - direnv
   - lsd
-  - python3-pip
-  - pipx
+  - python-pipx
   - unzip
   - curl
   - wget
   - tmux
+  - kubectl
   - ansible
-  - gcc
-  - gcc-c++
-  - make
+  - base-devel
   - luarocks
   - ripgrep
-  - fd-find
-  - ImageMagick
+  - fd
+  - imagemagick
   - ghostscript
   - cmake
+  - tree-sitter
+  - git-delta
+  - broot
   - bat

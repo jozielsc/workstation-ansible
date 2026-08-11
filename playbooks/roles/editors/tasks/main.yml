@@ -4,13 +4,49 @@
     file: "{{ ansible_facts['os_family'] }}.yml"
   failed_when: false
 
-- name: Definir pacotes padrão (Fallback)
+- name: Definir pacotes padrão de editores se não configurados pelo SO
   ansible.builtin.set_fact:
     editors_packages:
       - neovim
   when: editors_packages is not defined
 
-- name: Instalar editores
-  ansible.builtin.package:
-    name: "{{ editors_packages }}"
-    state: present
+- name: Consolidação dos pacotes a instalar (Editors)
+  ansible.builtin.set_fact:
+    _editors_target_packages: "{{ (editors_packages | default([])) + (editors_extra_packages | default([])) }}"
+
+- name: "📌 STATUS: Iniciando instalação de Editores"
+  ansible.builtin.debug:
+    msg:
+      - "================================================================================="
+      - " 📝 ROLE: Editors | SISTEMA: {{ ansible_facts['os_family'] }}"
+      - " 📦 TOTAL DE PACOTES: {{ _editors_target_packages | length }} pacotes"
+      - " 📋 PACOTES: {{ _editors_target_packages | join(', ') }}"
+      - " ⏳ Processando instalação no gerenciador de pacotes... Por favor aguarde."
+      - "================================================================================="
+
+- name: Instalação resiliente de editores
+  block:
+    - name: Tentar instalação em lote de editores
+      ansible.builtin.package:
+        name: "{{ _editors_target_packages }}"
+        state: present
+  rescue:
+    - name: Aviso de falha na instalação em lote - tentando editores individualmente
+      ansible.builtin.debug:
+        msg: "⚠️ Falha na instalação em lote de editores. Alternando para instalação individual por pacote..."
+
+    - name: Instalar editores individualmente
+      ansible.builtin.package:
+        name: "{{ item }}"
+        state: present
+      loop: "{{ _editors_target_packages }}"
+      register: _editors_indiv_results
+      failed_when: false
+
+    - name: Reportar pacotes de editores indisponíveis no repositório
+      ansible.builtin.debug:
+        msg: "⚠️ Aviso: O pacote de editor '{{ item.item }}' não foi encontrado ou falhou ao ser instalado."
+      loop: "{{ _editors_indiv_results.results | default([]) }}"
+      when: item.failed is defined and item.failed
+      loop_control:
+        label: "{{ item.item }}"

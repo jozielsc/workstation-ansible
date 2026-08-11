@@ -15,7 +15,7 @@
     src: /etc/sv/docker
     dest: /var/service/docker
     state: link
-  when: ansible_facts['os_family'] == "Void"
+  when: ansible_facts['service_mgr'] == "runit"
 
 - name: Habilitar serviço docker (Systemd)
   ansible.builtin.service:

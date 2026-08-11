@@ -1,14 +1,17 @@
 # Workstation Ansible - Manual de Uso
 
-Este projeto visa automatizar a configuração do seu ambiente de desenvolvimento. Abaixo estão os detalhes sobre como operar o sistema, personalizar perfis e solucionar problemas.
+Este projeto visa automatizar a configuração do seu ambiente de desenvolvimento. Abaixo estão os detalhes sobre como operar o sistema, personalizar perfis, testar em ambiente sandbox e solucionar problemas.
 
 ## Comandos Principais (Makefile)
 
-O arquivo `Makefile` é a interface principal.
+O arquivo `Makefile` é a interface principal:
 
-*   `make local`: Configura a máquina atual.
+*   `make local`: Configura a máquina atual (localhost).
 *   `make remote IP=<IP> USER=<USER>`: Configura uma máquina remota via SSH.
 *   `make tunnel IP=<IP> JUMP_IP=<JUMP_IP>`: Configura uma máquina através de um Bastion Host.
+*   `make sandbox [DISTRO=void|ubuntu]`: Cria um container Docker isolado, executa o Ansible e o mantém ativo para testes.
+*   `make sandbox-shell`: Abre o terminal interativo (`bash`) no container sandbox atual.
+*   `make sandbox-clean`: Para e remove o container sandbox.
 *   `make deps`: Instala dependências do Ansible (roles/collections do Galaxy).
 *   `make lint`: Executa verificação de sintaxe nos playbooks.
 
@@ -17,101 +20,68 @@ O arquivo `Makefile` é a interface principal.
 Você pode passar variáveis extras para qualquer comando `make`:
 
 *   `TAGS`: Lista de tags separadas por vírgula para executar apenas partes específicas.
-    *   Exemplo: `make local TAGS=zsh,dotfiles`
+    *   Exemplo: `make local TAGS=zsh,dotfiles` ou `make sandbox DISTRO=ubuntu TAGS=node`
 *   `PROFILE`: Define qual perfil de variáveis carregar (padrão: `default`).
-    *   Exemplo: `make local PROFILE=minimal`
-*   `DRY`: Se definido (ex: `DRY=1`), executa em modo de simulação (Check Mode), mostrando o que seria alterado sem aplicar nada.
+    *   Exemplo: `make local PROFILE=local`
+*   `DISTRO`: Escolhe a distribuição para o sandbox Docker (padrão: `void`, suporte: `void`, `ubuntu`).
+    *   Exemplo: `make sandbox DISTRO=ubuntu`
+*   `DRY`: Se definido (`DRY=1`), executa em modo de simulação (Check Mode), mostrando o que seria alterado sem aplicar nada.
 
-## Perfis (Profiles)
+---
 
-Os perfis definem *o que* será instalado (quais pacotes, quais ferramentas).
+## Pipeline de Testes Sandbox (Docker)
 
-1.  **Padrão (`profiles/default.yml`)**: Contém a lista completa de pacotes sugeridos.
-2.  **Local (`profiles/local.yml`)**: Este arquivo é ignorado pelo Git. Use-o para suas personalizações.
-    *   **Como criar:** Copie o arquivo de exemplo: `cp profiles/local.sample.yml profiles/local.yml`.
-    *   Edite `profiles/local.yml` para adicionar ou remover pacotes e sobrescrever configurações.
+Para testar o provisionamento sem afetar sua máquina pessoal ou servidor, o projeto inclui um ambiente Sandbox isolado via Docker:
+
+1. **Executar o Sandbox (Default: Void Linux):**
+   ```bash
+   make sandbox
+   ```
+
+2. **Executar em outra distro (ex: Ubuntu):**
+   ```bash
+   make sandbox DISTRO=ubuntu
+   ```
+
+3. **Testar uma tag específica no Sandbox:**
+   ```bash
+   make sandbox DISTRO=void TAGS=python
+   ```
+
+4. **Acessar o terminal do container para inspecionar os pacotes instalados:**
+   ```bash
+   make sandbox-shell DISTRO=void
+   ```
+
+5. **Limpar o container ao finalizar:**
+   ```bash
+   make sandbox-clean DISTRO=void
+   ```
+
+---
+
+## Perfis (Profiles) e Resolução de Pacotes
+
+Os perfis definem pacotes extras e ativam/desativam recursos.
+
+*   **Padrão (`profiles/default.yml`)**: Define a habilitação de recursos base e linguagens.
+*   **Mapeamento por Distribuição (`playbooks/roles/*/vars/`)**: Pacotes do sistema são gerenciados automaticamente pelo SO detectado (`Debian.yml`, `Void.yml`, `RedHat.yml`, `Archlinux.yml`).
+*   **Personalização Local (`profiles/local.yml`)**: Crie copiando `cp profiles/local.sample.yml profiles/local.yml`. Edite as variáveis `devtools_extra_packages`, `editors_extra_packages`, `ui_extra_packages` para adicionar ferramentas pessoais.
+
+---
 
 ## Tags Disponíveis
 
 Use tags para agilizar a execução quando quiser alterar apenas um componente:
 
-*   `devtools`: Pacotes base (git, curl, tmux, build-essentials).
-*   `languages`: Ambientes de programação (Node, Python, Rust).
-    *   `node`, `python`, `rust`: Tags específicas para cada linguagem.
+*   `devtools`: Pacotes base CLI (git, curl, tmux, fzf, stow, btop, etc.).
+*   `languages`: Instala todas as linguagens de programação ativas.
+    *   `python`: Instala apenas UV e Pipx.
+    *   `node`: Instala apenas Node.js/NPM.
+    *   `rust`: Instala apenas Rustup e Cargo.
+    *   `go` / `golang`: Instala apenas Golang.
 *   `docker`: Instalação do Docker e Docker Compose.
 *   `zsh`: Configuração do Shell Zsh, Oh-My-Zsh e Powerlevel10k.
-*   `ui`: Interface gráfica (Sway, fontes, temas) - *Geralmente apenas para Linux Desktop*.
-*   `editors`: Editores de texto (Neovim, etc).
+*   `editors`: Neovim, lldb e ferramentas de clipboard.
+*   `ui` *(Opt-in especial)*: Interface gráfica Sway, Waybar e fontes. *(Ignorado por padrão)*.
 *   `dotfiles`: Gerenciamento de arquivos de configuração via GNU Stow.
-
-## Estrutura de Pastas Importante
-
-*   `playbooks/roles/`: Contém a lógica de instalação separada por função.
-*   `playbooks/roles/*/vars/`: Variáveis específicas por sistema operacional (ex: `Void.yml`, `Debian.yml`). Se sua distribuição não for suportada, você pode adicionar um arquivo aqui.
-
-## Arquitetura de Configuração e Extensão
-
-Este projeto utiliza uma separação clara entre **Pacotes de Sistema** e **Features Complexas**.
-
-### 1. Packages vs. Features
-
-No arquivo de perfil (`profiles/default.yml` ou `profiles/local.yml`), você encontrará dois tipos principais de variáveis para cada role (devtools, ui, languages, etc):
-
-*   **`*_packages` (Listas Simples):**
-    *   São listas de pacotes que podem ser instalados diretamente pelo gerenciador de pacotes do sistema (apt, xbps-install, dnf, pacman).
-    *   *Exemplo:* `devtools_packages` contém `git`, `curl`, `htop`.
-    *   **Uso:** Edite estas listas para adicionar ferramentas simples que já existem nos repositórios da sua distro.
-
-*   **`*_features` (Flags de Lógica Complexa):**
-    *   São dicionários de booleanos (`true`/`false`) que ativam scripts de instalação mais complexos (compilação, download de binários, instaladores oficiais como `rustup`).
-    *   *Exemplo:* `languages_features.rust: true` não apenas instala um pacote, mas baixa e executa o script oficial do Rustup.
-    *   **Uso:** Ative ou desative features inteiras conforme sua necessidade.
-
-### 2. Personalizando (O jeito certo)
-
-Não edite o `profiles/default.yml` diretamente se quiser manter seu fork limpo. Use o `profiles/local.yml`:
-
-```yaml
-# profiles/local.yml
-
-# Sobrescreve a lista padrão, adicionando apenas o que eu quero
-devtools_packages:
-  - git
-  - vim  # Prefiro vim ao neovim
-  - htop
-
-# Desativa instalação do Node.js, mas mantêm Rust e Python
-languages_features:
-  node: false
-  rust: true
-  python: true
-```
-
-### 3. Estendendo para sua Distro ou Nova Feature
-
-#### Adicionando suporte a uma nova Distro (ex: Fedora)
-Se o Ansible falhar ao não encontrar variáveis para sua distro:
-1.  Descubra a família do SO: `ansible localhost -m setup -a "filter=ansible_os_family"` (ex: `RedHat`).
-2.  Crie o arquivo de variáveis na role desejada: `playbooks/roles/devtools/vars/RedHat.yml`.
-3.  Mapeie os nomes dos pacotes (ex: `python3-devel` no Fedora vs `python3-dev` no Debian).
-
-#### Criando uma Feature Personalizada
-Para adicionar uma instalação complexa (ex: instalar o `k9s` via binário):
-1.  **No Perfil (`profiles/default.yml`):** Adicione a flag.
-    ```yaml
-    devtools_features:
-      k9s: true
-    ```
-2.  **Na Task (`playbooks/roles/devtools/tasks/main.yml`):** Adicione a lógica condicional.
-    ```yaml
-    - name: Baixar k9s
-      unarchive:
-        src: https://.../k9s.tar.gz
-        dest: /usr/local/bin
-      when: devtools_features.k9s | default(false)
-    ```
-
-## Solução de Problemas
-
-*   **Erro de Permissão:** O `make local` pedirá sua senha de `sudo`. Certifique-se de que seu usuário tem permissões de sudo.
-*   **Falha em Pacotes:** Se um pacote não for encontrado, verifique se o arquivo em `roles/*/vars/` correspondente à sua distro contém o nome correto do pacote.

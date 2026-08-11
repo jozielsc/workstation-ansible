@@ -1,67 +1,16 @@
 ---
-# --- SETUP PYTHON (UV) ---
-- name: Instalar UV (Python Package Manager)
-  ansible.builtin.shell: |
-    set -o pipefail
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-  args:
-    creates: "{{ user_home }}/.cargo/bin/uv"
-    executable: /bin/bash
-  become: false
-  tags: [python, uv]
-  when: languages_features.python | default(false)
+- name: Carregar tarefas de Python
+  ansible.builtin.include_tasks: python.yml
+  tags: [python]
 
-- name: Garantir que pipx está instalado (via sistema)
-  ansible.builtin.package:
-    name: "{{ 'python3-pipx' if ansible_facts['os_family'] == 'Debian' or ansible_facts['os_family'] == 'Void' else 'pipx' }}"
-    state: present
-  failed_when: false # Melhor que ignore_errors
-  tags: [python, pipx]
-  when: languages_features.python | default(false)
-
-- name: Garantir PATH do pipx
-  ansible.builtin.command: python3 -m pipx ensurepath
-  register: pipx_path
-  changed_when: "'Added' in pipx_path.stdout"
-  failed_when: false
-  become: false
-  tags: [python, pipx]
-  when: languages_features.python | default(false)
-
-# --- SETUP NODE.JS (System) ---
-- name: Instalar Node.js e NPM (Sistema)
-  ansible.builtin.package:
-    name:
-      - nodejs
-    state: present
+- name: Carregar tarefas de Node.js
+  ansible.builtin.include_tasks: node.yml
   tags: [node]
-  when: languages_features.node | default(false)
 
-# --- SETUP RUST ---
-- name: Instalar Rustup (Rust)
-  ansible.builtin.shell: |
-    set -o pipefail
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-  args:
-    creates: "{{ user_home }}/.cargo/bin/rustc"
-    executable: /bin/bash
-  become: false
+- name: Carregar tarefas de Rust
+  ansible.builtin.include_tasks: rust.yml
   tags: [rust]
-  when: languages_features.rust | default(false)
 
-# --- Golang ---
-- name: Instalar GOlang 
-  ansible.builtin.package:
-    name:
-      - go
-    state: present
-  tags: [golang]
-  when: languages_features.golang | default(false)
-
-- name: Instalar lldb 
-  ansible.builtin.package:
-    name:
-      - lldb
-    state: present
-  tags: [golang]
-  when: languages_features.golang | default(false)
+- name: Carregar tarefas de Golang
+  ansible.builtin.include_tasks: go.yml
+  tags: [go, golang]

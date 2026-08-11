@@ -1,0 +1,18 @@
+FROM ghcr.io/void-linux/void-glibc-full:latest
+
+# Instalar dependências básicas para o Ansible operar via docker connection
+RUN xbps-install -Sy && \
+    xbps-install -y python3 sudo bash shadow git curl ca-certificates && \
+    rm -rf /var/cache/xbps/*
+
+# Criar usuário não-root 'dev' com acesso sudo sem senha
+RUN useradd -m -s /bin/bash dev && \
+    echo "dev:dev" | chpasswd && \
+    mkdir -p /etc/sudoers.d && \
+    echo "dev ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/dev && \
+    chmod 0440 /etc/sudoers.d/dev
+
+WORKDIR /home/dev
+USER dev
+
+CMD ["tail", "-f", "/dev/null"]

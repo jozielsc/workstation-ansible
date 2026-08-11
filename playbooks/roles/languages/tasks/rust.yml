@@ -1,0 +1,14 @@
+---
+- name: "📌 STATUS: Configurando ambiente Rust"
+  ansible.builtin.debug:
+    msg: "🦀 LANG: Instalando Rust (Cargo, Rustc)..."
+  when: languages_features.rust | default(true)
+
+- name: Instalar Rustup (Rust)
+  ansible.builtin.package:
+    name:
+      - cargo 
+    state: present
+  tags: [rust]
+  when: languages_features.rust | default(true)
+

@@ -4,44 +4,67 @@
     file: "{{ ansible_facts['os_family'] }}.yml"
   failed_when: false
 
-- name: Definir pacotes padrão (Fallback)
+- name: Definir pacotes padrão se não configurados pelo SO
   ansible.builtin.set_fact:
     devtools_packages:
       - git
       - curl
-      - python3-pip
+      - wget
+      - tmux
+      - fzf
   when: devtools_packages is not defined
 
-- name: Instala pacotes de desenvolvimento
-  ansible.builtin.package:
-    name: "{{ devtools_packages }}"
-    state: present
-  register: package_install_results
-  ignore_errors: true # Mantemos aqui pois package names variam muito
+- name: Consolidação dos pacotes a instalar (Devtools)
+  ansible.builtin.set_fact:
+    _devtools_target_packages: "{{ (devtools_packages | default([])) + (devtools_extra_packages | default([])) + (user_extra_packages | default([])) }}"
 
-- name: Verificar falhas na instalação
-  ansible.builtin.fail:
-    msg: "Falha ao instalar pacotes: {{ package_install_results }}"
-  when: package_install_results.failed is defined and package_install_results.failed
+- name: "📌 STATUS: Iniciando instalação dos pacotes de Devtools"
+  ansible.builtin.debug:
+    msg:
+      - "================================================================================="
+      - " 🛠️ ROLE: Devtools | SISTEMA: {{ ansible_facts['os_family'] }}"
+      - " 📦 TOTAL DE PACOTES: {{ _devtools_target_packages | length }} pacotes"
+      - " 📋 PACOTES: {{ _devtools_target_packages | join(', ') }}"
+      - " ⏳ Processando instalação no gerenciador de pacotes... Por favor aguarde."
+      - "================================================================================="
+
+- name: Instalação resiliente de pacotes de desenvolvimento
+  block:
+    - name: Tentar instalação em lote dos pacotes devtools
+      ansible.builtin.package:
+        name: "{{ _devtools_target_packages }}"
+        state: present
+  rescue:
+    - name: Aviso de falha na instalação em lote - tentando pacotes individualmente
+      ansible.builtin.debug:
+        msg: "⚠️ Falha na instalação em lote de devtools. Alternando para instalação individual por pacote..."
+
+    - name: Instalar pacotes devtools individualmente
+      ansible.builtin.package:
+        name: "{{ item }}"
+        state: present
+      loop: "{{ _devtools_target_packages }}"
+      register: _devtools_indiv_results
+      failed_when: false
+
+    - name: Reportar pacotes indisponíveis no repositório
+      ansible.builtin.debug:
+        msg: "⚠️ Aviso: O pacote '{{ item.item }}' não foi encontrado ou falhou ao ser instalado."
+      loop: "{{ _devtools_indiv_results.results | default([]) }}"
+      when: item.failed is defined and item.failed
+      loop_control:
+        label: "{{ item.item }}"
 
 - name: Instalar Lazygit (Custom/Binary)
   ansible.builtin.include_tasks: install_lazygit.yml
   when: 
     - devtools_features.lazygit | default(false)
-    - ansible_facts['os_family'] == 'Debian' # No Void o pacote do repo já é atual
+    - ansible_facts['os_family'] == 'Debian'
 
-- name: Clonar plugins do Tmux
+- name: Clonar plugins do Tmux (TPM)
   become: false
   ansible.builtin.git:
     repo: https://github.com/tmux-plugins/tpm
     dest: "{{ user_home }}/.tmux/plugins/tpm"
     version: master
   when: devtools_features.tpm | default(false)
-
-- name: Instalar pacotes extras definidos pelo usuário
-  ansible.builtin.package:
-    name: "{{ user_extra_packages }}"
-    state: present
-  ignore_errors: true
-  when: user_extra_packages is defined
-

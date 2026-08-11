@@ -2,3 +2,4 @@ editors_packages:
   - neovim
   - xclip
   - wl-clipboard
+  - lldb

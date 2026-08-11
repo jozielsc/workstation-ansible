@@ -20,8 +20,9 @@ devtools_packages:
   - fd
   - ImageMagick
   - ghostscript
-  - lazygit
   - cmake
   - tree-sitter
   - tree-sitter-devel
-  - mosh
+  - delta
+  - broot
+  - bat

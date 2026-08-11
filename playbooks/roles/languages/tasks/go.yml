@@ -4,10 +4,22 @@
     msg: "🦫 LANG: Instalando compilador Go..."
   when: languages_features.golang | default(true)
 
-- name: Instalar Golang
+- name: Instalar Golang (Repository)
+  ansible.builtin.package:
+    name: 
+      - golang
+    state: present
+  when: 
+    - languages_features.golang | default(true)
+    - ansible_facts['os_family'] == 'Debian'
+  tags: [go, golang]
+
+- name: Instalar Golang (Repository)
   ansible.builtin.package:
     name:
       - go
     state: present
+  when: 
+    - languages_features.golang | default(true)
+    - ansible_facts['os_family'] == 'Void'
   tags: [go, golang]
-  when: languages_features.golang | default(true)

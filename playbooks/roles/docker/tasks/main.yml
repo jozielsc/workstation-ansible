@@ -1,25 +1,14 @@
 ---
-- name: Instala Docker (Genérico)
-  ansible.builtin.package:
-    name: docker
-    state: present
+- name: Instalar Docker em Debian/Ubuntu
+  ansible.builtin.include_tasks: debian.yml
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Instalar Docker em Void Linux
+  ansible.builtin.include_tasks: void.yml
+  when: ansible_facts['distribution'] == "Void"
 
 - name: Adiciona usuário ao grupo docker
   ansible.builtin.user:
     name: "{{ user_id }}"
     groups: docker
     append: true
-
-- name: Habilitar serviço docker (Runit/Void)
-  ansible.builtin.file:
-    src: /etc/sv/docker
-    dest: /var/service/docker
-    state: link
-  when: ansible_facts['service_mgr'] == "runit"
-
-- name: Habilitar serviço docker (Systemd)
-  ansible.builtin.service:
-    name: docker
-    state: started
-    enabled: true
-  when: ansible_facts['service_mgr'] == "systemd"

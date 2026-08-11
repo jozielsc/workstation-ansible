@@ -1,0 +1,12 @@
+---
+- name: Instala Docker (Genérico)
+  ansible.builtin.package:
+    name: docker
+    state: present
+
+- name: Habilitar serviço docker (Runit/Void)
+  ansible.builtin.file:
+    src: /etc/sv/docker
+    dest: /var/service/docker
+    state: link
+  when: ansible_facts['service_mgr'] == "runit"

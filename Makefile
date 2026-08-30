@@ -33,17 +33,25 @@ else
 	MSG_MODE  := [EXECUÇÃO]
 endif
 
+.DEFAULT_GOAL := interactive
+
 # --- Comando Base ---
 ANSIBLE_CMD = ansible-playbook $(PLAYBOOK) $(ANS_FLAGS) $(ARGS)
 
-.PHONY: help help-docs local remote tunnel deps lint sandbox sandbox-shell sandbox-clean
+.PHONY: help help-docs interactive menu local remote tunnel deps lint sandbox sandbox-shell sandbox-clean
 
 # --- Targets ---
+
+interactive: menu
+
+menu:
+	@bash scripts/interactive.sh
 
 help:
 	@echo ''
 	@echo '${YELLOW}Workstation Ansible CLI${RESET}'
 	@echo ''
+	@echo '  ${GREEN}make (ou make interactive)${RESET}  Inicia o assistente interativo de provisionamento.'
 	@echo '  ${GREEN}make local${RESET}          Provisiona esta máquina (localhost).'
 	@echo '  ${GREEN}make remote${RESET}         Provisiona servidor remoto via SSH.'
 	@echo '  ${GREEN}make tunnel${RESET}         Provisiona via Bastion Host.'

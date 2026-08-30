@@ -6,6 +6,7 @@ Este projeto visa automatizar a configuração do seu ambiente de desenvolviment
 
 O arquivo `Makefile` é a interface principal:
 
+*   `make` (ou `make interactive` / `make menu`): Inicia o assistente TUI interativo para configurar e provisionar o ambiente passo a passo.
 *   `make local`: Configura a máquina atual (localhost).
 *   `make remote IP=<IP> USER=<USER>`: Configura uma máquina remota via SSH.
 *   `make tunnel IP=<IP> JUMP_IP=<JUMP_IP>`: Configura uma máquina através de um Bastion Host.

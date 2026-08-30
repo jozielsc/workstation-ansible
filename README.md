@@ -81,7 +81,14 @@ Quer testar o provisionamento antes de aplicar em sua máquina pessoal? Use o Sa
 
 2. **Escolha o modo de execução:**
 
-   - **Modo Local (Localhost):**
+   - **Modo Interativo (Recomendado / Padrão):**
+     ```bash
+     make
+     # ou: make interactive
+     ```
+     *Abre o assistente TUI interativo para selecionar modo (Local, Sandbox, Remoto, Tunnel), perfil, tags e simulação (Dry-Run).*
+
+   - **Modo Local Direct (Localhost):**
      ```bash
      make local
      ```
@@ -181,7 +188,14 @@ Want to test provisioning safely before applying to your personal machine? Use t
 
 2. **Run provision mode:**
 
-   - **Local Machine (Localhost):**
+   - **Interactive Wizard (Recommended / Default):**
+     ```bash
+     make
+     # or: make interactive
+     ```
+     *Launches an interactive TUI wizard to select target (Local, Sandbox, Remote, Tunnel), profile, tags, and Dry-Run mode.*
+
+   - **Local Machine Direct (Localhost):**
      ```bash
      make local
      ```

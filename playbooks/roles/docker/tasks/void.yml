@@ -4,9 +4,42 @@
     name: docker
     state: present
 
+- name: Verificar se o service dir runit do docker existe (/etc/sv/docker)
+  ansible.builtin.stat:
+    path: /etc/sv/docker
+  register: docker_sv_dir
+  when: ansible_facts['distribution'] == "Void"
+
+- name: Verificar se o runsvdir ativo está disponível (/var/service)
+  ansible.builtin.stat:
+    path: /var/service/
+    follow: true
+  register: docker_runsvdir
+  when: ansible_facts['distribution'] == "Void"
+
 - name: Habilitar serviço docker (Runit/Void)
   ansible.builtin.file:
     src: /etc/sv/docker
     dest: /var/service/docker
     state: link
-  when: ansible_facts['service_mgr'] == "runit"
+  # No Void o Ansible reporta service_mgr="service" (não "runit"); o mecanismo
+  # nativo é o symlink em /var/service. Só criamos o link se o service dir de
+  # origem existir E o runsvdir de destino estiver ativo. Em containers onde
+  # runit não é o PID 1, /var/service aponta para um alvo inexistente — nesse
+  # caso pulamos (nada a habilitar).
+  when:
+    - ansible_facts['distribution'] == "Void"
+    - docker_sv_dir.stat is defined and docker_sv_dir.stat.exists
+    - docker_runsvdir.stat is defined and docker_runsvdir.stat.exists
+  register: docker_link_result
+  failed_when:
+    - docker_link_result is failed
+    - "'No such file or directory' not in (docker_link_result.msg | default(''))"
+
+- name: Aviso quando o serviço docker não pôde ser habilitado
+  ansible.builtin.debug:
+    msg: "⚠️ Serviço docker não habilitado (service dir ou runsvdir ausente — normal em containers). Num host Void real: 'sudo ln -s /etc/sv/docker /var/service/'."
+  when:
+    - ansible_facts['distribution'] == "Void"
+    - not (docker_sv_dir.stat is defined and docker_sv_dir.stat.exists) or
+      not (docker_runsvdir.stat is defined and docker_runsvdir.stat.exists)

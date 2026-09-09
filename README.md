@@ -22,13 +22,14 @@ Este projeto é uma solução completa de *Infrastructure as Code* (IaC) para pr
 - **Linguagens Modernas (Granular):**
   - **Python:** Gerenciado via [UV](https://github.com/astral-sh/uv) e Pipx.
   - **Node.js:** Pacotes e gerenciadores do sistema.
-  - **Rust:** Instalação oficial via Rustup.
+  - **Rust:** Instalação oficial via Rustup (com *fallback* para o pacote `cargo` do sistema).
   - **Golang:** Compilador Go.
 - **Ambiente Gráfico (Opt-in Especial):** Sway WM, Waybar, Wofi, Notificações e Terminais.
 - **Editores:** Neovim e ferramentas de suporte (`lldb`, utilitários de clipboard).
 - **Docker Ready:** Instalação e configuração de permissões de usuário.
 - **ZSH & Produtividade:** Zsh, Oh-My-Zsh, plugins (autosuggestions, syntax-highlighting) e tema Powerlevel10k.
-- **Dotfiles:** Integração automática com [GNU Stow](https://www.gnu.org/software/stow/) com resolução de pré-requisitos.
+- **Lazygit:** Instalação do binário oficial em qualquer distro (multi-arquitetura: `x86_64`, `arm64`, `armv6`).
+- **Dotfiles:** Integração automática com [GNU Stow](https://www.gnu.org/software/stow/) com resolução de pré-requisitos (sem `--adopt`, preservando o conteúdo versionado do repositório).
 
 ### 📋 Pré-requisitos
 
@@ -136,13 +137,14 @@ This project is a complete Infrastructure as Code (IaC) solution for developer e
 - **Modern Languages (Granular):**
   - **Python:** Managed via [UV](https://github.com/astral-sh/uv) and Pipx.
   - **Node.js:** System packages and package managers.
-  - **Rust:** Official installation via Rustup.
+  - **Rust:** Official installation via Rustup (with a system `cargo` package fallback).
   - **Golang:** Go compiler.
 - **Graphical Environment (Special Opt-in):** Sway WM, Waybar, Wofi, Notifications, and Terminals.
 - **Editors:** Neovim and support tools (`lldb`, clipboard integration).
 - **Docker Ready:** Installation, service configuration, and user permissions.
 - **ZSH & Productivity:** Zsh, Oh-My-Zsh, plugins (autosuggestions, syntax-highlighting), and Powerlevel10k theme.
-- **Dotfiles:** Automated [GNU Stow](https://www.gnu.org/software/stow/) integration with self-contained prerequisite checks.
+- **Lazygit:** Official binary installed on any distro (multi-arch: `x86_64`, `arm64`, `armv6`).
+- **Dotfiles:** Automated [GNU Stow](https://www.gnu.org/software/stow/) integration with self-contained prerequisite checks (no `--adopt`, preserving the repository's tracked content).
 
 ### 📋 Prerequisites
 

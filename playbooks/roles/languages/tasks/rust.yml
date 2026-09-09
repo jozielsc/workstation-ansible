@@ -1,14 +1,43 @@
 ---
 - name: "📌 STATUS: Configurando ambiente Rust"
   ansible.builtin.debug:
-    msg: "🦀 LANG: Instalando Rust (Cargo, Rustc)..."
+    msg: "🦀 LANG: Instalando Rust via Rustup (Cargo, Rustc)..."
   when: languages_features.rust | default(true)
 
-- name: Instalar Rustup (Rust)
+- name: Verificar se o rustup já está instalado
+  ansible.builtin.stat:
+    path: "{{ user_home }}/.cargo/bin/rustup"
+  register: rustup_bin
+  become: false
+  when: languages_features.rust | default(true)
+  tags: [rust]
+
+- name: Instalar Rust via Rustup (instalador oficial)
+  become: false
+  ansible.builtin.shell: |
+    set -o pipefail
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
+  args:
+    creates: "{{ user_home }}/.cargo/bin/rustup"
+    executable: /bin/bash
+  register: rustup_install
+  # Se o instalador oficial falhar (sem rede, sem curl), não aborta: cai no
+  # fallback via pacote da distribuição na task seguinte.
+  failed_when: false
+  when:
+    - languages_features.rust | default(true)
+    - not (rustup_bin.stat is defined and rustup_bin.stat.exists)
+  tags: [rust]
+
+- name: Fallback - instalar Rust/Cargo via pacote do sistema
   ansible.builtin.package:
     name:
-      - cargo 
+      - cargo
     state: present
+  failed_when: false
+  when:
+    - languages_features.rust | default(true)
+    - not (rustup_bin.stat is defined and rustup_bin.stat.exists)
+    - rustup_install is defined
+    - rustup_install is failed or (rustup_install.rc is defined and rustup_install.rc != 0)
   tags: [rust]
-  when: languages_features.rust | default(true)
-

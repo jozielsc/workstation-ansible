@@ -5,16 +5,43 @@
     file_type: directory
     recurse: false
     # Ignora diretórios ocultos como .git
-    patterns: "[!.]*" 
+    patterns: "[!.]*"
   register: found_packages
 
+# NOTA: intencionalmente NÃO usamos --adopt. Com --adopt o stow MOVE arquivos
+# já existentes na home para dentro do repositório de dotfiles, sobrescrevendo
+# o conteúdo versionado com o que estava na máquina — perda de dados silenciosa.
+# Sem --adopt, o stow falha de forma segura em caso de conflito, e tratamos
+# esse conflito explicitamente abaixo, sem abortar o playbook.
 - name: "Executar Stow para {{ repo_item.dest }}"
   become: false
-  ansible.builtin.command: >
-    stow --adopt --verbose --dir={{ repo_item.dest }} --target={{ user_home }} {{ item.path | basename }}
+  ansible.builtin.command:
+    cmd: >-
+      stow --verbose --no-folding
+      --dir={{ repo_item.dest }}
+      --target={{ user_home }}
+      {{ item.path | basename }}
   loop: "{{ found_packages.files }}"
-  changed_when: "'LINK: ' in stow_result.stderr"
+  loop_control:
+    label: "{{ item.path | basename }}"
   register: stow_result
-  failed_when: 
+  # 'LINK:' aparece no stderr quando o stow efetivamente cria symlinks.
+  changed_when: "'LINK: ' in stow_result.stderr"
+  # Não aborta em conflito de arquivo já existente; apenas em erros reais.
+  failed_when:
     - stow_result.rc != 0
-    - '"BUG" not in stow_result.stderr' # Ignora bugs conhecidos do stow se necessário
+    - "'existing target' not in stow_result.stderr"
+    - "'BUG' not in stow_result.stderr"
+
+- name: "Reportar conflitos de Stow em {{ repo_item.dest }}"
+  ansible.builtin.debug:
+    msg: >-
+      ⚠️ Pacote '{{ item.item.path | basename }}' possui alvos já existentes na home
+      e não foi aplicado (sem --adopt para não sobrescrever). Resolva manualmente
+      ou faça backup e remova os arquivos conflitantes antes de reexecutar.
+  loop: "{{ stow_result.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.path | basename }}"
+  when:
+    - item.rc is defined and item.rc != 0
+    - "'existing target' in (item.stderr | default(''))"

@@ -57,9 +57,8 @@
 
 - name: Instalar Lazygit (Custom/Binary)
   ansible.builtin.include_tasks: install_lazygit.yml
-  when: 
+  when:
     - devtools_features.lazygit | default(false)
-    - ansible_facts['os_family'] == 'Debian'
 
 - name: Clonar plugins do Tmux (TPM)
   become: false

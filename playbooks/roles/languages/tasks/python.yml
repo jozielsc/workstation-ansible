@@ -7,9 +7,9 @@
 - name: Instalar UV (Python Package Manager)
   ansible.builtin.shell: |
     set -o pipefail
-    curl -LsSf https://astral.sh/uv/install.sh | sh
+    curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="{{ user_home }}/.local/bin" sh
   args:
-    creates: "{{ user_home }}/.cargo/bin/uv"
+    creates: "{{ user_home }}/.local/bin/uv"
     executable: /bin/bash
   become: false
   tags: [python, uv]

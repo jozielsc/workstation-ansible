@@ -2,3 +2,5 @@
 profiles/local.yml
 profiles/local.yaml
 *.retry
+
+.envrc

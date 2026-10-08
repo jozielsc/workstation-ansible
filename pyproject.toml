@@ -20,5 +20,5 @@ dev = [
 
 [tool.uv]
 # Projeto Ansible, não um pacote Python: o uv só gerencia o ambiente de
-# desenvolvimento (ansible, ansible-lint, molecule).
+# desenvolvimento (ansible, ansible-lint, yamllint, shellcheck-py, molecule).
 package = false

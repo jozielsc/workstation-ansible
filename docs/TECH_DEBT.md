@@ -27,6 +27,7 @@ Legenda de evidência:
 | B11 | O instalador do uv e o `pipx ensurepath` podem alterar `~/.bashrc`, `~/.zshrc` e `~/.profile` antes do stow, gerando conflitos que fazem pacotes de dotfiles serem pulados | `python.yml` + `dotfiles` | A verificar | #18 |
 | B12 | `USER ?= $(shell whoami)` nunca vale, porque `USER` sempre existe no ambiente: `remote`/`tunnel` usam o `$USER` do shell como usuário SSH, e a doc o apresenta como opcional | `Makefile` | Confirmado (`make -n remote IP=x`) | #35 |
 | B13 | Um pacote de dotfiles com conflito reporta `changed` sem alterar nada: com `--verbose`, o stow imprime os `LINK:` planejados antes de abortar, e o `changed_when` só procura `LINK: `. Com um conflito, a execução nunca chega a `changed=0`. Além disso, o `failed_when` aceita qualquer rc != 0 com `BUG` no stderr, e o relatório só mostra `existing target`: um erro interno do stow deixa o pacote sem aplicar e o play termina verde, sem aviso | `dotfiles/tasks/stow_repo.yml` | `changed`: Confirmado (sandbox void); `BUG`: Confirmado (leitura) | #39 |
+| B14 | No modo `cli` do wizard, uma seleção com zero à esquerda é lida como octal: `08`/`09` abortam o script (`set -e`) e `010` escolhe o item 8. Além disso, `idx` vaza para o escopo global em `tui_checklist` | `scripts/interactive.sh` (`tui_menu`, `tui_checklist`) | Confirmado (`bash -c 'num=08; echo $((num-1))'`) | #44 |
 
 ## Inconsistências de configuração
 
@@ -58,7 +59,6 @@ Legenda de evidência:
 
 - `make deps` referencia um `requirements.yml` que não existe. (#20)
 - As collections não são declaradas em lugar nenhum, e o `community.general` é dependência implícita no Void e no Arch. Detalhes em [ARCHITECTURE.md](ARCHITECTURE.md#collections-ansible-necessárias-no-controlador). (#20)
-- O `.shellcheckrc` desabilita SC2034 e SC2004 por causa de violações herdadas em `scripts/interactive.sh`, então novas ocorrências dessas regras não são detectadas. (#41)
 - O CI só roda o `make lint`. Não há CI do provisionamento, testes de idempotência (rodar duas vezes e conferir `changed=0`) nem verificação depois do provisionamento. (#29)
 - O sandbox só tem Void e Ubuntu e não tem init, então RedHat, Arch e os caminhos de serviço não são testados. (#9, #29)
 - Não há checagem de distro suportada no início do play. Uma distro desconhecida cai nos fallbacks mínimos sem aviso. (#10)

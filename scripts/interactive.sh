@@ -11,7 +11,6 @@ BOLD='\033[1m'
 GREEN='\033[0;32m'
 CYAN='\033[0;36m'
 YELLOW='\033[1;33m'
-RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # --- Root Dir Resolution ---
@@ -130,8 +129,8 @@ tui_checklist() {
         [ "$show_back" = "1" ] && echo -e "${YELLOW}Enter 'b' to go Back, 'c' to Cancel.${NC}\n"
         for idx in "${!items[@]}"; do
             local mark="[ ]"
-            [ "${statuses[$idx]}" = "ON" ] && mark="[X]"
-            echo -e "  ${CYAN}[$((idx+1))]${NC} $mark ${items[$idx]} - ${descs[$idx]}"
+            [ "${statuses[idx]}" = "ON" ] && mark="[X]"
+            echo -e "  ${CYAN}[$((idx+1))]${NC} $mark ${items[idx]} - ${descs[idx]}"
         done
         echo ""
         read -rp "Enter selection: " selections
@@ -149,10 +148,10 @@ tui_checklist() {
                     for num in $selections; do
                         if [[ "$num" =~ ^[0-9]+$ ]] && [ "$num" -ge 1 ] && [ "$num" -le "${#items[@]}" ]; then
                             local idx=$((num-1))
-                            if [ "${statuses[$idx]}" = "ON" ]; then
-                                statuses[$idx]="OFF"
+                            if [ "${statuses[idx]}" = "ON" ]; then
+                                statuses[idx]="OFF"
                             else
-                                statuses[$idx]="ON"
+                                statuses[idx]="ON"
                             fi
                         fi
                     done
@@ -161,7 +160,7 @@ tui_checklist() {
         esac
         local selected=()
         for idx in "${!items[@]}"; do
-            [ "${statuses[$idx]}" = "ON" ] && selected+=("${items[$idx]}")
+            [ "${statuses[idx]}" = "ON" ] && selected+=("${items[idx]}")
         done
         out="${selected[*]}"
     fi

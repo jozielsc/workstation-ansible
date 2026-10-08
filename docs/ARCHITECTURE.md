@@ -129,7 +129,7 @@ Uma lista com um pacote inexistente não aborta o play: a instalação passa a s
 Pacotes `zsh` e `git`, shell padrão `/bin/zsh` para `user_id`, e `git clone` (branch `master`) de Oh-My-Zsh, Powerlevel10k e dos plugins `zsh-autosuggestions`, `zsh-syntax-highlighting` e `zsh-completions`. Não gera `.zshrc`; isso fica a cargo dos dotfiles.
 
 ### ui (opt-in)
-Pacotes Sway/Wayland por distro. Se `ui_features.fonts` estiver ativo, baixa a JetBrainsMono Nerd Font (release fixo `v3.0.2`) para `~/.local/share/fonts` e, logo em seguida, roda `fc-cache` só nessa pasta, apenas quando o download rodou (`ui_nerdfont_download` definido e não pulado). É uma task, e não um handler, para rodar logo depois do download sem precisar de `meta: flush_handlers`, que vale para o play inteiro.
+Pacotes Sway/Wayland por distro. Se `ui_features.fonts` estiver ativo, baixa a JetBrainsMono Nerd Font (release fixo `v3.0.2`) para `~/.local/share/fonts` e, logo em seguida, roda `fc-cache` só nessa pasta, apenas quando o download rodou (`ui_nerdfont_download` definido e não pulado). É uma task, e não um handler, para rodar logo depois do download sem precisar de `meta: flush_handlers`, que vale para o play inteiro. A condição é `is not skipped`, e não `is changed`, porque `is changed` dispara a regra `no-handler` do ansible-lint. Por isso o `fc-cache` roda sempre que o download roda, mesmo se o `unarchive` não mudou nada (por exemplo, com o zip já parcialmente extraído), o que só custa uma reconstrução de cache a mais.
 
 ### editors
 Neovim, ferramentas de clipboard (`xclip`, `wl-clipboard`) e `lldb` (exceto Void).

@@ -4,7 +4,8 @@
 # comentário).
 name: CI
 
-on:
+# Entre aspas: sem elas o YAML 1.1 lê `on` como booleano (regra truthy).
+"on":
   pull_request:
   push:
     branches: [main]
@@ -12,16 +13,20 @@ on:
 permissions:
   contents: read
 
-# Num PR, um push novo cancela o lint anterior. Na main não: cada commit
-# mergeado precisa do próprio resultado.
+# Num PR, um push novo cancela o lint anterior. Na main, cada commit mergeado
+# precisa do próprio resultado: o grupo é por commit, porque o GitHub mantém só
+# um run pendente por grupo e cancelaria os intermediários mesmo sem
+# cancel-in-progress.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   lint:
     name: lint
     runs-on: ubuntu-latest
+    # O job leva ~20 s; o default do GitHub é 360 min.
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

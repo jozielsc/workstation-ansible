@@ -123,7 +123,10 @@ REQUIRE_UV  = @command -v uv >/dev/null 2>&1 || { \
 # As mesmas checagens do CI (.github/workflows/ci.yml), em sequência: a
 # primeira que falhar interrompe as seguintes. O --syntax-check repete uma
 # regra do ansible-lint, mas é rápido e dá um erro claro antes dele. O
-# shellcheck recebe todo *.sh versionado, em qualquer pasta.
+# yamllint direto cobre também o YAML que não é de Ansible (workflows,
+# configs). O shellcheck recebe todo *.sh versionado, em qualquer pasta; se o
+# git ls-files falhar (fora de um clone git), a etapa falha em vez de passar
+# sem checar nada.
 lint:
 	$(REQUIRE_UV)
 	@echo "${GREEN}>> Verificando a sintaxe do playbook...${RESET}"
@@ -133,7 +136,9 @@ lint:
 	@echo "${GREEN}>> Executando yamllint...${RESET}"
 	$(UV_RUN) yamllint --strict .
 	@echo "${GREEN}>> Executando shellcheck...${RESET}"
-	git ls-files -z '*.sh' | xargs -0 -r $(UV_RUN) shellcheck
+	@files=$$(git ls-files '*.sh') || { echo "Erro: git ls-files falhou; o shellcheck precisa de um clone git." >&2; exit 1; }; \
+		echo "$(UV_RUN) shellcheck $$files"; \
+		[ -z "$$files" ] || $(UV_RUN) shellcheck $$files
 
 test:
 	$(REQUIRE_UV)

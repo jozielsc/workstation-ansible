@@ -15,7 +15,6 @@ Legenda de evidência:
 
 | # | Item | Onde | Evidência | Issue |
 |---|---|---|---|---|
-| B1 | `make remote` sem `IP=` roda contra `localhost` via SSH: o `IP ?= localhost` deixa o `ifndef IP` sem efeito | `Makefile` | Confirmado (`make -n remote`) | #11 |
 | B2 | `make sandbox` ignora `DRY=1` (monta um comando próprio sem `ANS_FLAGS`), mas o wizard oferece dry-run para o sandbox | `Makefile`, `scripts/interactive.sh` | Confirmado (`make -n sandbox DRY=1`) | #12 |
 | B3 | Em RedHat e Arch, a role docker não instala nada e depois tenta adicionar o usuário ao grupo `docker`, que não existe | `roles/docker/tasks/main.yml` | Confirmado (leitura) | #7 |
 | B4 | Go não é instalado em RedHat nem Arch, sem aviso | `roles/languages/tasks/go.yml` | Confirmado (leitura) | #8 |
@@ -26,6 +25,7 @@ Legenda de evidência:
 | B9 | `make local DRY=1` deve falhar no Lazygit: `tempfile` não suporta check mode (é pulado), então `lazygit_temp.path` fica indefinido no `unarchive` | `install_lazygit.yml` | Provável | #13 |
 | B10 | A mensagem diz "Node.js e NPM", mas `npm` é um pacote separado em Debian e Arch e não é instalado | `node.yml` | Provável | #17 |
 | B11 | O instalador do uv e o `pipx ensurepath` podem alterar `~/.bashrc`, `~/.zshrc` e `~/.profile` antes do stow, gerando conflitos que fazem pacotes de dotfiles serem pulados | `python.yml` + `dotfiles` | A verificar | #18 |
+| B12 | `USER ?= $(shell whoami)` nunca vale, porque `USER` sempre existe no ambiente: `remote`/`tunnel` usam o `$USER` do shell como usuário SSH, e a doc o apresenta como opcional | `Makefile` | Confirmado (`make -n remote IP=x`) | #35 |
 
 ## Inconsistências de configuração
 

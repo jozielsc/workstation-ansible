@@ -26,7 +26,7 @@ Legenda de evidência:
 | B10 | A mensagem diz "Node.js e NPM", mas `npm` é um pacote separado em Debian e Arch e não é instalado | `node.yml` | Provável | #17 |
 | B11 | O instalador do uv e o `pipx ensurepath` podem alterar `~/.bashrc`, `~/.zshrc` e `~/.profile` antes do stow, gerando conflitos que fazem pacotes de dotfiles serem pulados | `python.yml` + `dotfiles` | A verificar | #18 |
 | B12 | `USER ?= $(shell whoami)` nunca vale, porque `USER` sempre existe no ambiente: `remote`/`tunnel` usam o `$USER` do shell como usuário SSH, e a doc o apresenta como opcional | `Makefile` | Confirmado (`make -n remote IP=x`) | #35 |
-| B13 | Um pacote de dotfiles com conflito reporta `changed` sem alterar nada: com `--verbose`, o stow imprime os `LINK:` planejados antes de abortar, e o `changed_when` só procura `LINK: `. Com um conflito, a execução nunca chega a `changed=0` | `dotfiles/tasks/stow_repo.yml` | Confirmado (sandbox void) | #39 |
+| B13 | Um pacote de dotfiles com conflito reporta `changed` sem alterar nada: com `--verbose`, o stow imprime os `LINK:` planejados antes de abortar, e o `changed_when` só procura `LINK: `. Com um conflito, a execução nunca chega a `changed=0`. Além disso, o `failed_when` aceita qualquer rc != 0 com `BUG` no stderr, e o relatório só mostra `existing target`: um erro interno do stow deixa o pacote sem aplicar e o play termina verde, sem aviso | `dotfiles/tasks/stow_repo.yml` | `changed`: Confirmado (sandbox void); `BUG`: Confirmado (leitura) | #39 |
 
 ## Inconsistências de configuração
 
@@ -37,7 +37,7 @@ Legenda de evidência:
 - O alvo `help` do Makefile não lista as tags `editors` e `ui`. (#25)
 - As listas de pacotes divergem entre distros: Debian e RedHat não têm `delta`, `broot`, `tree-sitter` nem `kubectl`. Void não tem `lldb`. No Debian, `fd` e `bat` ficam como `fdfind` e `batcat`, sem alias. (#21)
 - O repositório Docker usa `distribution | lower`, o que quebra em derivados do Ubuntu e do Debian (Mint, Pop!_OS). (#22)
-- `fc-cache` (ui) depende de fontconfig, que não está na lista de pacotes. (#23)
+- A fonte da role `ui` depende de fontconfig (`fc-cache`) e de `unzip` (extração do zip), que não estão nas listas de pacotes da `ui`. O `unzip` vem da `devtools`, então `TAGS=ui` sozinho falha numa instalação mínima (confirmado no sandbox `void` e `ubuntu`). (#23)
 
 ## Duplicações
 

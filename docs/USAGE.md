@@ -20,7 +20,7 @@ O arquivo `Makefile` é a interface principal:
 *   `make deps`: Deveria instalar as dependências do Galaxy, mas hoje não faz nada, porque não existe `requirements.yml` (#20). Veja como obter as collections em [ARCHITECTURE.md](ARCHITECTURE.md#collections-ansible-necessárias-no-controlador).
 *   `make lint`: Executa o `ansible-lint` no repositório (`uv run ansible-lint`).
 *   `make test`: Executa o cenário Molecule (`uv run molecule test`). Enquanto o cenário não existir (#34), para com uma mensagem.
-*   `make check`: Executa `lint` e depois `test`.
+*   `make check`: Executa `lint` e, se ele passar, `test`.
 
 `lint`, `test` e `check` usam o ambiente de desenvolvimento do [uv](https://docs.astral.sh/uv/) (`pyproject.toml`). Rode `uv sync` uma vez antes. O Molecule é um teste adicional: não substitui o `make sandbox`.
 

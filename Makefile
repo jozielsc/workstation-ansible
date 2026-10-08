@@ -79,20 +79,31 @@ deps:
 
 # --- Lint e testes (ambiente de desenvolvimento gerenciado pelo uv) ---
 # O molecule é um teste adicional: não substitui o make sandbox.
+# --locked: usa exatamente as versões do uv.lock e falha se ele estiver
+# desatualizado, em vez de re-resolver em silêncio.
+UV_RUN     := uv run --locked
+REQUIRE_UV  = @command -v uv >/dev/null 2>&1 || { \
+		echo "Erro: uv não encontrado. Instale-o (https://docs.astral.sh/uv/) e rode 'uv sync'." >&2; \
+		exit 1; }
 
 lint:
+	$(REQUIRE_UV)
 	@echo "${GREEN}>> Executando Ansible Lint...${RESET}"
-	uv run ansible-lint
+	$(UV_RUN) ansible-lint
 
 test:
-	@if [ ! -f molecule/default/molecule.yml ]; then \
-		echo "${YELLOW}Erro: cenário molecule ainda não existe (molecule/default/molecule.yml). Veja a issue #34.${RESET}"; \
+	$(REQUIRE_UV)
+	@if ! ls molecule/*/molecule.yml >/dev/null 2>&1; then \
+		echo "Erro: nenhum cenário molecule encontrado (molecule/*/molecule.yml). Veja a issue #34." >&2; \
 		exit 1; \
 	fi
 	@echo "${GREEN}>> Executando testes Molecule...${RESET}"
-	uv run molecule test
+	$(UV_RUN) molecule test
 
-check: lint test
+# Sequencial mesmo com make -j: o test só roda se o lint passar.
+check:
+	@$(MAKE) --no-print-directory lint
+	@$(MAKE) --no-print-directory test
 
 local:
 	@echo "${GREEN}>> Iniciando $(MSG_MODE) LOCAL [Tags: $(TAGS)]...${RESET}"

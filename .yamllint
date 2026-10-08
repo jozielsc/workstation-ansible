@@ -5,7 +5,7 @@
 # `octal-values` são exigidos por ele, que avisa se a config for incompatível.
 extends: default
 
-# Ignora o que não é versionado (.venv/, profiles/local.yml).
+# Ignora o que não é versionado (.venv/, .ansible/, profiles/local.yml).
 ignore-from-file: .gitignore
 
 rules:

@@ -72,16 +72,16 @@ Quer testar o provisionamento antes de aplicar em sua máquina pessoal? Use o Sa
 
 #### Lint e testes (desenvolvimento)
 
-As ferramentas de desenvolvimento (`ansible`, `ansible-lint`, `molecule`) são gerenciadas pelo [uv](https://docs.astral.sh/uv/) via `pyproject.toml`:
+As ferramentas de desenvolvimento (`ansible`, `ansible-lint`, `yamllint`, `shellcheck`, `molecule`) são gerenciadas pelo [uv](https://docs.astral.sh/uv/) via `pyproject.toml`:
 
 ```bash
 uv sync      # cria o .venv com as ferramentas
-make lint    # uv run ansible-lint
+make lint    # syntax-check, ansible-lint, yamllint e shellcheck
 make test    # uv run molecule test (o cenário ainda está na issue #34)
 make check   # lint + test
 ```
 
-O Molecule é um teste **adicional**: não substitui o Sandbox acima.
+O CI (GitHub Actions) roda o mesmo `make lint` em todo PR e em push na `main`. O Molecule é um teste **adicional**: não substitui o Sandbox acima.
 
 ---
 
@@ -193,16 +193,16 @@ Want to test provisioning safely before applying to your personal machine? Use t
 
 #### Lint and tests (development)
 
-Development tools (`ansible`, `ansible-lint`, `molecule`) are managed by [uv](https://docs.astral.sh/uv/) through `pyproject.toml`:
+Development tools (`ansible`, `ansible-lint`, `yamllint`, `shellcheck`, `molecule`) are managed by [uv](https://docs.astral.sh/uv/) through `pyproject.toml`:
 
 ```bash
 uv sync      # creates .venv with the tools
-make lint    # uv run ansible-lint
+make lint    # syntax-check, ansible-lint, yamllint and shellcheck
 make test    # uv run molecule test (the scenario is still tracked in issue #34)
 make check   # lint + test
 ```
 
-Molecule is an **additional** test: it does not replace the Sandbox above.
+CI (GitHub Actions) runs the same `make lint` on every PR and on pushes to `main`. Molecule is an **additional** test: it does not replace the Sandbox above.
 
 ---
 
@@ -263,7 +263,8 @@ Run specific components using `TAGS`:
 ```plaintext
 workstation-ansible/
 ├── Makefile              # Task runner CLI helper (includes sandbox, lint and test targets)
-├── pyproject.toml        # uv dev environment (ansible, ansible-lint, molecule) + uv.lock
+├── pyproject.toml        # uv dev environment (ansible, linters, molecule) + uv.lock
+├── .github/workflows/    # CI: make lint on PRs and pushes to main
 ├── README.md             # Documentation (Bilingual)
 ├── profiles/             # Configuration profiles (default.yml, local.sample.yml)
 ├── playbooks/

@@ -28,7 +28,7 @@ jobs:
     # O job leva ~20 s; o default do GitHub é 360 min.
     timeout-minutes: 10
     steps:
-      - name: Checkout
+      - name: Baixar o repositório
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -36,6 +36,9 @@ jobs:
       - name: Instalar o uv
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
+          # Versão fixa, para que um release novo do uv não mude o CI sem
+          # mudança no repositório. Atualize junto com o uv local.
+          version: "0.12.3"
           enable-cache: true
 
       - name: Instalar as dependências de desenvolvimento

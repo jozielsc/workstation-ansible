@@ -6,13 +6,15 @@
 extends: default
 
 # O que não é versionado. Lista explícita, e não ignore-from-file: .gitignore,
-# porque esse caminho é resolvido a partir do diretório atual e quebraria o
-# yamllint rodado de uma subpasta (por um editor, por exemplo).
+# porque esse caminho é resolvido a partir do diretório atual e o yamllint
+# falharia rodado fora da raiz. Os padrões com `/` no meio casam com o
+# caminho como foi passado: o `**/` cobre a raiz e o caminho absoluto que um
+# editor passa, mas não `cd profiles && yamllint local.yml`.
 ignore: |
   .venv/
   .ansible/
-  profiles/local.yml
-  profiles/local.yaml
+  **/profiles/local.yml
+  **/profiles/local.yaml
 
 rules:
   comments:

@@ -55,7 +55,6 @@ Legenda de evidência:
 
 ## Ferramentas e qualidade
 
-- `stdout_callback = yaml` (`community.general.yaml`) está deprecated, com remoção no community.general 12.0.0. (#27)
 - `make deps` referencia um `requirements.yml` que não existe. (#20)
 - `make lint` cobre só `playbooks/*.yml` e depende do `ansible-lint`. Não há config de lint nem `shellcheck` para o wizard. (#28)
 - Não há CI, testes de idempotência (rodar duas vezes e conferir `changed=0`) nem verificação depois do provisionamento. (#28, #29)

@@ -10,13 +10,18 @@
   pre_tasks:
     - name: Carregar variáveis do perfil
       ansible.builtin.include_vars:
-        file: "../profiles/{{ profile }}.yml"
+        file: "{{ playbook_dir }}/../profiles/{{ profile }}.yml"
       tags: ['always']
 
     - name: Carregar sobrescritas locais (local.yml)
       ansible.builtin.include_vars:
-        file: "../profiles/local.yml"
-      ignore_errors: true
+        file: "{{ _local_profile_file }}"
+      vars:
+        _local_profile_file: "{{ playbook_dir }}/../profiles/local.yml"
+      # O local.yml é opcional (gitignored). O teste roda no controller, onde o
+      # include_vars lê o arquivo. Se existir mas for inválido (ou for um
+      # symlink quebrado), o play falha.
+      when: _local_profile_file is file or _local_profile_file is link
       tags: ['always']
 
     - name: Determinar diretório home e user do usuário real (sem sudo)

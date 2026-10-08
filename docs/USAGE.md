@@ -75,7 +75,7 @@ Os perfis definem pacotes extras e ativam/desativam recursos.
 
 *   **Padrão (`profiles/default.yml`)**: Define a habilitação de recursos base e linguagens.
 *   **Mapeamento por Distribuição (`playbooks/roles/*/vars/`)**: Pacotes do sistema são gerenciados automaticamente pelo SO detectado (`Debian.yml`, `Void.yml`, `RedHat.yml`, `Archlinux.yml`).
-*   **Personalização Local (`profiles/local.yml`)**: Crie copiando `cp profiles/local.sample.yml profiles/local.yml`. Edite as variáveis `devtools_extra_packages`, `editors_extra_packages`, `ui_extra_packages` para adicionar ferramentas pessoais.
+*   **Personalização Local (`profiles/local.yml`)**: Crie copiando `cp profiles/local.sample.yml profiles/local.yml`. Edite as variáveis `devtools_extra_packages`, `editors_extra_packages`, `ui_extra_packages` para adicionar ferramentas pessoais. O arquivo é opcional, mas, se existir, precisa ser YAML válido: um `local.yml` quebrado faz qualquer execução falhar logo no início.
 
 ---
 

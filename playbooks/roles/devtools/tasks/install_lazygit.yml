@@ -1,7 +1,7 @@
 ---
 - name: Mapear arquitetura para o release do Lazygit
   ansible.builtin.set_fact:
-    _lazygit_arch_map:
+    _devtools_lazygit_arch_map:
       x86_64: Linux_x86_64
       aarch64: Linux_arm64
       armv7l: Linux_armv6
@@ -9,38 +9,41 @@
 
 - name: Definir arquitetura alvo do Lazygit
   ansible.builtin.set_fact:
-    _lazygit_arch: "{{ _lazygit_arch_map[ansible_facts['architecture']] | default('') }}"
+    _devtools_lazygit_arch: "{{ _devtools_lazygit_arch_map[ansible_facts['architecture']] | default('') }}"
 
 - name: Avisar quando a arquitetura não é suportada pelo Lazygit
   ansible.builtin.debug:
     msg: "⚠️ Arquitetura '{{ ansible_facts['architecture'] }}' não mapeada para o Lazygit; instalação ignorada."
-  when: _lazygit_arch | length == 0
+  when: _devtools_lazygit_arch | length == 0
 
 - name: Instalar Lazygit (binário oficial)
-  when: _lazygit_arch | length > 0
+  when: _devtools_lazygit_arch | length > 0
   block:
     - name: Descobrir última versão do Lazygit
       ansible.builtin.uri:
         url: https://api.github.com/repos/jesseduffield/lazygit/releases/latest
         return_content: true
-      register: lazygit_release
+      register: devtools_lazygit_release
       check_mode: false
 
     - name: Criar diretório temporário para Lazygit
       ansible.builtin.tempfile:
         state: directory
         suffix: lazygit
-      register: lazygit_temp
+      register: devtools_lazygit_temp
 
     - name: Baixar e extrair Lazygit
       ansible.builtin.unarchive:
-        src: "https://github.com/jesseduffield/lazygit/releases/download/{{ lazygit_release.json.tag_name }}/lazygit_{{ lazygit_release.json.tag_name | regex_replace('^v', '') }}_{{ _lazygit_arch }}.tar.gz"
-        dest: "{{ lazygit_temp.path }}"
+        src: "https://github.com/jesseduffield/lazygit/releases/download/{{ _devtools_lazygit_tag }}/{{ _devtools_lazygit_tarball }}"
+        dest: "{{ devtools_lazygit_temp.path }}"
         remote_src: true
+      vars:
+        _devtools_lazygit_tag: "{{ devtools_lazygit_release.json.tag_name }}"
+        _devtools_lazygit_tarball: "lazygit_{{ _devtools_lazygit_tag | regex_replace('^v', '') }}_{{ _devtools_lazygit_arch }}.tar.gz"
 
     - name: Instalar binário do Lazygit
       ansible.builtin.copy:
-        src: "{{ lazygit_temp.path }}/lazygit"
+        src: "{{ devtools_lazygit_temp.path }}/lazygit"
         dest: /usr/local/bin/lazygit
         mode: '0755'
         remote_src: true
@@ -49,6 +52,6 @@
   always:
     - name: Remover diretório temporário
       ansible.builtin.file:
-        path: "{{ lazygit_temp.path }}"
+        path: "{{ devtools_lazygit_temp.path }}"
         state: absent
-      when: lazygit_temp.path is defined
+      when: devtools_lazygit_temp.path is defined

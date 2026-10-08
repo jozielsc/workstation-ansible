@@ -38,7 +38,9 @@
 
 - name: Aviso quando o serviço docker não pôde ser habilitado
   ansible.builtin.debug:
-    msg: "⚠️ Serviço docker não habilitado (service dir ou runsvdir ausente — normal em containers). Num host Void real: 'sudo ln -s /etc/sv/docker /var/service/'."
+    msg: >-
+      ⚠️ Serviço docker não habilitado (service dir ou runsvdir ausente — normal em containers).
+      Num host Void real: 'sudo ln -s /etc/sv/docker /var/service/'.
   when:
     - ansible_facts['distribution'] == "Void"
     - not (docker_sv_dir.stat is defined and docker_sv_dir.stat.exists) or

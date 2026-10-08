@@ -39,8 +39,8 @@ Um único play, `hosts: all`, `become: true`, `gather_facts: true`.
 
 `pre_tasks`, todos com tag `always`, então rodam com qualquer `--tags`:
 
-1. `include_vars ../profiles/{{ profile }}.yml`: falha se o perfil não existir.
-2. `include_vars ../profiles/local.yml` com `ignore_errors: true`: overrides pessoais, fora do Git.
+1. `include_vars {{ playbook_dir }}/../profiles/{{ profile }}.yml`: falha se o perfil não existir.
+2. `include_vars {{ playbook_dir }}/../profiles/local.yml`, só quando o arquivo existe (`when: … is file or … is link`, avaliado no controller): overrides pessoais, fora do Git. Um `local.yml` que existe mas é inválido (YAML quebrado, conteúdo que não é dicionário, symlink quebrado) faz o play falhar logo no início.
 3. `shell: echo $HOME && whoami` com `become: false`, registrado como `real_user_info`. Roda também em check mode.
 4. `set_fact user_home` / `user_id`.
 
@@ -129,7 +129,7 @@ Uma lista com um pacote inexistente não aborta o play: a instalação passa a s
 Pacotes `zsh` e `git`, shell padrão `/bin/zsh` para `user_id`, e `git clone` (branch `master`) de Oh-My-Zsh, Powerlevel10k e dos plugins `zsh-autosuggestions`, `zsh-syntax-highlighting` e `zsh-completions`. Não gera `.zshrc`; isso fica a cargo dos dotfiles.
 
 ### ui (opt-in)
-Pacotes Sway/Wayland por distro. Se `ui_features.fonts` estiver ativo, baixa a JetBrainsMono Nerd Font (release fixo `v3.0.2`) para `~/.local/share/fonts` e roda `fc-cache`.
+Pacotes Sway/Wayland por distro. Se `ui_features.fonts` estiver ativo, baixa a JetBrainsMono Nerd Font (release fixo `v3.0.2`) para `~/.local/share/fonts` e, logo em seguida, roda `fc-cache` só nessa pasta, apenas quando o download rodou (`ui_nerdfont_download` definido e não pulado). É uma task, e não um handler, para rodar logo depois do download sem precisar de `meta: flush_handlers`, que vale para o play inteiro. A condição é `is not skipped`, e não `is changed`, porque `is changed` dispara a regra `no-handler` do ansible-lint. Por isso o `fc-cache` roda sempre que o download roda, mesmo se o `unarchive` não mudou nada (por exemplo, com o zip já parcialmente extraído), o que só custa uma reconstrução de cache a mais.
 
 ### editors
 Neovim, ferramentas de clipboard (`xclip`, `wl-clipboard`) e `lldb` (exceto Void).
@@ -200,4 +200,4 @@ Estado do código na v1.2.1 (2026-10). Atualize esta tabela quando a cobertura m
 - Ferramentas de desenvolvimento vêm do grupo `dev` do uv (`pyproject.toml`, `uv.lock`; `uv sync`). O projeto não é um pacote Python (`[tool.uv] package = false`). `make lint` roda `uv run --locked ansible-lint` no repositório inteiro; `make test` roda `uv run --locked molecule test`; `make check` roda os dois em sequência (o test só roda se o lint passar). O `--locked` garante as versões do `uv.lock`. O cenário Molecule ainda não existe (#34) e, quando existir, é **adicional** ao sandbox. Os targets de provisionamento (`local`, `remote`, `tunnel`, `sandbox`) continuam usando o Ansible do sistema, então lint e testes rodam com outro ansible-core e outras collections (#38).
 - As imagens do sandbox criam o usuário `dev` com sudo NOPASSWD e mantêm o container vivo com `tail -f /dev/null`. Não há init, então caminhos de serviço (systemd e runit) não são exercitados.
 - Para adicionar uma distro ao sandbox, crie `tests/sandbox/Dockerfile.<nome>` com `python3`, `sudo` e o usuário `dev`. O Makefile detecta o arquivo pelo nome.
-- Verificações estáticas disponíveis: `ansible-playbook … --syntax-check`, `--list-tasks`, `--list-tags` e `make -n <target>`. `make lint` usa o `ansible-lint` do uv.
+- Verificações estáticas disponíveis: `ansible-playbook … --syntax-check`, `--list-tasks`, `--list-tags` e `make -n <target>`. `make lint` usa o `ansible-lint` do uv e passa sem falhas (perfil `production`, sem config nem exceções). Variáveis criadas por `register`/`set_fact` dentro de uma role levam o prefixo da role (`devtools_lazygit_release`; `_devtools_lazygit_arch` para fatos internos), como exige a regra `var-naming[no-role-prefix]`.

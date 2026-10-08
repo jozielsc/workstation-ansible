@@ -65,7 +65,7 @@
   become: false
   ansible.builtin.stat:
     path: "{{ user_home }}/.local/share/fonts/JetBrainsMonoNerdFont-Regular.ttf"
-  register: nerdfont_check
+  register: ui_nerdfont_check
   when: ui_features.fonts | default(false)
 
 - name: Baixar JetBrainsMono Nerd Font
@@ -73,16 +73,20 @@
   ansible.builtin.unarchive:
     src: https://github.com/ryanoasis/nerd-fonts/releases/download/v3.0.2/JetBrainsMono.zip
     dest: "{{ user_home }}/.local/share/fonts"
-    remote_src: yes
-  when: 
+    remote_src: true
+  register: ui_nerdfont_download
+  when:
     - ui_features.fonts | default(false)
-    - nerdfont_check.stat is defined
-    - not nerdfont_check.stat.exists
+    - ui_nerdfont_check.stat is defined
+    - not ui_nerdfont_check.stat.exists
 
 - name: Atualizar cache de fontes
   become: false
-  ansible.builtin.command: fc-cache -f -v
-  when: 
-    - ui_features.fonts | default(false)
-    - nerdfont_check.stat is defined
-    - not nerdfont_check.stat.exists
+  ansible.builtin.command: fc-cache -f "{{ user_home }}/.local/share/fonts"
+  # Só roda quando o download rodou (a fonte acabou de ser baixada; se ele
+  # falhar, o play já parou). Uma task, e não um handler, para rodar logo
+  # após o download sem depender de flush_handlers.
+  changed_when: true
+  when:
+    - ui_nerdfont_download is defined
+    - ui_nerdfont_download is not skipped

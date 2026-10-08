@@ -29,7 +29,7 @@ O wizard só monta argumentos para o `make`; ele não tem lógica de provisionam
 | `tunnel` | `$IP,` | SSH via `ProxyCommand ssh -W` no bastion `$JUMP_USER@$JUMP_IP` | `-K` |
 | `sandbox` | nome do container | `-c docker -u dev` | sudo NOPASSWD dentro da imagem |
 
-`remote` e `tunnel` param com `$(error …)` quando falta o destino. Não há default de `IP` (só o `local` usa `localhost`), e ele precisa ser um único host: valores vazios, só com espaços, com espaços no meio ou com vírgulas são rejeitados, porque viram outro inventário em `-i "$(IP),"`. O `tunnel` também exige `JUMP_IP` e `JUMP_USER`. Como em qualquer variável do `make`, esses valores também podem vir do ambiente.
+`remote` e `tunnel` validam o destino na leitura do Makefile (filtrando `MAKECMDGOALS`), então `make local remote` sem `IP` falha antes de rodar qualquer target. Não há default de `IP` (só o `local` usa `localhost`). `IP`, `JUMP_IP` e `JUMP_USER` passam pela função `single_host`: valores vazios, só com espaços, com espaços no meio ou com vírgulas são rejeitados, porque virariam outro inventário em `-i "$(IP),"` ou quebrariam o `ProxyCommand`. O `tunnel` exige os três. Como em qualquer variável do `make`, esses valores também podem vir do ambiente.
 
 `ansible.cfg` define `become = True` / `become_method = sudo` globalmente, e o callback de saída `ansible.builtin.default` com `callback_result_format = yaml`, mais o `ansible.posix.timer` (veja [Collections Ansible necessárias no controlador](#collections-ansible-necessárias-no-controlador)).
 

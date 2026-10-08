@@ -9,13 +9,35 @@ TAGS      ?= all
 USER      ?= $(shell whoami)
 
 # --- Destino remoto (remote/tunnel) ---
-# Sem default: remote/tunnel param se o IP faltar. TARGET_IP fica vazio também
-# quando o IP não é um único host (espaços ou vírgulas viram vários hosts no
-# inventário "$(IP),").
+# Sem default de IP. single_host devolve o valor sem espaços nas pontas quando
+# ele é um único token sem vírgula, e vazio caso contrário (espaços ou vírgulas
+# viram vários hosts no inventário "$(IP)," ou quebram o ProxyCommand).
 COMMA        := ,
-TARGET_IP    := $(if $(filter 1,$(words $(IP))),$(if $(findstring $(COMMA),$(IP)),,$(strip $(IP))))
+single_host   = $(if $(filter 1,$(words $(1))),$(if $(findstring $(COMMA),$(1)),,$(strip $(1))))
+TARGET_IP    := $(call single_host,$(IP))
+JUMP_HOST    := $(call single_host,$(JUMP_IP))
+JUMP_LOGIN   := $(call single_host,$(JUMP_USER))
 REMOTE_USAGE := make remote IP=x.x.x.x [USER=usuario]
 TUNNEL_USAGE := make tunnel IP=x.x.x.x JUMP_IP=y.y.y.y JUMP_USER=usuario [USER=usuario]
+
+# Validação na leitura do Makefile: falha antes de qualquer target rodar
+# (ex.: "make local remote" não provisiona o local para depois falhar).
+ifneq ($(filter remote,$(MAKECMDGOALS)),)
+ifeq ($(TARGET_IP),)
+$(error Defina um único IP de destino: $(REMOTE_USAGE))
+endif
+endif
+ifneq ($(filter tunnel,$(MAKECMDGOALS)),)
+ifeq ($(TARGET_IP),)
+$(error Defina um único IP de destino: $(TUNNEL_USAGE))
+endif
+ifeq ($(JUMP_HOST),)
+$(error Defina um único IP do Bastion: $(TUNNEL_USAGE))
+endif
+ifeq ($(JUMP_LOGIN),)
+$(error Defina um único usuário do Bastion: $(TUNNEL_USAGE))
+endif
+endif
 
 # --- Variáveis para Sandbox ---
 DISTRO            ?= void
@@ -61,8 +83,8 @@ help:
 	@echo ''
 	@echo '  ${GREEN}make (ou make interactive)${RESET}  Inicia o assistente interativo de provisionamento.'
 	@echo '  ${GREEN}make local${RESET}          Provisiona esta máquina (localhost).'
-	@echo '  ${GREEN}make remote${RESET}         Provisiona servidor remoto via SSH.'
-	@echo '  ${GREEN}make tunnel${RESET}         Provisiona via Bastion Host.'
+	@echo '  ${GREEN}make remote${RESET}         Provisiona servidor remoto via SSH (exige IP=).'
+	@echo '  ${GREEN}make tunnel${RESET}         Provisiona via Bastion Host (exige IP=, JUMP_IP=, JUMP_USER=).'
 	@echo '  ${GREEN}make sandbox${RESET}        Provisiona em container Docker isolado (Void/Ubuntu).'
 	@echo '  ${GREEN}make sandbox-shell${RESET}  Acessa o terminal interativo do container sandbox.'
 	@echo '  ${GREEN}make sandbox-clean${RESET}  Para e remove o container sandbox.'
@@ -76,6 +98,10 @@ help:
 	@echo '    DISTRO=...        (void, ubuntu - default: void)'
 	@echo '    PROFILE=...       (default, local)'
 	@echo '    DRY=1             (Modo simulação)'
+	@echo '    IP=...            (remote/tunnel: um único host de destino, obrigatório)'
+	@echo '    USER=...          (remote/tunnel: usuário SSH - default: $$USER do shell)'
+	@echo '    JUMP_IP=...       (tunnel: host do Bastion, obrigatório)'
+	@echo '    JUMP_USER=...     (tunnel: usuário do Bastion, obrigatório)'
 
 help-docs:
 	@cat docs/USAGE.md
@@ -118,25 +144,13 @@ local:
 	$(ANSIBLE_CMD) -i "localhost," -c local
 
 remote:
-ifeq ($(TARGET_IP),)
-	$(error Defina um único IP de destino: $(REMOTE_USAGE))
-endif
 	@echo "${GREEN}>> Iniciando $(MSG_MODE) REMOTE em $(TARGET_IP) [Tags: $(TAGS)]...${RESET}"
 	$(ANSIBLE_CMD) -i "$(TARGET_IP)," -u $(USER)
 
 tunnel:
-ifeq ($(TARGET_IP),)
-	$(error Defina um único IP de destino: $(TUNNEL_USAGE))
-endif
-ifeq ($(strip $(JUMP_IP)),)
-	$(error Defina o IP do Bastion: $(TUNNEL_USAGE))
-endif
-ifeq ($(strip $(JUMP_USER)),)
-	$(error Defina o usuário do Bastion: $(TUNNEL_USAGE))
-endif
-	@echo "${GREEN}>> Iniciando $(MSG_MODE) TUNNEL via $(strip $(JUMP_IP)) para $(TARGET_IP)...${RESET}"
+	@echo "${GREEN}>> Iniciando $(MSG_MODE) TUNNEL via $(JUMP_HOST) para $(TARGET_IP)...${RESET}"
 	$(ANSIBLE_CMD) -i "$(TARGET_IP)," -u $(USER) \
-		--ssh-common-args='-o ProxyCommand="ssh -W %h:%p -q $(strip $(JUMP_USER))@$(strip $(JUMP_IP))"'
+		--ssh-common-args='-o ProxyCommand="ssh -W %h:%p -q $(JUMP_LOGIN)@$(JUMP_HOST)"'
 
 # --- Pipeline de Testes Sandbox (Docker) ---
 

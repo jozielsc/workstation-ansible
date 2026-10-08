@@ -121,7 +121,9 @@ REQUIRE_UV  = @command -v uv >/dev/null 2>&1 || { \
 		exit 1; }
 
 # As mesmas checagens do CI (.github/workflows/ci.yml), em sequência: a
-# primeira que falhar interrompe as seguintes.
+# primeira que falhar interrompe as seguintes. O --syntax-check repete uma
+# regra do ansible-lint, mas é rápido e dá um erro claro antes dele. O
+# shellcheck recebe todo *.sh versionado, em qualquer pasta.
 lint:
 	$(REQUIRE_UV)
 	@echo "${GREEN}>> Verificando a sintaxe do playbook...${RESET}"
@@ -131,7 +133,7 @@ lint:
 	@echo "${GREEN}>> Executando yamllint...${RESET}"
 	$(UV_RUN) yamllint --strict .
 	@echo "${GREEN}>> Executando shellcheck...${RESET}"
-	$(UV_RUN) shellcheck scripts/*.sh
+	git ls-files -z '*.sh' | xargs -0 -r $(UV_RUN) shellcheck
 
 test:
 	$(REQUIRE_UV)

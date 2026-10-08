@@ -40,7 +40,7 @@ Um único play, `hosts: all`, `become: true`, `gather_facts: true`.
 `pre_tasks`, todos com tag `always`, então rodam com qualquer `--tags`:
 
 1. `include_vars ../profiles/{{ profile }}.yml`: falha se o perfil não existir.
-2. `include_vars ../profiles/local.yml` com `ignore_errors: true`: overrides pessoais, fora do Git.
+2. `include_vars ../profiles/local.yml`, só quando o arquivo existe (`when: … is file`, avaliado no controller): overrides pessoais, fora do Git.
 3. `shell: echo $HOME && whoami` com `become: false`, registrado como `real_user_info`. Roda também em check mode.
 4. `set_fact user_home` / `user_id`.
 
@@ -200,4 +200,4 @@ Estado do código na v1.2.1 (2026-10). Atualize esta tabela quando a cobertura m
 - Ferramentas de desenvolvimento vêm do grupo `dev` do uv (`pyproject.toml`, `uv.lock`; `uv sync`). O projeto não é um pacote Python (`[tool.uv] package = false`). `make lint` roda `uv run --locked ansible-lint` no repositório inteiro; `make test` roda `uv run --locked molecule test`; `make check` roda os dois em sequência (o test só roda se o lint passar). O `--locked` garante as versões do `uv.lock`. O cenário Molecule ainda não existe (#34) e, quando existir, é **adicional** ao sandbox. Os targets de provisionamento (`local`, `remote`, `tunnel`, `sandbox`) continuam usando o Ansible do sistema, então lint e testes rodam com outro ansible-core e outras collections (#38).
 - As imagens do sandbox criam o usuário `dev` com sudo NOPASSWD e mantêm o container vivo com `tail -f /dev/null`. Não há init, então caminhos de serviço (systemd e runit) não são exercitados.
 - Para adicionar uma distro ao sandbox, crie `tests/sandbox/Dockerfile.<nome>` com `python3`, `sudo` e o usuário `dev`. O Makefile detecta o arquivo pelo nome.
-- Verificações estáticas disponíveis: `ansible-playbook … --syntax-check`, `--list-tasks`, `--list-tags` e `make -n <target>`. `make lint` usa o `ansible-lint` do uv.
+- Verificações estáticas disponíveis: `ansible-playbook … --syntax-check`, `--list-tasks`, `--list-tags` e `make -n <target>`. `make lint` usa o `ansible-lint` do uv e passa sem falhas (perfil `production`, sem config nem exceções). Variáveis criadas por `register`/`set_fact` dentro de uma role levam o prefixo da role (`devtools_lazygit_release`; `_devtools_lazygit_arch` para fatos internos), como exige a regra `var-naming[no-role-prefix]`.

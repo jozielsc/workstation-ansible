@@ -70,6 +70,19 @@ Quer testar o provisionamento antes de aplicar em sua máquina pessoal? Use o Sa
    make sandbox-clean
    ```
 
+#### Lint e testes (desenvolvimento)
+
+As ferramentas de desenvolvimento (`ansible`, `ansible-lint`, `molecule`) são gerenciadas pelo [uv](https://docs.astral.sh/uv/) via `pyproject.toml`:
+
+```bash
+uv sync      # cria o .venv com as ferramentas
+make lint    # uv run ansible-lint
+make test    # uv run molecule test (o cenário ainda está na issue #34)
+make check   # lint + test
+```
+
+O Molecule é um teste **adicional**: não substitui o Sandbox acima.
+
 ---
 
 ### 🛠️ Instalação e Uso
@@ -178,6 +191,19 @@ Want to test provisioning safely before applying to your personal machine? Use t
    make sandbox-clean
    ```
 
+#### Lint and tests (development)
+
+Development tools (`ansible`, `ansible-lint`, `molecule`) are managed by [uv](https://docs.astral.sh/uv/) through `pyproject.toml`:
+
+```bash
+uv sync      # creates .venv with the tools
+make lint    # uv run ansible-lint
+make test    # uv run molecule test (the scenario is still tracked in issue #34)
+make check   # lint + test
+```
+
+Molecule is an **additional** test: it does not replace the Sandbox above.
+
 ---
 
 ### 🛠️ Installation & Usage
@@ -236,7 +262,8 @@ Run specific components using `TAGS`:
 
 ```plaintext
 workstation-ansible/
-├── Makefile              # Task runner CLI helper (includes sandbox targets)
+├── Makefile              # Task runner CLI helper (includes sandbox, lint and test targets)
+├── pyproject.toml        # uv dev environment (ansible, ansible-lint, molecule) + uv.lock
 ├── README.md             # Documentation (Bilingual)
 ├── profiles/             # Configuration profiles (default.yml, local.sample.yml)
 ├── playbooks/

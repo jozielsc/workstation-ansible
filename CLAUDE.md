@@ -36,7 +36,9 @@ make local DRY=1          # --check --diff
 make local PROFILE=local  # load profiles/local.yml as the main profile
 make remote IP=x.x.x.x USER=root
 make tunnel IP=... USER=... JUMP_IP=... JUMP_USER=...
-make lint                 # ansible-lint playbooks/*.yml
+make lint                 # uv run ansible-lint (whole repo)
+make test                 # uv run molecule test (scenario pending: #34)
+make check                # lint + test
 ARGS="-vvv" make local    # extra args are appended to ansible-playbook
 make -n <target> ...      # print the exact ansible-playbook command without running it
 
@@ -54,7 +56,9 @@ make sandbox-shell DISTRO=void       # inspect the container afterwards
 make sandbox-clean DISTRO=void
 ```
 
-`make sandbox` builds `tests/sandbox/Dockerfile.$(DISTRO)`, starts a container, and runs the playbook against it with `-c docker -u dev` (passwordless sudo, no `-K`). It builds its own `ansible-playbook` command, so `ANS_FLAGS` (including `DRY`) do not apply to it. The containers have no init system (runit/systemd not PID 1), so service-enablement paths are skipped there and are never exercised by the sandbox. Only `void` and `ubuntu` Dockerfiles exist. There is no automated test suite or CI.
+`make sandbox` builds `tests/sandbox/Dockerfile.$(DISTRO)`, starts a container, and runs the playbook against it with `-c docker -u dev` (passwordless sudo, no `-K`). It builds its own `ansible-playbook` command, so `ANS_FLAGS` (including `DRY`) do not apply to it. The containers have no init system (runit/systemd not PID 1), so service-enablement paths are skipped there and are never exercised by the sandbox. Only `void` and `ubuntu` Dockerfiles exist. There is no CI.
+
+Dev tools (ansible, ansible-lint, molecule) come from the uv `dev` group in `pyproject.toml` (`uv sync`); run them via `uv run` / `make lint|test|check`. Molecule is an additional test layer: it does **not** replace the sandbox matrix (#29) or the lint CI (#28) unless the maintainer says so.
 
 ## Architecture
 

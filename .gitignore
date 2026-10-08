@@ -4,3 +4,4 @@ profiles/local.yaml
 *.retry
 
 .envrc
+.venv/

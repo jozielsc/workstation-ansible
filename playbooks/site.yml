@@ -15,9 +15,9 @@
 
     - name: Carregar sobrescritas locais (local.yml)
       ansible.builtin.include_vars:
-        file: "../profiles/local.yml"
+        file: "{{ playbook_dir }}/../profiles/local.yml"
       # O local.yml é opcional (gitignored). O teste roda no controller, onde o
-      # include_vars lê o arquivo.
+      # include_vars lê o arquivo. Se existir mas for inválido, o play falha.
       when: (playbook_dir ~ '/../profiles/local.yml') is file
       tags: ['always']
 

@@ -74,17 +74,7 @@
     src: https://github.com/ryanoasis/nerd-fonts/releases/download/v3.0.2/JetBrainsMono.zip
     dest: "{{ user_home }}/.local/share/fonts"
     remote_src: true
-  when:
-    - ui_features.fonts | default(false)
-    - ui_nerdfont_check.stat is defined
-    - not ui_nerdfont_check.stat.exists
-
-- name: Atualizar cache de fontes
-  become: false
-  ansible.builtin.command: fc-cache -f -v
-  # Só roda logo depois de baixar a fonte (mesmas condições da task anterior),
-  # então sempre há mudança a reportar.
-  changed_when: true
+  notify: Atualizar cache de fontes
   when:
     - ui_features.fonts | default(false)
     - ui_nerdfont_check.stat is defined

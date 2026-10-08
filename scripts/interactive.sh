@@ -129,8 +129,8 @@ tui_checklist() {
         [ "$show_back" = "1" ] && echo -e "${YELLOW}Enter 'b' to go Back, 'c' to Cancel.${NC}\n"
         for idx in "${!items[@]}"; do
             local mark="[ ]"
-            [ "${statuses[$idx]}" = "ON" ] && mark="[X]"
-            echo -e "  ${CYAN}[$((idx+1))]${NC} $mark ${items[$idx]} - ${descs[$idx]}"
+            [ "${statuses[idx]}" = "ON" ] && mark="[X]"
+            echo -e "  ${CYAN}[$((idx+1))]${NC} $mark ${items[idx]} - ${descs[idx]}"
         done
         echo ""
         read -rp "Enter selection: " selections
@@ -148,7 +148,7 @@ tui_checklist() {
                     for num in $selections; do
                         if [[ "$num" =~ ^[0-9]+$ ]] && [ "$num" -ge 1 ] && [ "$num" -le "${#items[@]}" ]; then
                             local idx=$((num-1))
-                            if [ "${statuses[$idx]}" = "ON" ]; then
+                            if [ "${statuses[idx]}" = "ON" ]; then
                                 statuses[idx]="OFF"
                             else
                                 statuses[idx]="ON"
@@ -160,7 +160,7 @@ tui_checklist() {
         esac
         local selected=()
         for idx in "${!items[@]}"; do
-            [ "${statuses[$idx]}" = "ON" ] && selected+=("${items[$idx]}")
+            [ "${statuses[idx]}" = "ON" ] && selected+=("${items[idx]}")
         done
         out="${selected[*]}"
     fi

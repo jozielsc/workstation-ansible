@@ -124,10 +124,15 @@ REQUIRE_UV  = @command -v uv >/dev/null 2>&1 || { \
 # primeira que falhar interrompe as seguintes. O --syntax-check repete uma
 # regra do ansible-lint, mas é rápido e dá um erro claro antes dele. O
 # yamllint direto cobre também o YAML que não é de Ansible (workflows,
-# configs). O shellcheck recebe todo *.sh versionado, em qualquer pasta; fora
-# de um clone git a etapa falha, em vez de passar sem checar nada.
+# configs). O shellcheck recebe todo *.sh do git ls-files, em qualquer pasta:
+# a lista é a do índice do git, não a do disco. Um script novo ainda sem
+# `git add` só é checado no CI, e um .sh apagado sem stage faz o shellcheck
+# falhar com "does not exist". Fora de um clone git, o lint falha logo no
+# início, em vez de passar sem checar os scripts.
 lint:
 	$(REQUIRE_UV)
+	@git rev-parse --is-inside-work-tree >/dev/null 2>&1 || { \
+		echo "Erro: fora de um clone git; o shellcheck do lint usa o git ls-files." >&2; exit 1; }
 	@echo "${GREEN}>> Verificando a sintaxe do playbook...${RESET}"
 	$(UV_RUN) ansible-playbook playbooks/site.yml --syntax-check -i localhost,
 	@echo "${GREEN}>> Executando Ansible Lint...${RESET}"
@@ -135,8 +140,6 @@ lint:
 	@echo "${GREEN}>> Executando yamllint...${RESET}"
 	$(UV_RUN) yamllint --strict .
 	@echo "${GREEN}>> Executando shellcheck...${RESET}"
-	@git rev-parse --is-inside-work-tree >/dev/null 2>&1 || { \
-		echo "Erro: fora de um clone git; o shellcheck usa o git ls-files." >&2; exit 1; }
 	git ls-files -z '*.sh' | xargs -0 -r $(UV_RUN) shellcheck
 
 test:

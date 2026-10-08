@@ -1,6 +1,0 @@
----
-# Notificado quando a Nerd Font é baixada.
-- name: Atualizar cache de fontes
-  become: false
-  ansible.builtin.command: fc-cache -f -v
-  changed_when: true

@@ -6,7 +6,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Ansible project that provisions a Linux developer workstation (Debian/Ubuntu, Void, RedHat/Fedora, Arch). There is no build step; the `Makefile` is the entry point and wraps `ansible-playbook playbooks/site.yml`. Task names, comments, docs and user-facing messages are written in Portuguese — keep that convention.
 
+## Workflow rules
+
+Full rules in `docs/WORKFLOW.md`. Essentials:
+- Analysis never authorizes changing production code (playbooks, roles, Makefile, scripts, profiles); only documentation and GitHub Issues. Implement only when explicitly asked.
+- Record architectural discoveries, constraints, legacy behavior and design decisions in the right file under `docs/` (update before creating new docs). Keep this file concise.
+- GitHub Issues are the backlog. For each concrete, evidence-backed work item, search open and recently closed issues first (`gh issue list --state all --search ...`), then comment on or update an existing one, or `gh issue create` with the template from `docs/WORKFLOW.md`. Use only existing labels, link related issues, and cross-link docs ↔ issues.
+- After an analysis, report the issues created, updated, and intentionally not created.
+- Commits follow commitlint (config-conventional): `type(scope): subject`. Work goes through a branch + PR to `main`.
+
 Deeper references:
+- `docs/WORKFLOW.md` — analysis, documentation, issue and git workflow.
 - `docs/ARCHITECTURE.md` — execution flow, variable precedence, tag semantics, per-role behavior, external integrations, platform support matrix.
 - `docs/TECH_DEBT.md` — dated technical baseline: known bugs, duplications, risks. Check it before "fixing" something, and update it when an item is resolved.
 - `docs/USAGE.md` — end-user manual (also shown by `make help-docs` and the wizard).

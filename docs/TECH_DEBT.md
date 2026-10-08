@@ -4,6 +4,8 @@ Levantamento feito em **2026-10-07** sobre a versão **v1.2.1** (commit `e17874c
 
 Ambiente de referência da análise: ansible-core 2.20.0, community.general 11.4.1.
 
+O backlog oficial são as Issues do GitHub (veja [WORKFLOW.md](WORKFLOW.md)). Quando um item deste documento for rastreado, anote o número da Issue (`#<n>`) ao lado dele.
+
 Legenda de evidência:
 - **Confirmado**: verificado por `make -n`, `--syntax-check`/`--list-tasks`, teste isolado ou leitura sem ambiguidade do código.
 - **Provável**: deduzido do código e da documentação dos módulos, sem execução real.

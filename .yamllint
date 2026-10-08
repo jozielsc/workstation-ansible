@@ -1,0 +1,31 @@
+---
+# Config do yamllint, usada pelo `make lint` (yamllint direto) e também pelo
+# ansible-lint (regra `yaml`). Os ajustes abaixo repetem o default do
+# ansible-lint; os de `comments`, `comments-indentation`, `braces` e
+# `octal-values` são exigidos por ele, que avisa se a config for incompatível.
+extends: default
+
+# O que não é versionado. Lista explícita, e não ignore-from-file: .gitignore,
+# porque esse caminho é resolvido a partir do diretório atual e o yamllint
+# falharia rodado fora da raiz. Os padrões com `/` no meio casam com o
+# caminho como foi passado: o `**/` cobre a raiz e o caminho absoluto que um
+# editor passa, mas não `cd profiles && yamllint local.yml`.
+ignore: |
+  .venv/
+  .ansible/
+  **/profiles/local.yml
+  **/profiles/local.yaml
+
+rules:
+  comments:
+    min-spaces-from-content: 1
+  comments-indentation: false
+  document-start: disable
+  line-length:
+    max: 160
+  braces:
+    min-spaces-inside: 0
+    max-spaces-inside: 1
+  octal-values:
+    forbid-implicit-octal: true
+    forbid-explicit-octal: true

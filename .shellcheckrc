@@ -1,0 +1,6 @@
+# Config do shellcheck (`make lint` e CI).
+# Exceções do legado de scripts/interactive.sh, a remover na #41:
+# - SC2034: RED é definido e nunca usado.
+disable=SC2034
+# - SC2004: `$` desnecessário no índice aritmético de statuses[$idx].
+disable=SC2004

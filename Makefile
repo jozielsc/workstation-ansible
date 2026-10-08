@@ -88,7 +88,7 @@ help:
 	@echo '  ${GREEN}make sandbox${RESET}        Provisiona em container Docker isolado (Void/Ubuntu).'
 	@echo '  ${GREEN}make sandbox-shell${RESET}  Acessa o terminal interativo do container sandbox.'
 	@echo '  ${GREEN}make sandbox-clean${RESET}  Para e remove o container sandbox.'
-	@echo '  ${GREEN}make lint${RESET}           Executa o ansible-lint (uv run ansible-lint).'
+	@echo '  ${GREEN}make lint${RESET}           Syntax-check, ansible-lint, yamllint e shellcheck (via uv).'
 	@echo '  ${GREEN}make test${RESET}           Executa o cenário molecule (uv run molecule test).'
 	@echo '  ${GREEN}make check${RESET}          Executa lint e test.'
 	@echo '  ${GREEN}make help-docs${RESET}      Exibe documentação detalhada e exemplos.'
@@ -120,10 +120,27 @@ REQUIRE_UV  = @command -v uv >/dev/null 2>&1 || { \
 		echo "Erro: uv não encontrado. Instale-o (https://docs.astral.sh/uv/) e rode 'uv sync'." >&2; \
 		exit 1; }
 
+# As mesmas checagens do CI (.github/workflows/ci.yml), em sequência: a
+# primeira que falhar interrompe as seguintes. O --syntax-check repete uma
+# regra do ansible-lint, mas é rápido e dá um erro claro antes dele. O
+# yamllint direto cobre também o YAML que não é de Ansible (workflows,
+# configs). O shellcheck recebe todo *.sh do git ls-files, em qualquer pasta:
+# a lista é a do índice do git, não a do disco. Um script novo ainda sem
+# `git add` só é checado no CI, e um .sh apagado sem stage faz o shellcheck
+# falhar com "does not exist". Fora de um clone git, o lint falha logo no
+# início, em vez de passar sem checar os scripts.
 lint:
 	$(REQUIRE_UV)
+	@git rev-parse --is-inside-work-tree >/dev/null 2>&1 || { \
+		echo "Erro: fora de um clone git; o shellcheck do lint usa o git ls-files." >&2; exit 1; }
+	@echo "${GREEN}>> Verificando a sintaxe do playbook...${RESET}"
+	$(UV_RUN) ansible-playbook playbooks/site.yml --syntax-check -i localhost,
 	@echo "${GREEN}>> Executando Ansible Lint...${RESET}"
 	$(UV_RUN) ansible-lint
+	@echo "${GREEN}>> Executando yamllint...${RESET}"
+	$(UV_RUN) yamllint --strict .
+	@echo "${GREEN}>> Executando shellcheck...${RESET}"
+	git ls-files -z '*.sh' | xargs -0 -r $(UV_RUN) shellcheck
 
 test:
 	$(REQUIRE_UV)

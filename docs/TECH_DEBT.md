@@ -58,7 +58,7 @@ Legenda de evidência:
 
 - `make deps` referencia um `requirements.yml` que não existe. (#20)
 - As collections não são declaradas em lugar nenhum, e o `community.general` é dependência implícita no Void e no Arch. Detalhes em [ARCHITECTURE.md](ARCHITECTURE.md#collections-ansible-necessárias-no-controlador). (#20)
-- Não há config de lint (`.ansible-lint`, `.yamllint`) nem `shellcheck` para o wizard. (#28)
-- Não há CI, testes de idempotência (rodar duas vezes e conferir `changed=0`) nem verificação depois do provisionamento. (#28, #29)
+- O `.shellcheckrc` desabilita SC2034 e SC2004 por causa de violações herdadas em `scripts/interactive.sh`, então novas ocorrências dessas regras não são detectadas. (#41)
+- O CI só roda o `make lint`. Não há CI do provisionamento, testes de idempotência (rodar duas vezes e conferir `changed=0`) nem verificação depois do provisionamento. (#29)
 - O sandbox só tem Void e Ubuntu e não tem init, então RedHat, Arch e os caminhos de serviço não são testados. (#9, #29)
 - Não há checagem de distro suportada no início do play. Uma distro desconhecida cai nos fallbacks mínimos sem aviso. (#10)

@@ -18,7 +18,7 @@ O arquivo `Makefile` é a interface principal:
 *   `make sandbox-shell`: Abre o terminal interativo (`bash`) no container sandbox atual.
 *   `make sandbox-clean`: Para e remove o container sandbox.
 *   `make deps`: Deveria instalar as dependências do Galaxy, mas hoje não faz nada, porque não existe `requirements.yml` (#20). Veja como obter as collections em [ARCHITECTURE.md](ARCHITECTURE.md#collections-ansible-necessárias-no-controlador).
-*   `make lint`: Executa o `ansible-lint` no repositório (`uv run ansible-lint`).
+*   `make lint`: Executa, em sequência, o `--syntax-check` do playbook, o `ansible-lint`, o `yamllint` e o `shellcheck` dos scripts. São as mesmas checagens do CI que roda nos PRs.
 *   `make test`: Executa o cenário Molecule (`uv run molecule test`). Enquanto o cenário não existir (#34), para com uma mensagem.
 *   `make check`: Executa `lint` e, se ele passar, `test`.
 

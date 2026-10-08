@@ -163,8 +163,8 @@ Não pule etapas e não abra branch sem uma Issue por trás.
      gh pr view <PR> --json baseRefName,closingIssuesReferences
      ```
      Se `closingIssuesReferences` vier vazio, avise o usuário antes de seguir. Ele faz o vínculo manual pelo painel **"Development"** do PR, que não tem API.
-   - **Quando houver CI**, aguarde o resultado depois de cada push (`gh pr checks <PR> --watch`). Se ficar vermelho, leia `gh run view <id> --log-failed`, **reporte ao usuário e pergunte** se deve corrigir.
-   - Mova o card para `In review` quando o PR estiver aberto (e com o CI verde, quando houver CI).
+   - Depois de cada push, aguarde o resultado do **CI** (`gh pr checks <PR> --watch`). Se ficar vermelho, leia `gh run view <id> --log-failed`, **reporte ao usuário e pergunte** se deve corrigir.
+   - Mova o card para `In review` quando o PR estiver aberto e com o CI verde.
    - A Issue só fecha com o merge do PR na `main`. Nunca feche antes.
 9. **Code review em rodadas, até tudo estar ok.** Com o card em `In review`:
    1. Rode `/code-review <PR> --comment`, para que os achados fiquem registrados como comentários no PR, na linha, e não só no chat.
@@ -185,15 +185,14 @@ Não pule etapas e não abra branch sem uma Issue por trás.
 
 ## Definição de pronto
 
-- `ansible-playbook playbooks/site.yml --syntax-check -i localhost,` passa.
-- `make lint` (`uv run ansible-lint`) sem erros nos arquivos tocados.
+- `make lint` (`ansible-playbook --syntax-check`, `ansible-lint`, `yamllint` e `shellcheck`, via uv) passa. É a mesma checagem do CI.
 - `make test` (`uv run molecule test`) passa, quando o cenário Molecule existir (#34). Ele complementa o sandbox, não o substitui.
 - As tags afetadas foram executadas no sandbox, em `void` e `ubuntu` (`make sandbox DISTRO=<d> TAGS=<tags>`), sem falhas. Mudanças que alteram estado devem mostrar `changed=0` numa segunda execução (idempotência).
 - Quando a mudança é específica de uma distro que não tem sandbox (RedHat, Arch), a limitação está registrada no PR.
 - A documentação afetada foi atualizada no mesmo PR: `docs/`, e também `README.md` e `USAGE.md` quando o comportamento visível muda. A lista de tags está sincronizada nos lugares listados no `CLAUDE.md`.
 - Nenhum documento descreve comportamento obsoleto. O item correspondente do `TECH_DEBT.md` foi removido, e a matriz e as seções do `ARCHITECTURE.md` refletem o novo estado.
 - Achados novos e descobertas sobre o sistema feitos durante o trabalho estão documentados em `docs/`, ou registrados como Issue quando são trabalho a fazer.
-- CI verde no PR, quando houver CI.
+- CI verde no PR (`gh pr checks <PR> --watch`). Hoje o CI roda o `make lint` (`.github/workflows/ci.yml`).
 
 ## Fluxo de uma análise ampla
 

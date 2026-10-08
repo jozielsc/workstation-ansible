@@ -36,7 +36,7 @@ make local DRY=1          # --check --diff
 make local PROFILE=local  # load profiles/local.yml as the main profile
 make remote IP=x.x.x.x USER=root
 make tunnel IP=... USER=... JUMP_IP=... JUMP_USER=...
-make lint                 # uv run ansible-lint (whole repo)
+make lint                 # syntax-check + ansible-lint + yamllint + shellcheck (via uv)
 make test                 # uv run molecule test (scenario pending: #34)
 make check                # lint + test
 ARGS="-vvv" make local    # extra args are appended to ansible-playbook
@@ -56,9 +56,9 @@ make sandbox-shell DISTRO=void       # inspect the container afterwards
 make sandbox-clean DISTRO=void
 ```
 
-`make sandbox` builds `tests/sandbox/Dockerfile.$(DISTRO)`, starts a container, and runs the playbook against it with `-c docker -u dev` (passwordless sudo, no `-K`). It builds its own `ansible-playbook` command, so `ANS_FLAGS` (including `DRY`) do not apply to it. The containers have no init system (runit/systemd not PID 1), so service-enablement paths are skipped there and are never exercised by the sandbox. Only `void` and `ubuntu` Dockerfiles exist. There is no CI.
+`make sandbox` builds `tests/sandbox/Dockerfile.$(DISTRO)`, starts a container, and runs the playbook against it with `-c docker -u dev` (passwordless sudo, no `-K`). It builds its own `ansible-playbook` command, so `ANS_FLAGS` (including `DRY`) do not apply to it. The containers have no init system (runit/systemd not PID 1), so service-enablement paths are skipped there and are never exercised by the sandbox. Only `void` and `ubuntu` Dockerfiles exist. CI (`.github/workflows/ci.yml`) only runs `make lint` on PRs and pushes to `main`; the sandbox has no CI yet (#29).
 
-Dev tools (ansible, ansible-lint, molecule) come from the uv `dev` group in `pyproject.toml` (`uv sync`); run them via `uv run` / `make lint|test|check`. Molecule is an additional test layer: it does **not** replace the sandbox matrix (#29) or the lint CI (#28) unless the maintainer says so.
+Dev tools (ansible, ansible-lint, yamllint, shellcheck-py, molecule) come from the uv `dev` group in `pyproject.toml` (`uv sync`); run them via `uv run` / `make lint|test|check`. Molecule is an additional test layer: it does **not** replace the sandbox matrix (#29) or the lint CI unless the maintainer says so.
 
 ## Architecture
 

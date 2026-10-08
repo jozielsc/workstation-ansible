@@ -5,3 +5,6 @@ profiles/local.yaml
 
 .envrc
 .venv/
+
+# Cache do ansible-lint (collections e roles de terceiros)
+.ansible/

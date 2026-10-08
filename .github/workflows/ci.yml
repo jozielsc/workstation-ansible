@@ -1,0 +1,48 @@
+---
+# Lint em PRs e pushes na main. Roda o mesmo `make lint` do ambiente local,
+# com as versões travadas no uv.lock. Actions pinadas por SHA (a tag fica no
+# comentário).
+name: CI
+
+# Entre aspas: sem elas o YAML 1.1 lê `on` como booleano (regra truthy).
+"on":
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# Num PR, um push novo cancela o lint anterior. Na main, cada commit mergeado
+# precisa do próprio resultado: o grupo é por commit, porque o GitHub mantém só
+# um run pendente por grupo e cancelaria os intermediários mesmo sem
+# cancel-in-progress.
+concurrency:
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    # O job leva ~20 s; o default do GitHub é 360 min.
+    timeout-minutes: 10
+    steps:
+      - name: Baixar o repositório
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Instalar o uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          # Versão fixa, para que um release novo do uv não mude o CI sem
+          # mudança no repositório. Atualize junto com o uv local.
+          version: "0.12.3"
+          enable-cache: true
+
+      - name: Instalar as dependências de desenvolvimento
+        run: uv sync --locked
+
+      - name: make lint
+        run: make lint

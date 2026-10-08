@@ -88,7 +88,7 @@ help:
 	@echo '  ${GREEN}make sandbox${RESET}        Provisiona em container Docker isolado (Void/Ubuntu).'
 	@echo '  ${GREEN}make sandbox-shell${RESET}  Acessa o terminal interativo do container sandbox.'
 	@echo '  ${GREEN}make sandbox-clean${RESET}  Para e remove o container sandbox.'
-	@echo '  ${GREEN}make lint${RESET}           Executa o ansible-lint (uv run ansible-lint).'
+	@echo '  ${GREEN}make lint${RESET}           Syntax-check, ansible-lint, yamllint e shellcheck (via uv).'
 	@echo '  ${GREEN}make test${RESET}           Executa o cenário molecule (uv run molecule test).'
 	@echo '  ${GREEN}make check${RESET}          Executa lint e test.'
 	@echo '  ${GREEN}make help-docs${RESET}      Exibe documentação detalhada e exemplos.'
@@ -120,10 +120,18 @@ REQUIRE_UV  = @command -v uv >/dev/null 2>&1 || { \
 		echo "Erro: uv não encontrado. Instale-o (https://docs.astral.sh/uv/) e rode 'uv sync'." >&2; \
 		exit 1; }
 
+# As mesmas checagens do CI (.github/workflows/ci.yml), em sequência: a
+# primeira que falhar interrompe as seguintes.
 lint:
 	$(REQUIRE_UV)
+	@echo "${GREEN}>> Verificando a sintaxe do playbook...${RESET}"
+	$(UV_RUN) ansible-playbook playbooks/site.yml --syntax-check -i localhost,
 	@echo "${GREEN}>> Executando Ansible Lint...${RESET}"
 	$(UV_RUN) ansible-lint
+	@echo "${GREEN}>> Executando yamllint...${RESET}"
+	$(UV_RUN) yamllint --strict .
+	@echo "${GREEN}>> Executando shellcheck...${RESET}"
+	$(UV_RUN) shellcheck scripts/*.sh
 
 test:
 	$(REQUIRE_UV)

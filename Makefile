@@ -38,7 +38,7 @@ endif
 # --- Comando Base ---
 ANSIBLE_CMD = ansible-playbook $(PLAYBOOK) $(ANS_FLAGS) $(ARGS)
 
-.PHONY: help help-docs interactive menu local remote tunnel deps lint sandbox sandbox-shell sandbox-clean
+.PHONY: help help-docs interactive menu local remote tunnel deps lint test check sandbox sandbox-shell sandbox-clean
 
 # --- Targets ---
 
@@ -58,6 +58,9 @@ help:
 	@echo '  ${GREEN}make sandbox${RESET}        Provisiona em container Docker isolado (Void/Ubuntu).'
 	@echo '  ${GREEN}make sandbox-shell${RESET}  Acessa o terminal interativo do container sandbox.'
 	@echo '  ${GREEN}make sandbox-clean${RESET}  Para e remove o container sandbox.'
+	@echo '  ${GREEN}make lint${RESET}           Executa o ansible-lint (uv run ansible-lint).'
+	@echo '  ${GREEN}make test${RESET}           Executa o cenário molecule (uv run molecule test).'
+	@echo '  ${GREEN}make check${RESET}          Executa lint e test.'
 	@echo '  ${GREEN}make help-docs${RESET}      Exibe documentação detalhada e exemplos.'
 	@echo ''
 	@echo '  ${YELLOW}Opções Comuns:${RESET}'
@@ -74,9 +77,22 @@ deps:
 	@echo "${GREEN}>> Instalando dependências do Galaxy...${RESET}"
 	ansible-galaxy install -r requirements.yml 2>/dev/null || echo ">> Nenhum requirements.yml encontrado."
 
+# --- Lint e testes (ambiente de desenvolvimento gerenciado pelo uv) ---
+# O molecule é um teste adicional: não substitui o make sandbox.
+
 lint:
 	@echo "${GREEN}>> Executando Ansible Lint...${RESET}"
-	ansible-lint playbooks/*.yml
+	uv run ansible-lint
+
+test:
+	@if [ ! -f molecule/default/molecule.yml ]; then \
+		echo "${YELLOW}Erro: cenário molecule ainda não existe (molecule/default/molecule.yml). Veja a issue #34.${RESET}"; \
+		exit 1; \
+	fi
+	@echo "${GREEN}>> Executando testes Molecule...${RESET}"
+	uv run molecule test
+
+check: lint test
 
 local:
 	@echo "${GREEN}>> Iniciando $(MSG_MODE) LOCAL [Tags: $(TAGS)]...${RESET}"

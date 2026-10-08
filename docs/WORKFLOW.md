@@ -186,7 +186,8 @@ Não pule etapas e não abra branch sem uma Issue por trás.
 ## Definição de pronto
 
 - `ansible-playbook playbooks/site.yml --syntax-check -i localhost,` passa.
-- `make lint` sem erros nos arquivos tocados, quando o `ansible-lint` estiver disponível.
+- `make lint` (`uv run ansible-lint`) sem erros nos arquivos tocados.
+- `make test` (`uv run molecule test`) passa, quando o cenário Molecule existir (#34). Ele complementa o sandbox, não o substitui.
 - As tags afetadas foram executadas no sandbox, em `void` e `ubuntu` (`make sandbox DISTRO=<d> TAGS=<tags>`), sem falhas. Mudanças que alteram estado devem mostrar `changed=0` numa segunda execução (idempotência).
 - Quando a mudança é específica de uma distro que não tem sandbox (RedHat, Arch), a limitação está registrada no PR.
 - A documentação afetada foi atualizada no mesmo PR: `docs/`, e também `README.md` e `USAGE.md` quando o comportamento visível muda. A lista de tags está sincronizada nos lugares listados no `CLAUDE.md`.

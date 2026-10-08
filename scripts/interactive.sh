@@ -190,6 +190,7 @@ tui_inputbox() {
         echo -e "${BOLD}=== $title ===${NC}"
         echo -e "$prompt"
         [ "$show_back" = "1" ] && echo -e "${YELLOW}(Enter 'b' to go Back, 'c' to Cancel)${NC}"
+        local val
         read -rp "[$default_val]: " val
         case "$val" in
             [Bb]*)
@@ -226,6 +227,7 @@ tui_yesno() {
         echo -e "${BOLD}=== $title ===${NC}"
         local nav_prompt="$prompt (y/N)"
         [ "$show_back" = "1" ] && nav_prompt="$prompt (y/N/b=Back/c=Cancel)"
+        local ans
         read -rp "$nav_prompt: " ans
         case "$ans" in
             [Bb]*)

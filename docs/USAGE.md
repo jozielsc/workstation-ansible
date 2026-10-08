@@ -2,6 +2,10 @@
 
 Este projeto visa automatizar a configuração do seu ambiente de desenvolvimento. Abaixo estão os detalhes sobre como operar o sistema, personalizar perfis, testar em ambiente sandbox e solucionar problemas.
 
+## Requisitos
+
+Na máquina que executa o Ansible: `git`, `make` e o Ansible. A versão mínima, as collections necessárias e as ressalvas por distro (Ubuntu 22.04, Debian 11, RHEL) estão em [ARCHITECTURE.md](ARCHITECTURE.md#collections-ansible-necessárias-no-controlador).
+
 ## Comandos Principais (Makefile)
 
 O arquivo `Makefile` é a interface principal:
@@ -13,7 +17,7 @@ O arquivo `Makefile` é a interface principal:
 *   `make sandbox [DISTRO=void|ubuntu]`: Cria um container Docker isolado, executa o Ansible e o mantém ativo para testes.
 *   `make sandbox-shell`: Abre o terminal interativo (`bash`) no container sandbox atual.
 *   `make sandbox-clean`: Para e remove o container sandbox.
-*   `make deps`: Instala dependências do Ansible (roles/collections do Galaxy).
+*   `make deps`: Deveria instalar as dependências do Galaxy, mas hoje não faz nada, porque não existe `requirements.yml` (#20). Veja como obter as collections em [ARCHITECTURE.md](ARCHITECTURE.md#collections-ansible-necessárias-no-controlador).
 *   `make lint`: Executa verificação de sintaxe nos playbooks.
 
 ### Variáveis de Controle

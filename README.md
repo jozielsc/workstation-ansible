@@ -35,7 +35,7 @@ Este projeto é uma solução completa de *Infrastructure as Code* (IaC) para pr
 
 Na máquina onde você executará o Ansible, é necessário apenas:
 - **Git**
-- **Ansible**
+- **Ansible**: versão mínima, collections e ressalvas por distro (Ubuntu 22.04, Debian 11, RHEL) em [ARCHITECTURE.md](docs/ARCHITECTURE.md#collections-ansible-necessárias-no-controlador)
 - **Make**
 - *(Opcional)* **Docker** (para uso do Pipeline de Testes Sandbox)
 
@@ -150,7 +150,7 @@ This project is a complete Infrastructure as Code (IaC) solution for developer e
 
 On the machine running Ansible:
 - **Git**
-- **Ansible**
+- **Ansible**: minimum version, collections and per-distro caveats (Ubuntu 22.04, Debian 11, RHEL) in [ARCHITECTURE.md](docs/ARCHITECTURE.md#collections-ansible-necessárias-no-controlador)
 - **Make**
 - *(Optional)* **Docker** (for Sandbox Testing Pipeline)
 

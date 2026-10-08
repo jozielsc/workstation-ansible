@@ -29,7 +29,7 @@ O wizard só monta argumentos para o `make`; ele não tem lógica de provisionam
 | `tunnel` | `$IP,` | SSH via `ProxyCommand ssh -W` no bastion `$JUMP_USER@$JUMP_IP` | `-K` |
 | `sandbox` | nome do container | `-c docker -u dev` | sudo NOPASSWD dentro da imagem |
 
-`ansible.cfg` define `become = True` / `become_method = sudo` globalmente, e o callback de saída `yaml` com `timer`.
+`ansible.cfg` define `become = True` / `become_method = sudo` globalmente, e o callback de saída `ansible.builtin.default` com `callback_result_format = yaml`, mais o `ansible.posix.timer` (veja [Collections Ansible necessárias no controlador](#collections-ansible-necessárias-no-controlador)).
 
 ## Playbook `site.yml`
 
@@ -157,6 +157,26 @@ Como `dotfiles` roda por último, qualquer arquivo que roles anteriores criem no
 | `github.com/jozielsc/dotfiles` | dotfiles | `main` |
 
 Todas exigem acesso à internet a partir do host provisionado.
+
+### Collections Ansible necessárias no controlador
+
+Esta seção é a fonte única dos requisitos do controlador. README e USAGE apenas apontam para cá.
+
+**ansible-core ≥ 2.13.** O mínimo vem do `callback_result_format` (`ansible.cfg`), que surgiu no 2.13. Em versões anteriores, a opção é ignorada sem aviso e a saída volta a ser JSON. Nenhuma checagem em tempo de execução garante esse mínimo (#37). O projeto foi validado só no ansible-core 2.20 (sistema) e 2.21 (ambiente do uv); o 2.13 é o mínimo teórico, não testado.
+
+**Pacote completo `ansible`.** Não há `requirements.yml` (#20). As collections abaixo vêm no pacote `ansible`, mas **não** numa instalação só de `ansible-core` (pip ou pacote `ansible-core` da distro). Nesse caso, instale-as com `ansible-galaxy collection install <nome>`.
+
+Ressalvas por distro do controlador:
+- **Ubuntu 22.04 e Debian 11:** o `apt install ansible` instala o Ansible 2.10, abaixo do mínimo: o playbook roda, mas a saída sai em JSON. Use uma versão mais nova (PPA `ppa:ansible/ansible`, `pipx install ansible` ou o ambiente do uv).
+- **RHEL 8/9:** o AppStream só tem `ansible-core`. O pacote `ansible` exige o EPEL; sem ele, instale as collections com `ansible-galaxy`.
+
+| Collection | Usada por | Sem ela |
+|---|---|---|
+| `community.general` | módulo `package` no Void (`xbps`) e no Arch (`pacman`) | **bloqueante**: a instalação de pacotes falha nessas distros (`Could not find a matching action for the "xbps" package manager`) |
+| `community.docker` | conexão `-c docker` do `make sandbox` | o sandbox não conecta ao container |
+| `ansible.posix` | callback `ansible.posix.timer` (`ansible.cfg`) | opcional: o Ansible só avisa e não mostra o tempo total |
+
+O callback de saída (`ansible.builtin.default`) não depende de collection.
 
 ## Matriz de suporte por plataforma
 

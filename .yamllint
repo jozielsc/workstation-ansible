@@ -5,8 +5,14 @@
 # `octal-values` são exigidos por ele, que avisa se a config for incompatível.
 extends: default
 
-# Ignora o que não é versionado (.venv/, .ansible/, profiles/local.yml).
-ignore-from-file: .gitignore
+# O que não é versionado. Lista explícita, e não ignore-from-file: .gitignore,
+# porque esse caminho é resolvido a partir do diretório atual e quebraria o
+# yamllint rodado de uma subpasta (por um editor, por exemplo).
+ignore: |
+  .venv/
+  .ansible/
+  profiles/local.yml
+  profiles/local.yaml
 
 rules:
   comments:

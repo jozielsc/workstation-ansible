@@ -1,6 +1,6 @@
 # Baseline Técnica e Dívida Técnica
 
-Levantamento feito em **2026-10-07** sobre a versão **v1.2.1** (commit `e17874c`). É um retrato datado: ao corrigir um item, remova-o ou marque como resolvido com o commit correspondente.
+Comportamentos problemáticos e limitações **atuais** do sistema, levantados em **2026-10-07** sobre a versão **v1.2.1** (commit `e17874c`). Este documento descreve o que o código faz hoje. O que precisa ser feito, e como, fica só na Issue indicada em cada item. Quando um item for resolvido, remova-o no mesmo PR, para que nada aqui descreva comportamento obsoleto.
 
 Ambiente de referência da análise: ansible-core 2.20.0, community.general 11.4.1.
 
@@ -55,7 +55,7 @@ Legenda de evidência:
 
 ## Ferramentas e qualidade
 
-- `stdout_callback = yaml` (`community.general.yaml`) está deprecated, com remoção no community.general 12.0.0. A alternativa é `callback_result_format = yaml` no callback `default`. (#27)
+- `stdout_callback = yaml` (`community.general.yaml`) está deprecated, com remoção no community.general 12.0.0. (#27)
 - `make deps` referencia um `requirements.yml` que não existe. (#20)
 - `make lint` cobre só `playbooks/*.yml` e depende do `ansible-lint`. Não há config de lint nem `shellcheck` para o wizard. (#28)
 - Não há CI, testes de idempotência (rodar duas vezes e conferir `changed=0`) nem verificação depois do provisionamento. (#28, #29)

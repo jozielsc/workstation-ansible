@@ -9,6 +9,21 @@ Regras para qualquer pessoa ou agente que analise, modifique ou evolua este proj
 - **Analisar não autoriza alterar código.** Durante uma análise, só é permitido documentar e criar ou atualizar Issues. Código de produção (playbooks, roles, Makefile, scripts, perfis) só muda quando a implementação é pedida explicitamente.
 - **Divergência com o legado.** Quando o estado atual do repositório diverge de uma regra deste documento, código novo ou alterado segue a regra. Não saia corrigindo todo o legado sem uma Issue para isso.
 
+## Código ↔ documentação ↔ Issues
+
+Cada fonte tem um papel, e as três precisam estar **sempre consistentes**:
+
+| Fonte | Representa | Responde |
+|---|---|---|
+| Código | A implementação atual | — |
+| `docs/` | O conhecimento atual do projeto | O que o sistema é, como funciona e por que foi desenhado assim |
+| Issues (Project #6) | O trabalho acionável que falta | O que precisa ser feito |
+
+- **Não duplique informação.** Uma Issue que precisa de contexto técnico **referencia** a seção do `docs/`, em vez de copiá-la. Na Issue fica só o que é específico do trabalho: o comportamento atual a mudar, o resultado desejado, os critérios de aceite.
+- **Mudou o comportamento ou a arquitetura, atualize a documentação no mesmo trabalho** (mesmo PR). Nunca deixe a documentação descrevendo um comportamento obsoleto depois de concluir uma mudança.
+- **Trabalho substancial só está concluído quando o conhecimento resultante está documentado.**
+- Quando o código, a documentação e as Issues divergem, corrija a divergência: ajuste o doc, comente ou edite a Issue, ou abra uma Issue para o código.
+
 ## Documentação
 
 Registre em `docs/` toda descoberta relevante: comportamento do sistema, arquitetura, relações de dependência, restrições técnicas, comportamento legado e decisões de design.
@@ -16,7 +31,7 @@ Registre em `docs/` toda descoberta relevante: comportamento do sistema, arquite
 | Arquivo | Conteúdo |
 |---|---|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Como o sistema funciona: fluxo, precedência de variáveis, tags, roles, integrações, matriz de plataformas |
-| [TECH_DEBT.md](TECH_DEBT.md) | Baseline datada de problemas conhecidos, cada item com o nível de evidência e o link para sua Issue |
+| [TECH_DEBT.md](TECH_DEBT.md) | Comportamentos problemáticos e limitações **atuais** (o que o sistema faz hoje), cada item com o nível de evidência e o link para a Issue que trata dele. O "o que fazer" fica só na Issue |
 | [USAGE.md](USAGE.md) | Manual do usuário final |
 | `WORKFLOW.md` | Este documento |
 
@@ -73,6 +88,7 @@ Toda Issue criada a partir de uma análise deve ter:
 - docs/<arquivo>.md#<seção> (ex.: docs/TECH_DEBT.md, item B3)
 ```
 
+- Em "Contexto técnico", aponte para a seção do `docs/` que explica o funcionamento, e escreva só o que é específico da Issue (abordagens possíveis, restrições do trabalho). Não copie a explicação.
 - O título deve ser claro e específico, sem `Closes`/`Fixes`. Escreva o conteúdo em português.
 - Use apenas labels que já existem (`gh label list`): `bug`, `enhancement`, `documentation`, `good first issue`, `help wanted`, `question`. Crie labels novas só se pedirem.
 - Issues relacionadas são ligadas pelos relacionamentos do GitHub: sub-issue para dividir um épico, "blocked by"/"blocks" para dependência real. Na falta disso, cite `#<n>` no corpo.
@@ -127,7 +143,7 @@ Não pule etapas e não abra branch sem uma Issue por trás.
 
 1. **Planejamento (Backlog).** Toda história vira uma Issue no board como `Backlog`, com `Priority` e `Size`.
 2. **Descoberta.** Numa sessão focada em backlog, liste os cards `Ready` por prioridade, ou siga a Issue que o usuário indicar.
-3. **Planejamento técnico (ainda em Ready).** Explore o código e desenhe a solução. Depois anexe `## Plano de implementação` ao **corpo da Issue** (`gh issue edit <n> --body-file <arquivo>`), preservando a descrição original. Se preciso, divida a Issue em sub-issues.
+3. **Planejamento técnico (ainda em Ready).** Leia a Issue e a documentação relevante e **verifique se as duas ainda refletem o estado atual do código**. Se alguma estiver desatualizada, corrija antes de seguir: ajuste o doc, ou registre na Issue o que mudou (ou feche a Issue, se o trabalho já não fizer sentido). Explore o código e desenhe a solução. Depois anexe `## Plano de implementação` ao **corpo da Issue** (`gh issue edit <n> --body-file <arquivo>`), preservando a descrição original. Se preciso, divida a Issue em sub-issues.
 4. **Uma branch por Issue, derivada da `main` atualizada**, com o número da Issue no final:
    ```bash
    git fetch origin main
@@ -137,7 +153,7 @@ Não pule etapas e não abra branch sem uma Issue por trás.
    - Não use `gh issue develop`.
    - Nunca crie branch sem Issue, nunca derive de outra branch e nunca reaproveite a branch de outra Issue. Se a Issue depender de código que ainda não está na `main`, avise e confirme com o usuário como proceder.
 5. **Mova o card para `In progress`** só quando a implementação começar de fato, não durante a exploração.
-6. **Implemente seguindo a [Definição de pronto](#definição-de-pronto).**
+6. **Implemente seguindo a [Definição de pronto](#definição-de-pronto):** rode os testes adequados e atualize a documentação no mesmo PR sempre que o conhecimento do sistema mudar.
 7. **Registre decisões como comentários na Issue** (trade-offs, achados fora do escopo). O corpo da Issue guarda o plano e os comentários são o diário de bordo. Não misture os dois.
 8. **Commit, push e PR.**
    - O PR vai sempre para a `main` (`--base main`).
@@ -174,6 +190,8 @@ Não pule etapas e não abra branch sem uma Issue por trás.
 - As tags afetadas foram executadas no sandbox, em `void` e `ubuntu` (`make sandbox DISTRO=<d> TAGS=<tags>`), sem falhas. Mudanças que alteram estado devem mostrar `changed=0` numa segunda execução (idempotência).
 - Quando a mudança é específica de uma distro que não tem sandbox (RedHat, Arch), a limitação está registrada no PR.
 - A documentação afetada foi atualizada no mesmo PR: `docs/`, e também `README.md` e `USAGE.md` quando o comportamento visível muda. A lista de tags está sincronizada nos lugares listados no `CLAUDE.md`.
+- Nenhum documento descreve comportamento obsoleto. O item correspondente do `TECH_DEBT.md` foi removido, e a matriz e as seções do `ARCHITECTURE.md` refletem o novo estado.
+- Achados novos e descobertas sobre o sistema feitos durante o trabalho estão documentados em `docs/`, ou registrados como Issue quando são trabalho a fazer.
 - CI verde no PR, quando houver CI.
 
 ## Fluxo de uma análise ampla

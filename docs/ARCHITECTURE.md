@@ -39,7 +39,7 @@ Um único play, `hosts: all`, `become: true`, `gather_facts: true`.
 
 `pre_tasks`, todos com tag `always`, então rodam com qualquer `--tags`:
 
-1. `include_vars ../profiles/{{ profile }}.yml`: falha se o perfil não existir.
+1. `include_vars {{ playbook_dir }}/../profiles/{{ profile }}.yml`: falha se o perfil não existir.
 2. `include_vars {{ playbook_dir }}/../profiles/local.yml`, só quando o arquivo existe (`when: … is file`, avaliado no controller): overrides pessoais, fora do Git. Um `local.yml` que existe mas é inválido (YAML quebrado, conteúdo que não é dicionário) faz o play falhar logo no início.
 3. `shell: echo $HOME && whoami` com `become: false`, registrado como `real_user_info`. Roda também em check mode.
 4. `set_fact user_home` / `user_id`.
@@ -129,7 +129,7 @@ Uma lista com um pacote inexistente não aborta o play: a instalação passa a s
 Pacotes `zsh` e `git`, shell padrão `/bin/zsh` para `user_id`, e `git clone` (branch `master`) de Oh-My-Zsh, Powerlevel10k e dos plugins `zsh-autosuggestions`, `zsh-syntax-highlighting` e `zsh-completions`. Não gera `.zshrc`; isso fica a cargo dos dotfiles.
 
 ### ui (opt-in)
-Pacotes Sway/Wayland por distro. Se `ui_features.fonts` estiver ativo, baixa a JetBrainsMono Nerd Font (release fixo `v3.0.2`) para `~/.local/share/fonts` e notifica o handler `Atualizar cache de fontes` (`fc-cache`, em `roles/ui/handlers/main.yml`), que roda no fim do play só quando a fonte foi baixada.
+Pacotes Sway/Wayland por distro. Se `ui_features.fonts` estiver ativo, baixa a JetBrainsMono Nerd Font (release fixo `v3.0.2`) para `~/.local/share/fonts` e notifica o handler `Atualizar cache de fontes` (`fc-cache`, em `roles/ui/handlers/main.yml`), que só roda quando a fonte foi baixada. Um `meta: flush_handlers` logo depois do download faz o handler rodar na hora, e não no fim do play, para a notificação não se perder se uma role posterior falhar.
 
 ### editors
 Neovim, ferramentas de clipboard (`xclip`, `wl-clipboard`) e `lldb` (exceto Void).

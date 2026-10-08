@@ -1,0 +1,26 @@
+---
+# Config do yamllint, usada pelo `make lint` (yamllint direto) e também pelo
+# ansible-lint (regra `yaml`). Os ajustes abaixo repetem o default do
+# ansible-lint; os de `comments`, `comments-indentation`, `braces` e
+# `octal-values` são exigidos por ele, que avisa se a config for incompatível.
+extends: default
+
+# Ignora o que não é versionado (.venv/, profiles/local.yml).
+ignore-from-file: .gitignore
+
+rules:
+  comments:
+    min-spaces-from-content: 1
+  comments-indentation: false
+  document-start: disable
+  line-length:
+    max: 160
+  braces:
+    min-spaces-inside: 0
+    max-spaces-inside: 1
+  octal-values:
+    forbid-implicit-octal: true
+    forbid-explicit-octal: true
+  # A chave `on:` dos workflows do GitHub Actions seria lida como booleano.
+  truthy:
+    check-keys: false

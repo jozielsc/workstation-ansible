@@ -12,9 +12,11 @@ on:
 permissions:
   contents: read
 
+# Num PR, um push novo cancela o lint anterior. Na main não: cada commit
+# mergeado precisa do próprio resultado.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   lint:

@@ -8,6 +8,11 @@ PROFILE   ?= default
 TAGS      ?= all
 USER      ?= $(shell whoami)
 
+# --- Destino remoto (remote/tunnel) ---
+# O IP só é aceito da linha de comando: um IP exportado no shell não pode
+# escolher o host provisionado. Valores só com espaços contam como vazios.
+TARGET_IP := $(if $(findstring command line,$(origin IP)),$(strip $(IP)))
+
 # --- Variáveis para Sandbox ---
 DISTRO            ?= void
 SANDBOX_IMAGE     := workstation-sandbox-image-$(DISTRO)
@@ -109,22 +114,25 @@ local:
 	$(ANSIBLE_CMD) -i "localhost," -c local
 
 remote:
-ifndef IP
-	$(error Defina o IP de destino: make remote IP=x.x.x.x)
+ifeq ($(TARGET_IP),)
+	$(error Defina o IP de destino: make remote IP=x.x.x.x [USER=usuario])
 endif
-	@echo "${GREEN}>> Iniciando $(MSG_MODE) REMOTE em $(IP) [Tags: $(TAGS)]...${RESET}"
-	$(ANSIBLE_CMD) -i "$(IP)," -u $(USER)
+	@echo "${GREEN}>> Iniciando $(MSG_MODE) REMOTE em $(TARGET_IP) [Tags: $(TAGS)]...${RESET}"
+	$(ANSIBLE_CMD) -i "$(TARGET_IP)," -u $(USER)
 
 tunnel:
-ifndef IP
-	$(error Defina o IP de destino: IP=x.x.x.x)
+ifeq ($(TARGET_IP),)
+	$(error Defina o IP de destino: make tunnel IP=x.x.x.x JUMP_IP=y.y.y.y JUMP_USER=usuario [USER=usuario])
 endif
-ifndef JUMP_IP
-	$(error Defina o IP do Bastion: JUMP_IP=x.x.x.x)
+ifeq ($(strip $(JUMP_IP)),)
+	$(error Defina o IP do Bastion: make tunnel IP=x.x.x.x JUMP_IP=y.y.y.y JUMP_USER=usuario [USER=usuario])
 endif
-	@echo "${GREEN}>> Iniciando $(MSG_MODE) TUNNEL via $(JUMP_IP) para $(IP)...${RESET}"
-	$(ANSIBLE_CMD) -i "$(IP)," -u $(USER) \
-		--ssh-common-args='-o ProxyCommand="ssh -W %h:%p -q $(JUMP_USER)@$(JUMP_IP)"'
+ifeq ($(strip $(JUMP_USER)),)
+	$(error Defina o usuário do Bastion: make tunnel IP=x.x.x.x JUMP_IP=y.y.y.y JUMP_USER=usuario [USER=usuario])
+endif
+	@echo "${GREEN}>> Iniciando $(MSG_MODE) TUNNEL via $(strip $(JUMP_IP)) para $(TARGET_IP)...${RESET}"
+	$(ANSIBLE_CMD) -i "$(TARGET_IP)," -u $(USER) \
+		--ssh-common-args='-o ProxyCommand="ssh -W %h:%p -q $(strip $(JUMP_USER))@$(strip $(JUMP_IP))"'
 
 # --- Pipeline de Testes Sandbox (Docker) ---
 

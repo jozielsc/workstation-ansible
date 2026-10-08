@@ -12,8 +12,8 @@ O arquivo `Makefile` é a interface principal:
 
 *   `make` (ou `make interactive` / `make menu`): Inicia o assistente TUI interativo para configurar e provisionar o ambiente passo a passo.
 *   `make local`: Configura a máquina atual (localhost).
-*   `make remote IP=<IP> USER=<USER>`: Configura uma máquina remota via SSH.
-*   `make tunnel IP=<IP> JUMP_IP=<JUMP_IP>`: Configura uma máquina através de um Bastion Host.
+*   `make remote IP=<IP> USER=<USER>`: Configura uma máquina remota via SSH. O `IP` é obrigatório e precisa vir na linha de comando (um `IP` exportado no shell é ignorado).
+*   `make tunnel IP=<IP> JUMP_IP=<JUMP_IP> JUMP_USER=<JUMP_USER>`: Configura uma máquina através de um Bastion Host. `IP`, `JUMP_IP` e `JUMP_USER` são obrigatórios.
 *   `make sandbox [DISTRO=void|ubuntu]`: Cria um container Docker isolado, executa o Ansible e o mantém ativo para testes.
 *   `make sandbox-shell`: Abre o terminal interativo (`bash`) no container sandbox atual.
 *   `make sandbox-clean`: Para e remove o container sandbox.

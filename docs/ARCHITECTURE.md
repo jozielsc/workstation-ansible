@@ -29,7 +29,7 @@ O wizard só monta argumentos para o `make`; ele não tem lógica de provisionam
 | `tunnel` | `$IP,` | SSH via `ProxyCommand ssh -W` no bastion `$JUMP_USER@$JUMP_IP` | `-K` |
 | `sandbox` | nome do container | `-c docker -u dev` | sudo NOPASSWD dentro da imagem |
 
-`ansible.cfg` define `become = True` / `become_method = sudo` globalmente, e o callback de saída `yaml` com `timer`.
+`ansible.cfg` define `become = True` / `become_method = sudo` globalmente, e o callback de saída `ansible.builtin.default` com `callback_result_format = yaml`, mais o `ansible.posix.timer` (veja [Collections Ansible necessárias no controlador](#collections-ansible-necessárias-no-controlador)).
 
 ## Playbook `site.yml`
 
@@ -157,6 +157,18 @@ Como `dotfiles` roda por último, qualquer arquivo que roles anteriores criem no
 | `github.com/jozielsc/dotfiles` | dotfiles | `main` |
 
 Todas exigem acesso à internet a partir do host provisionado.
+
+### Collections Ansible necessárias no controlador
+
+Não há `requirements.yml` (#20); as collections vêm do pacote `ansible`.
+
+| Collection | Usada por |
+|---|---|
+| `ansible.posix` | callback `timer` (`ansible.cfg`) |
+| `community.general` | módulo `package` no Void (`xbps`) e no Arch (`pacman`). Sem ela, a instalação de pacotes falha nessas distros (`Could not find a matching action for the "xbps" package manager`) |
+| `community.docker` | conexão `-c docker` do `make sandbox` |
+
+O callback de saída (`ansible.builtin.default`) não depende de collection.
 
 ## Matriz de suporte por plataforma
 

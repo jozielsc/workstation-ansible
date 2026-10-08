@@ -6,7 +6,7 @@
     recurse: false
     # Ignora diretórios ocultos como .git
     patterns: "[!.]*"
-  register: found_packages
+  register: dotfiles_found_packages
 
 # NOTA: intencionalmente NÃO usamos --adopt. Com --adopt o stow MOVE arquivos
 # já existentes na home para dentro do repositório de dotfiles, sobrescrevendo
@@ -21,17 +21,17 @@
       --dir={{ repo_item.dest }}
       --target={{ user_home }}
       {{ item.path | basename }}
-  loop: "{{ found_packages.files }}"
+  loop: "{{ dotfiles_found_packages.files }}"
   loop_control:
     label: "{{ item.path | basename }}"
-  register: stow_result
+  register: dotfiles_stow_result
   # 'LINK:' aparece no stderr quando o stow efetivamente cria symlinks.
-  changed_when: "'LINK: ' in stow_result.stderr"
+  changed_when: "'LINK: ' in dotfiles_stow_result.stderr"
   # Não aborta em conflito de arquivo já existente; apenas em erros reais.
   failed_when:
-    - stow_result.rc != 0
-    - "'existing target' not in stow_result.stderr"
-    - "'BUG' not in stow_result.stderr"
+    - dotfiles_stow_result.rc != 0
+    - "'existing target' not in dotfiles_stow_result.stderr"
+    - "'BUG' not in dotfiles_stow_result.stderr"
 
 - name: "Reportar conflitos de Stow em {{ repo_item.dest }}"
   ansible.builtin.debug:
@@ -39,7 +39,7 @@
       ⚠️ Pacote '{{ item.item.path | basename }}' possui alvos já existentes na home
       e não foi aplicado (sem --adopt para não sobrescrever). Resolva manualmente
       ou faça backup e remova os arquivos conflitantes antes de reexecutar.
-  loop: "{{ stow_result.results | default([]) }}"
+  loop: "{{ dotfiles_stow_result.results | default([]) }}"
   loop_control:
     label: "{{ item.item.path | basename }}"
   when:

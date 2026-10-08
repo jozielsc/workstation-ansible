@@ -7,7 +7,7 @@
 - name: Verificar se o rustup já está instalado
   ansible.builtin.stat:
     path: "{{ user_home }}/.cargo/bin/rustup"
-  register: rustup_bin
+  register: languages_rustup_bin
   become: false
   when: languages_features.rust | default(true)
   tags: [rust]
@@ -20,13 +20,13 @@
   args:
     creates: "{{ user_home }}/.cargo/bin/rustup"
     executable: /bin/bash
-  register: rustup_install
+  register: languages_rustup_install
   # Se o instalador oficial falhar (sem rede, sem curl), não aborta: cai no
   # fallback via pacote da distribuição na task seguinte.
   failed_when: false
   when:
     - languages_features.rust | default(true)
-    - not (rustup_bin.stat is defined and rustup_bin.stat.exists)
+    - not (languages_rustup_bin.stat is defined and languages_rustup_bin.stat.exists)
   tags: [rust]
 
 - name: Fallback - instalar Rust/Cargo via pacote do sistema
@@ -37,7 +37,7 @@
   failed_when: false
   when:
     - languages_features.rust | default(true)
-    - not (rustup_bin.stat is defined and rustup_bin.stat.exists)
-    - rustup_install is defined
-    - rustup_install is failed or (rustup_install.rc is defined and rustup_install.rc != 0)
+    - not (languages_rustup_bin.stat is defined and languages_rustup_bin.stat.exists)
+    - languages_rustup_install is defined
+    - languages_rustup_install is failed or (languages_rustup_install.rc is defined and languages_rustup_install.rc != 0)
   tags: [rust]

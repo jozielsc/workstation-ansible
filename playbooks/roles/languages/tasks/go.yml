@@ -6,10 +6,10 @@
 
 - name: Instalar Golang (Repository)
   ansible.builtin.package:
-    name: 
+    name:
       - golang
     state: present
-  when: 
+  when:
     - languages_features.golang | default(true)
     - ansible_facts['os_family'] == 'Debian'
   tags: [go, golang]
@@ -19,7 +19,7 @@
     name:
       - go
     state: present
-  when: 
+  when:
     - languages_features.golang | default(true)
     - ansible_facts['distribution'] == 'Void'
   tags: [go, golang]

@@ -16,7 +16,9 @@
     - name: Carregar sobrescritas locais (local.yml)
       ansible.builtin.include_vars:
         file: "../profiles/local.yml"
-      ignore_errors: true
+      # O local.yml é opcional (gitignored). O teste roda no controller, onde o
+      # include_vars lê o arquivo.
+      when: (playbook_dir ~ '/../profiles/local.yml') is file
       tags: ['always']
 
     - name: Determinar diretório home e user do usuário real (sem sudo)

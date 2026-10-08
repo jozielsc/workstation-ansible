@@ -6,7 +6,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Ansible project that provisions a Linux developer workstation (Debian/Ubuntu, Void, RedHat/Fedora, Arch). There is no build step; the `Makefile` is the entry point and wraps `ansible-playbook playbooks/site.yml`. Task names, comments, docs and user-facing messages are written in Portuguese — keep that convention.
 
+## Workflow rules
+
+Full rules, board field IDs and `gh` recipes are in `docs/WORKFLOW.md`. Essentials:
+- Analysis never authorizes changing production code (playbooks, roles, Makefile, scripts, profiles); only documentation and GitHub Issues. Implement only when explicitly asked. Where legacy code diverges from a rule, new or changed code follows the rule; don't fix the legacy without an issue.
+- Keep **code ↔ `docs/` ↔ GitHub Issues** consistent at all times: code is the current implementation, `docs/` is the current knowledge (what/how/why), Issues are the remaining actionable work. Don't duplicate between them: Issues reference doc sections for technical context instead of copying it.
+- Record architectural discoveries, constraints, legacy behavior and design decisions in the right file under `docs/` (update before creating new docs). A change that alters documented behavior updates the docs in the same PR; never leave docs describing obsolete behavior, and substantial work isn't done until its knowledge is documented. Keep this file concise.
+- Before implementing an issue, read it and the relevant docs and check that both still match the code.
+- The single backlog is GitHub Project #6 "workstation-ansible" (`gh project item-list 6 --owner jozielsc`). Status flow: `Backlog → Ready → In progress → In review → Done`. Every new issue goes on the board as `Backlog` with `Priority` (P0–P2) and `Size` (XS–XL).
+- Before creating an issue, search open and recently closed ones (`gh issue list --state all --search ...`); comment on or update an existing one instead of duplicating. Use the template in `docs/WORKFLOW.md`, only existing labels, GitHub relationships for related issues, and cross-link docs ↔ issues. After an analysis, report the issues created, updated, and intentionally not created.
+- One issue → one branch named `<type>-<slug>-<N>`, created from fresh `origin/main` (no `/`, no `gh issue develop`, never without an issue). Put the implementation plan in the issue body (`## Plano de implementação`) and decisions in issue comments.
+- PR to `main` with `Closes #N` in the body (never the title); verify with `gh pr view <PR> --json baseRefName,closingIssuesReferences`. Review in rounds with `/code-review <PR> --comment`; ask the user before applying fixes; unfixed relevant findings become new issues.
+- Merge only when the user explicitly asks. Afterwards: card to `Done`, confirm the issue closed, delete the local and remote branch. Check card status after any link, merge or close (board automations move cards).
+- Commits follow Conventional Commits / commitlint: `type(scope): description` in English, imperative, lowercase; `Refs #N` footer when there is an issue.
+
 Deeper references:
+- `docs/WORKFLOW.md` — analysis, documentation, issue and git workflow.
 - `docs/ARCHITECTURE.md` — execution flow, variable precedence, tag semantics, per-role behavior, external integrations, platform support matrix.
 - `docs/TECH_DEBT.md` — dated technical baseline: known bugs, duplications, risks. Check it before "fixing" something, and update it when an item is resolved.
 - `docs/USAGE.md` — end-user manual (also shown by `make help-docs` and the wizard).

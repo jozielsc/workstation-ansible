@@ -25,6 +25,7 @@ Legenda de evidência:
 | B9 | `make local DRY=1` deve falhar no Lazygit: `tempfile` não suporta check mode (é pulado), então `lazygit_temp.path` fica indefinido no `unarchive` | `install_lazygit.yml` | Provável | #13 |
 | B10 | A mensagem diz "Node.js e NPM", mas `npm` é um pacote separado em Debian e Arch e não é instalado | `node.yml` | Provável | #17 |
 | B11 | O instalador do uv e o `pipx ensurepath` podem alterar `~/.bashrc`, `~/.zshrc` e `~/.profile` antes do stow, gerando conflitos que fazem pacotes de dotfiles serem pulados | `python.yml` + `dotfiles` | A verificar | #18 |
+| B12 | `USER ?= $(shell whoami)` nunca vale, porque `USER` sempre existe no ambiente: `remote`/`tunnel` usam o `$USER` do shell como usuário SSH, e a doc o apresenta como opcional | `Makefile` | Confirmado (`make -n remote IP=x`) | #35 |
 
 ## Inconsistências de configuração
 

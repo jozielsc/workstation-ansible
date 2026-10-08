@@ -9,9 +9,13 @@ TAGS      ?= all
 USER      ?= $(shell whoami)
 
 # --- Destino remoto (remote/tunnel) ---
-# O IP só é aceito da linha de comando: um IP exportado no shell não pode
-# escolher o host provisionado. Valores só com espaços contam como vazios.
-TARGET_IP := $(if $(findstring command line,$(origin IP)),$(strip $(IP)))
+# Sem default: remote/tunnel param se o IP faltar. TARGET_IP fica vazio também
+# quando o IP não é um único host (espaços ou vírgulas viram vários hosts no
+# inventário "$(IP),").
+COMMA        := ,
+TARGET_IP    := $(if $(filter 1,$(words $(IP))),$(if $(findstring $(COMMA),$(IP)),,$(strip $(IP))))
+REMOTE_USAGE := make remote IP=x.x.x.x [USER=usuario]
+TUNNEL_USAGE := make tunnel IP=x.x.x.x JUMP_IP=y.y.y.y JUMP_USER=usuario [USER=usuario]
 
 # --- Variáveis para Sandbox ---
 DISTRO            ?= void
@@ -115,20 +119,20 @@ local:
 
 remote:
 ifeq ($(TARGET_IP),)
-	$(error Defina o IP de destino: make remote IP=x.x.x.x [USER=usuario])
+	$(error Defina um único IP de destino: $(REMOTE_USAGE))
 endif
 	@echo "${GREEN}>> Iniciando $(MSG_MODE) REMOTE em $(TARGET_IP) [Tags: $(TAGS)]...${RESET}"
 	$(ANSIBLE_CMD) -i "$(TARGET_IP)," -u $(USER)
 
 tunnel:
 ifeq ($(TARGET_IP),)
-	$(error Defina o IP de destino: make tunnel IP=x.x.x.x JUMP_IP=y.y.y.y JUMP_USER=usuario [USER=usuario])
+	$(error Defina um único IP de destino: $(TUNNEL_USAGE))
 endif
 ifeq ($(strip $(JUMP_IP)),)
-	$(error Defina o IP do Bastion: make tunnel IP=x.x.x.x JUMP_IP=y.y.y.y JUMP_USER=usuario [USER=usuario])
+	$(error Defina o IP do Bastion: $(TUNNEL_USAGE))
 endif
 ifeq ($(strip $(JUMP_USER)),)
-	$(error Defina o usuário do Bastion: make tunnel IP=x.x.x.x JUMP_IP=y.y.y.y JUMP_USER=usuario [USER=usuario])
+	$(error Defina o usuário do Bastion: $(TUNNEL_USAGE))
 endif
 	@echo "${GREEN}>> Iniciando $(MSG_MODE) TUNNEL via $(strip $(JUMP_IP)) para $(TARGET_IP)...${RESET}"
 	$(ANSIBLE_CMD) -i "$(TARGET_IP)," -u $(USER) \

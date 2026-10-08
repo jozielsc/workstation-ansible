@@ -160,11 +160,13 @@ Todas exigem acesso à internet a partir do host provisionado.
 
 ### Collections Ansible necessárias no controlador
 
-Não há `requirements.yml` (#20); as collections vêm do pacote `ansible`.
+Requisito mínimo: **ansible-core ≥ 2.13**, por causa do `callback_result_format`. Em versões mais antigas a opção é ignorada sem aviso e a saída volta a ser JSON.
+
+Não há `requirements.yml` (#20). As collections abaixo vêm no pacote completo `ansible` (o que o README manda instalar), mas **não** numa instalação só de `ansible-core` (via pip ou pacote `ansible-core` da distro). Nesse caso, instale-as com `ansible-galaxy collection install`.
 
 | Collection | Usada por |
 |---|---|
-| `ansible.posix` | callback `timer` (`ansible.cfg`) |
+| `ansible.posix` | callback `ansible.posix.timer` (`ansible.cfg`) |
 | `community.general` | módulo `package` no Void (`xbps`) e no Arch (`pacman`). Sem ela, a instalação de pacotes falha nessas distros (`Could not find a matching action for the "xbps" package manager`) |
 | `community.docker` | conexão `-c docker` do `make sandbox` |
 

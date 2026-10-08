@@ -35,7 +35,7 @@ Este projeto é uma solução completa de *Infrastructure as Code* (IaC) para pr
 
 Na máquina onde você executará o Ansible, é necessário apenas:
 - **Git**
-- **Ansible**
+- **Ansible**: o pacote `ansible` completo, com ansible-core ≥ 2.13. Só o `ansible-core` não traz as collections necessárias (veja [ARCHITECTURE.md](docs/ARCHITECTURE.md#collections-ansible-necessárias-no-controlador))
 - **Make**
 - *(Opcional)* **Docker** (para uso do Pipeline de Testes Sandbox)
 
@@ -150,7 +150,7 @@ This project is a complete Infrastructure as Code (IaC) solution for developer e
 
 On the machine running Ansible:
 - **Git**
-- **Ansible**
+- **Ansible**: the full `ansible` package, with ansible-core ≥ 2.13. `ansible-core` alone lacks the required collections (see [ARCHITECTURE.md](docs/ARCHITECTURE.md#collections-ansible-necessárias-no-controlador))
 - **Make**
 - *(Optional)* **Docker** (for Sandbox Testing Pipeline)
 

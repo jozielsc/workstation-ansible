@@ -63,7 +63,7 @@ Dev tools (ansible, ansible-lint, molecule) come from the uv `dev` group in `pyp
 ## Architecture
 
 - `playbooks/site.yml` is the only playbook. Its `pre_tasks` (all tagged `always`):
-  1. load `profiles/{{ profile }}.yml`, then `profiles/local.yml` if present (gitignored; skipped via `when: … is file`);
+  1. load `profiles/{{ profile }}.yml`, then `profiles/local.yml` if present (gitignored; skipped via `when: … is file`, but an invalid file fails the play);
   2. compute `user_home` and `user_id` by running `echo $HOME && whoami` with `become: false`. The play runs with `become: true`, so **any task that touches the user's home must use `become: false` and `user_home`/`user_id`**, never `ansible_env.HOME` or `ansible_user`.
 - Roles run in order: `devtools`, `languages`, `docker`, `zsh`, `ui`, `editors`, `dotfiles`. The `ui` role carries the `never` tag, so it only runs when `TAGS=ui` (or another of its tags) is passed explicitly.
 - **Per-distro package lists**: roles that install packages (`devtools`, `editors`, `ui`) do `include_vars: "{{ ansible_facts['os_family'] }}.yml"` from their `vars/` dir (`Debian`, `Void`, `RedHat`, `Archlinux`), with a hardcoded fallback list if the file is missing. Package names differ between distros, so adding a package usually means editing all four files.

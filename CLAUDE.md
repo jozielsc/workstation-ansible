@@ -1,0 +1,59 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Overview
+
+Ansible project that provisions a Linux developer workstation (Debian/Ubuntu, Void, RedHat/Fedora, Arch). There is no build step; the `Makefile` is the entry point and wraps `ansible-playbook playbooks/site.yml`. Task names, comments, docs and user-facing messages are written in Portuguese — keep that convention.
+
+Deeper references:
+- `docs/ARCHITECTURE.md` — execution flow, variable precedence, tag semantics, per-role behavior, external integrations, platform support matrix.
+- `docs/TECH_DEBT.md` — dated technical baseline: known bugs, duplications, risks. Check it before "fixing" something, and update it when an item is resolved.
+- `docs/USAGE.md` — end-user manual (also shown by `make help-docs` and the wizard).
+
+## Commands
+
+```bash
+make                      # interactive TUI wizard (scripts/interactive.sh -> builds and runs a make command)
+make local                # provision localhost (asks for sudo password via -K)
+make local TAGS=zsh,node  # run only selected roles/subtasks
+make local DRY=1          # --check --diff
+make local PROFILE=local  # load profiles/local.yml as the main profile
+make remote IP=x.x.x.x USER=root
+make tunnel IP=... USER=... JUMP_IP=... JUMP_USER=...
+make lint                 # ansible-lint playbooks/*.yml
+ARGS="-vvv" make local    # extra args are appended to ansible-playbook
+make -n <target> ...      # print the exact ansible-playbook command without running it
+
+# Static checks that never touch a host
+ansible-playbook playbooks/site.yml --syntax-check -i localhost,
+ansible-playbook playbooks/site.yml --list-tasks --tags rust -i localhost,
+```
+
+Testing is done in disposable Docker containers, never on the host:
+
+```bash
+make sandbox                         # Void Linux glibc (default)
+make sandbox DISTRO=ubuntu TAGS=rust # test a single tag on Ubuntu
+make sandbox-shell DISTRO=void       # inspect the container afterwards
+make sandbox-clean DISTRO=void
+```
+
+`make sandbox` builds `tests/sandbox/Dockerfile.$(DISTRO)`, starts a container, and runs the playbook against it with `-c docker -u dev` (passwordless sudo, no `-K`). It builds its own `ansible-playbook` command, so `ANS_FLAGS` (including `DRY`) do not apply to it. The containers have no init system (runit/systemd not PID 1), so service-enablement paths are skipped there and are never exercised by the sandbox. Only `void` and `ubuntu` Dockerfiles exist. There is no automated test suite or CI.
+
+## Architecture
+
+- `playbooks/site.yml` is the only playbook. Its `pre_tasks` (all tagged `always`):
+  1. load `profiles/{{ profile }}.yml`, then `profiles/local.yml` if present (gitignored; failure ignored);
+  2. compute `user_home` and `user_id` by running `echo $HOME && whoami` with `become: false`. The play runs with `become: true`, so **any task that touches the user's home must use `become: false` and `user_home`/`user_id`**, never `ansible_env.HOME` or `ansible_user`.
+- Roles run in order: `devtools`, `languages`, `docker`, `zsh`, `ui`, `editors`, `dotfiles`. The `ui` role carries the `never` tag, so it only runs when `TAGS=ui` (or another of its tags) is passed explicitly.
+- **Per-distro package lists**: roles that install packages (`devtools`, `editors`, `ui`) do `include_vars: "{{ ansible_facts['os_family'] }}.yml"` from their `vars/` dir (`Debian`, `Void`, `RedHat`, `Archlinux`), with a hardcoded fallback list if the file is missing. Package names differ between distros, so adding a package usually means editing all four files.
+- **Variable precedence**: the role-level `include_vars` runs after the profile's, so the distro file wins. A profile can't replace `devtools_packages`/`editors_packages`/`ui_packages`; it can only add via `*_extra_packages`. Dict variables (`*_features`) are replaced, not merged (default `hash_behaviour`), so a profile that sets one key of a features dict drops the others.
+- **Resilient install pattern**: the base list is merged with `*_extra_packages` from the profile, then installed in a `block` as one batch; on failure the `rescue` installs packages one by one with `failed_when: false` and reports the missing ones. Reuse this pattern for new package-installing roles rather than letting one unavailable package abort the run.
+- **Feature toggles** live in profiles (`devtools_features`, `languages_features`, `ui_features`, `editors_features`) and are read with `| default(...)` in `when:` clauses.
+- **Tags**: role tags from `site.yml` are inherited by every task in the role, including tasks pulled in by `include_tasks`. Tags placed on an `include_tasks` statement are **not** inherited by the included tasks, and an included task's own tag can't be selected unless the include itself matches. Each language in `roles/languages/tasks/` is an include tagged `python`, `node`, `rust` or `go`/`golang`, and its tasks must repeat that tag to run under it.
+- Distro branching beyond package names uses `ansible_facts['os_family']` or `ansible_facts['distribution'] == "Void"` (e.g. `roles/docker/tasks/{debian,void}.yml`). On Void, Ansible reports `service_mgr` as `service`; services are enabled by symlinking `/etc/sv/<name>` into `/var/service`.
+- External installers (rustup, lazygit binary) use `creates:`/`stat` for idempotency and fall back to the distro package when they fail.
+- `dotfiles` clones `dotfiles_repos` (default: `jozielsc/dotfiles` into `~/.dotfiles`) and stows each top-level directory with `--no-folding`. It deliberately does **not** use `stow --adopt` (that would overwrite tracked dotfiles with whatever is in `$HOME`); conflicts are reported and skipped instead of failing the play. Because it runs last, anything earlier roles write into `$HOME` (e.g. shell rc files) can turn into stow conflicts.
+- **The tag list exists in several places**: `site.yml`, the Makefile `help` target, the wizard's `available_tags` in `scripts/interactive.sh`, `README.md` (PT and EN sections), and `docs/USAGE.md`. When you add or rename a tag or a make variable, update all of them.
+- `scripts/interactive.sh` is a whiptail/dialog/plain-CLI wizard that only assembles `make` arguments (mode, profile, tags, dry-run) and runs `make`. It has no provisioning logic of its own.

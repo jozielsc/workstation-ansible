@@ -1,8 +1,6 @@
 ---
 # Config do ansible-lint (`make lint` e CI). O legado foi corrigido na #33,
 # então não há skip_list nem warn_list: uma exceção nova entra aqui comentada
-# e com a Issue que trata dela.
+# e com a Issue que trata dela. Arquivos do .gitignore (.venv/, .ansible/)
+# já ficam de fora, então não há exclude_paths.
 profile: production
-
-exclude_paths:
-  - .venv/

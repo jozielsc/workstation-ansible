@@ -21,6 +21,3 @@ rules:
   octal-values:
     forbid-implicit-octal: true
     forbid-explicit-octal: true
-  # A chave `on:` dos workflows do GitHub Actions seria lida como booleano.
-  truthy:
-    check-keys: false

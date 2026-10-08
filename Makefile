@@ -7,7 +7,6 @@ PLAYBOOK  := playbooks/site.yml
 PROFILE   ?= default
 TAGS      ?= all
 USER      ?= $(shell whoami)
-IP        ?= localhost
 
 # --- Variáveis para Sandbox ---
 DISTRO            ?= void

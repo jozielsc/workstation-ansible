@@ -87,4 +87,6 @@
   # falhar, o play já parou). Uma task, e não um handler, para rodar logo
   # após o download sem depender de flush_handlers.
   changed_when: true
-  when: ui_nerdfont_download is not skipped
+  when:
+    - ui_nerdfont_download is defined
+    - ui_nerdfont_download is not skipped

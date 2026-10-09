@@ -127,7 +127,8 @@ tui_menu() {
             done
         } >&2
     fi
-    echo "$out"
+    # printf, e não echo: um valor como "-e" ou "-n" seria lido como opção do echo.
+    printf '%s\n' "$out"
     return $rc
 }
 
@@ -241,7 +242,8 @@ tui_checklist() {
         done
         out="${selected[*]}"
     fi
-    echo "$out"
+    # printf, e não echo: um valor como "-e" ou "-n" seria lido como opção do echo.
+    printf '%s\n' "$out"
     return $rc
 }
 
@@ -286,7 +288,7 @@ tui_inputbox() {
             esac
         } >&2
     fi
-    echo "${out:-$default_val}"
+    printf '%s\n' "${out:-$default_val}"
     return $rc
 }
 

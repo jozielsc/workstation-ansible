@@ -108,9 +108,8 @@ Uma lista com um pacote inexistente não aborta o play: a instalação passa a s
 - `install_lazygit.yml` (quando `devtools_features.lazygit`):
   1. mapeia `ansible_facts.architecture` para o asset do release (`x86_64`, `arm64`, `armv6`);
   2. lê a versão instalada com `/usr/local/bin/lazygit --version` (o `version=` da saída) e consulta `api.github.com/…/releases/latest`, ambos com `check_mode: false`;
-  3. só quando as versões diferem, baixa o asset em um `tempfile` e copia para `/usr/local/bin/lazygit`. Em check mode, não baixa: uma tarefa `debug` com `changed_when: true` informa a versão que seria instalada, porque o `tempfile` não roda em check mode;
-  4. no `rescue`, uma falha (rede, rate limit da API, download) vira aviso e o play continua, sem fallback para pacote da distro;
-  5. remove o diretório temporário no `always`.
+  3. só quando não há Lazygit (ou a versão não é reconhecida) ou a instalada é mais antiga que a última release, um único `unarchive` baixa o asset e extrai só o binário em `/usr/local/bin` (`include: [lazygit]`, `0755`, `root`). Uma versão mais nova que a release (build local) não é rebaixada. Em check mode, não baixa: uma tarefa `debug` com `changed_when: true` informa a versão que seria instalada;
+  4. no `rescue`, só falha de rede ou da API vira aviso e o play continua: a consulta à API, ou o `unarchive` com `Failure downloading`. Qualquer outro erro (extrair, gravar, template) falha o play. Não há fallback para pacote da distro.
 
   A API do GitHub ainda é consultada a cada execução (60 requisições por hora sem token), porque a versão desejada é sempre a última; fixar a versão é a #26.
 - TPM: `git clone` em `~/.tmux/plugins/tpm` quando `devtools_features.tpm`.

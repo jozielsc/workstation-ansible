@@ -100,8 +100,8 @@ tui_menu() {
             fi
             local choice idx
             while true; do
-                # Ctrl-D (fim da entrada) cancela, como o Esc do whiptail/dialog.
-                read -rp "$nav_prompt: " choice || return 1
+                # Ctrl-D (fim da entrada) sem nada digitado cancela, como o Esc do whiptail/dialog.
+                read -rp "$nav_prompt: " choice || [ -n "$choice" ] || return 1
                 case "$choice" in
                     "")
                         out="${keys[current]}"
@@ -177,7 +177,7 @@ tui_checklist() {
             done
             echo ""
             while true; do
-                read -rp "Enter selection: " selections || return 1
+                read -rp "Enter selection: " selections || [ -n "$selections" ] || return 1
                 indexes=()
                 invalid=()
                 case "$selections" in
@@ -259,14 +259,11 @@ tui_inputbox() {
                 echo -e "${YELLOW}(Digite 'c' para cancelar)${NC}"
             fi
             local val
-            read -rp "[$default_val]: " val || return 1
+            read -rp "[$default_val]: " val || [ -n "$val" ] || return 1
+            if [ "$show_back" = "1" ] && [[ "$val" == [Bb] ]]; then
+                return 3
+            fi
             case "$val" in
-                [Bb])
-                    if [ "$show_back" = "1" ]; then
-                        return 3
-                    fi
-                    out="$val"
-                    ;;
                 [Cc])
                     return 1
                     ;;

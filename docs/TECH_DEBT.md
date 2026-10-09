@@ -28,6 +28,7 @@ Legenda de evidência:
 | B12 | `USER ?= $(shell whoami)` nunca vale, porque `USER` sempre existe no ambiente: `remote`/`tunnel` usam o `$USER` do shell como usuário SSH, e a doc o apresenta como opcional | `Makefile` | Confirmado (`make -n remote IP=x`) | #35 |
 | B13 | Um pacote de dotfiles com conflito reporta `changed` sem alterar nada: com `--verbose`, o stow imprime os `LINK:` planejados antes de abortar, e o `changed_when` só procura `LINK: `. Com um conflito, a execução nunca chega a `changed=0`. Além disso, o `failed_when` aceita qualquer rc != 0 com `BUG` no stderr, e o relatório só mostra `existing target`: um erro interno do stow deixa o pacote sem aplicar e o play termina verde, sem aviso | `dotfiles/tasks/stow_repo.yml` | `changed`: Confirmado (sandbox void); `BUG`: Confirmado (leitura) | #39 |
 | B16 | Na confirmação do wizard (passo 6), o `local IFS=","` usado para as tags vale no resto do passo, então o resumo e o `>> Executing:` mostram `make local,PROFILE=…,TAGS=…` (o comando executado está certo). No modo `cli`, o resumo também sai numa linha só, com `\n` literais | `scripts/interactive.sh` (passo 6, `tui_yesno`) | Confirmado (`bash -x` em modo `cli`) | #48 |
+| B17 | No modo `local`, Back no passo 3 do wizard reabre o passo 3: o passo 2 não tem caso para `local` e devolve para o 3, então só dá para voltar ao passo 1 cancelando | `scripts/interactive.sh` (passos 2 e 3) | Confirmado (modo `cli`) | #49 |
 
 ## Inconsistências de configuração
 

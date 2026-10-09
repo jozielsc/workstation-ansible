@@ -121,7 +121,8 @@ tui_menu() {
                         fi
                         ;;
                 esac
-                echo -e "${YELLOW}Opção inválida: '$choice'. Digite um número de 1 a ${#keys[@]}.${NC}"
+                # %s imprime a entrada como texto: com echo -e, um \c ou \033 digitado seria interpretado.
+                printf "%bOpção inválida: '%s'. Digite um número de 1 a %d.%b\n" "$YELLOW" "$choice" "${#keys[@]}" "$NC"
             done
         } >&2
     fi
@@ -189,7 +190,8 @@ tui_checklist() {
                         ;;
                     *)
                         # read -a separa os números sem expansão de glob; uma entrada inválida não aplica nada.
-                        read -r -a tokens <<< "$selections" || true
+                        # O IFS explícito evita herdar o IFS="," do passo 6 de main quando o usuário volta de lá.
+                        IFS=' ' read -r -a tokens <<< "$selections" || true
                         for num in "${tokens[@]}"; do
                             if idx=$(parse_index "$num" "${#items[@]}"); then
                                 indexes+=("$idx")
@@ -202,7 +204,12 @@ tui_checklist() {
                         fi
                         ;;
                 esac
-                echo -e "${YELLOW}Seleção inválida: ${invalid[*]:-$selections}. Digite números de 1 a ${#items[@]} separados por espaço.${NC}"
+                local shown="$selections"
+                if [ "${#invalid[@]}" -gt 0 ]; then
+                    printf -v shown '%s ' "${invalid[@]}"
+                    shown="${shown% }"
+                fi
+                printf "%bSeleção inválida: %s. Digite números de 1 a %d separados por espaço.%b\n" "$YELLOW" "$shown" "${#items[@]}" "$NC"
             done
         } >&2
         # Um número repetido alterna o item uma vez só.

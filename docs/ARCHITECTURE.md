@@ -20,6 +20,8 @@ make sandbox
 
 O wizard só monta argumentos para o `make`; ele não tem lógica de provisionamento. O Makefile só monta a linha de comando do `ansible-playbook`. Toda a lógica fica em `playbooks/`.
 
+O wizard escolhe a interface pela ordem `whiptail` > `dialog` > `cli` (texto puro, quando não há nenhum dos dois; `TUI_ENGINE` força uma delas). Os passos capturam o resultado de `tui_menu`, `tui_checklist` e `tui_inputbox` com `$(...)`, então essas funções só podem escrever em stdout o valor escolhido. No modo `cli`, banner, título, opções e mensagens vão para stderr. Nesse modo, só `b` e `c` sozinhos navegam (Back e Cancel), então um valor como `bruno` passa. Entrada vazia escolhe o primeiro item do menu ou confirma a seleção do checklist, e qualquer outra entrada inválida mostra uma mensagem e pergunta de novo. A conversão de número para item (`parse_index`) lê em base 10 (`08` é o item 8) e recusa mais de 9 dígitos. `tui_yesno` e `tui_textbox` não são capturados e escrevem direto no terminal.
+
 ### Modos de conexão
 
 | Modo | Inventário | Conexão | Escalonamento |

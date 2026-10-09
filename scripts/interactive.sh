@@ -41,6 +41,18 @@ EOF
     echo -e "${YELLOW}           Workstation Ansible - Provisioning Wizard${NC}\n"
 }
 
+# Converte uma seleção numérica (1..max) no índice base 0 e o imprime; falha se for inválida.
+# Zeros à esquerda são ignorados (08 = 8) e mais de 9 dígitos é recusado, para não estourar a aritmética do bash.
+parse_index() {
+    local value="$1"
+    local max="$2"
+    [[ "$value" =~ ^[0-9]+$ ]] || return 1
+    value="${value#"${value%%[!0]*}"}"
+    [[ "$value" =~ ^[1-9][0-9]{0,8}$ ]] || return 1
+    [ "$value" -le "$max" ] || return 1
+    echo $((value - 1))
+}
+
 tui_menu() {
     local show_back="$1"
     local title="$2"
@@ -57,9 +69,10 @@ tui_menu() {
     elif [ "$TUI_ENGINE" = "dialog" ]; then
         out=$(dialog --stdout "${extra_args[@]}" --backtitle "Workstation Ansible" --title "$title" --radiolist "$prompt" 18 70 8 "$@") || rc=$?
     else
-        show_banner
-        echo -e "${BOLD}=== $title ===${NC}"
-        echo -e "$prompt\n"
+        # No modo cli, a exibição vai para stderr: quem chama captura o stdout com $(...) e só deve receber o valor escolhido.
+        show_banner >&2
+        echo -e "${BOLD}=== $title ===${NC}" >&2
+        echo -e "$prompt\n" >&2
         local keys=()
         local texts=()
         local i=1
@@ -67,31 +80,37 @@ tui_menu() {
             keys+=("$1")
             texts+=("$2")
             shift 3 # key, desc, status
-            echo -e "  ${CYAN}[$i]${NC} ${keys[$((i-1))]} - ${texts[$((i-1))]}"
+            echo -e "  ${CYAN}[$i]${NC} ${keys[$((i-1))]} - ${texts[$((i-1))]}" >&2
             ((i++))
         done
-        echo ""
+        echo "" >&2
         local nav_prompt="Select option [1-$((i-1))]"
         [ "$show_back" = "1" ] && nav_prompt="[B] Back | [C] Cancel | $nav_prompt"
-        local choice
-        read -rp "$nav_prompt: " choice
-        case "$choice" in
-            [Bb]*)
-                if [ "$show_back" = "1" ]; then
-                    return 3
-                fi
-                ;;
-            [Cc]*)
-                return 1
-                ;;
-            *)
-                if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -lt "$i" ]; then
-                    out="${keys[$((10#$choice - 1))]}"
-                else
+        local choice idx
+        while true; do
+            read -rp "$nav_prompt: " choice
+            case "$choice" in
+                "")
                     out="${keys[0]}"
-                fi
-                ;;
-        esac
+                    break
+                    ;;
+                [Bb])
+                    if [ "$show_back" = "1" ]; then
+                        return 3
+                    fi
+                    ;;
+                [Cc])
+                    return 1
+                    ;;
+                *)
+                    if idx=$(parse_index "$choice" "${#keys[@]}"); then
+                        out="${keys[idx]}"
+                        break
+                    fi
+                    ;;
+            esac
+            echo -e "${YELLOW}Opção inválida: '$choice'. Digite um número de 1 a ${#keys[@]}.${NC}" >&2
+        done
     fi
     echo "$out"
     return $rc
@@ -113,13 +132,15 @@ tui_checklist() {
     elif [ "$TUI_ENGINE" = "dialog" ]; then
         out=$(dialog --stdout "${extra_args[@]}" --backtitle "Workstation Ansible" --title "$title" --checklist "$prompt" 22 75 12 "$@") || rc=$?
     else
-        show_banner
-        echo -e "${BOLD}=== $title ===${NC}"
-        echo -e "$prompt\n"
+        # Exibição em stderr, como em tui_menu.
+        show_banner >&2
+        echo -e "${BOLD}=== $title ===${NC}" >&2
+        echo -e "$prompt\n" >&2
         local items=()
         local descs=()
         local statuses=()
         local idx num selections
+        local tokens=() invalid=() toggled=()
         while [ $# -gt 0 ]; do
             items+=("$1")
             descs+=("$2")
@@ -127,39 +148,50 @@ tui_checklist() {
             shift 3
         done
 
-        echo -e "${YELLOW}Toggle options by entering numbers separated by spaces (e.g. 1 3 5), or press ENTER to confirm current:${NC}"
-        [ "$show_back" = "1" ] && echo -e "${YELLOW}Enter 'b' to go Back, 'c' to Cancel.${NC}\n"
+        echo -e "${YELLOW}Toggle options by entering numbers separated by spaces (e.g. 1 3 5), or press ENTER to confirm current:${NC}" >&2
+        [ "$show_back" = "1" ] && echo -e "${YELLOW}Enter 'b' to go Back, 'c' to Cancel.${NC}\n" >&2
         for idx in "${!items[@]}"; do
             local mark="[ ]"
             [ "${statuses[idx]}" = "ON" ] && mark="[X]"
-            echo -e "  ${CYAN}[$((idx+1))]${NC} $mark ${items[idx]} - ${descs[idx]}"
+            echo -e "  ${CYAN}[$((idx+1))]${NC} $mark ${items[idx]} - ${descs[idx]}" >&2
         done
-        echo ""
-        read -rp "Enter selection: " selections
-        case "$selections" in
-            [Bb]*)
-                if [ "$show_back" = "1" ]; then
-                    return 3
-                fi
-                ;;
-            [Cc]*)
-                return 1
-                ;;
-            *)
-                if [ -n "$selections" ]; then
-                    for num in $selections; do
-                        if [[ "$num" =~ ^[0-9]+$ ]] && [ "$num" -ge 1 ] && [ "$num" -le "${#items[@]}" ]; then
-                            idx=$((10#$num - 1))
-                            if [ "${statuses[idx]}" = "ON" ]; then
-                                statuses[idx]="OFF"
-                            else
-                                statuses[idx]="ON"
-                            fi
-                        fi
+        echo "" >&2
+        while true; do
+            read -rp "Enter selection: " selections
+            invalid=()
+            case "$selections" in
+                [Bb])
+                    if [ "$show_back" = "1" ]; then
+                        return 3
+                    fi
+                    ;;
+                [Cc])
+                    return 1
+                    ;;
+                *)
+                    # read -a separa os números sem expansão de glob; uma entrada inválida não aplica nada.
+                    read -r -a tokens <<< "$selections" || true
+                    for num in "${tokens[@]}"; do
+                        parse_index "$num" "${#items[@]}" >/dev/null || invalid+=("$num")
                     done
-                fi
-                ;;
-        esac
+                    if [ "${#invalid[@]}" -eq 0 ]; then
+                        break
+                    fi
+                    ;;
+            esac
+            echo -e "${YELLOW}Seleção inválida: ${invalid[*]:-$selections}. Digite números de 1 a ${#items[@]} separados por espaço.${NC}" >&2
+        done
+        # Um número repetido alterna o item uma vez só.
+        for num in "${tokens[@]}"; do
+            idx=$(parse_index "$num" "${#items[@]}")
+            [ -n "${toggled[idx]:-}" ] && continue
+            toggled[idx]=1
+            if [ "${statuses[idx]}" = "ON" ]; then
+                statuses[idx]="OFF"
+            else
+                statuses[idx]="ON"
+            fi
+        done
         local selected=()
         for idx in "${!items[@]}"; do
             [ "${statuses[idx]}" = "ON" ] && selected+=("${items[idx]}")
@@ -186,19 +218,21 @@ tui_inputbox() {
     elif [ "$TUI_ENGINE" = "dialog" ]; then
         out=$(dialog --stdout "${extra_args[@]}" --backtitle "Workstation Ansible" --title "$title" --inputbox "$prompt" 12 65 "$default_val") || rc=$?
     else
-        show_banner
-        echo -e "${BOLD}=== $title ===${NC}"
-        echo -e "$prompt"
-        [ "$show_back" = "1" ] && echo -e "${YELLOW}(Enter 'b' to go Back, 'c' to Cancel)${NC}"
+        # Exibição em stderr, como em tui_menu. Só b/c sozinhos navegam, para valores como "bruno" passarem.
+        show_banner >&2
+        echo -e "${BOLD}=== $title ===${NC}" >&2
+        echo -e "$prompt" >&2
+        [ "$show_back" = "1" ] && echo -e "${YELLOW}(Enter 'b' to go Back, 'c' to Cancel)${NC}" >&2
         local val
         read -rp "[$default_val]: " val
         case "$val" in
-            [Bb]*)
+            [Bb])
                 if [ "$show_back" = "1" ]; then
                     return 3
                 fi
+                out="$val"
                 ;;
-            [Cc]*)
+            [Cc])
                 return 1
                 ;;
             *)

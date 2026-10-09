@@ -10,7 +10,7 @@ Na máquina que executa o Ansible: `git`, `make` e o Ansible. A versão mínima,
 
 O arquivo `Makefile` é a interface principal:
 
-*   `make` (ou `make interactive` / `make menu`): Inicia o assistente TUI interativo para configurar e provisionar o ambiente passo a passo.
+*   `make` (ou `make interactive` / `make menu`): Inicia o assistente TUI interativo para configurar e provisionar o ambiente passo a passo. Usa o `whiptail` ou o `dialog`; sem nenhum dos dois, usa um modo texto em que você digita o número da opção (no passo de componentes, vários números separados por espaço), `b` para voltar e `c` para cancelar.
 *   `make local`: Configura a máquina atual (localhost).
 *   `make remote IP=<IP> USER=<USER>`: Configura uma máquina remota via SSH. O `IP` é obrigatório e deve ser um único host (sem espaços nem vírgulas).
 *   `make tunnel IP=<IP> JUMP_IP=<JUMP_IP> JUMP_USER=<JUMP_USER>`: Configura uma máquina através de um Bastion Host. `IP`, `JUMP_IP` e `JUMP_USER` são obrigatórios, e cada um deve ser um único valor (sem espaços nem vírgulas).

@@ -101,7 +101,7 @@ tui_menu() {
             local choice idx
             while true; do
                 # Ctrl-D (fim da entrada) sem nada digitado cancela, como o Esc do whiptail/dialog.
-                read -rp "$nav_prompt: " choice || [ -n "$choice" ] || return 1
+                read -rp "$nav_prompt: " choice || [ -n "$choice" ] || { echo; return 1; }
                 case "$choice" in
                     "")
                         out="${keys[current]}"
@@ -147,11 +147,9 @@ tui_checklist() {
     elif [ "$TUI_ENGINE" = "dialog" ]; then
         out=$(dialog --stdout "${extra_args[@]}" --backtitle "Workstation Ansible" --title "$title" --checklist "$prompt" 22 75 12 "$@") || rc=$?
     else
-        # Exibição em stderr, como em tui_menu.
+        # Exibição em stderr, como em tui_menu. Cada entrada válida inverte os itens e mostra a lista de novo;
+        # só Enter vazio confirma, como no checklist do whiptail/dialog.
         {
-            show_banner
-            echo -e "${BOLD}=== $title ===${NC}"
-            echo -e "$prompt\n"
             local items=()
             local descs=()
             local statuses=()
@@ -164,64 +162,73 @@ tui_checklist() {
                 shift 3
             done
 
-            echo -e "${YELLOW}Toggle options by entering numbers separated by spaces (e.g. 1 3 5), or press ENTER to confirm current:${NC}"
-            if [ "$show_back" = "1" ]; then
-                echo -e "${YELLOW}Enter 'b' to go Back, 'c' to Cancel.${NC}\n"
-            else
-                echo -e "${YELLOW}Digite 'c' para cancelar.${NC}\n"
-            fi
-            for idx in "${!items[@]}"; do
-                local mark="[ ]"
-                [ "${statuses[idx]}" = "ON" ] && mark="[X]"
-                echo -e "  ${CYAN}[$((idx+1))]${NC} $mark ${items[idx]} - ${descs[idx]}"
-            done
-            echo ""
             while true; do
-                read -rp "Enter selection: " selections || [ -n "$selections" ] || return 1
-                indexes=()
-                invalid=()
-                case "$selections" in
-                    [Bb])
-                        if [ "$show_back" = "1" ]; then
-                            return 3
-                        fi
-                        ;;
-                    [Cc])
-                        return 1
-                        ;;
-                    *)
-                        # read -a separa os números sem expansão de glob; uma entrada inválida não aplica nada.
-                        read -r -a tokens <<< "$selections" || true
-                        for num in "${tokens[@]}"; do
-                            if idx=$(parse_index "$num" "${#items[@]}"); then
-                                indexes+=("$idx")
-                            else
-                                invalid+=("$num")
-                            fi
-                        done
-                        if [ "${#invalid[@]}" -eq 0 ]; then
-                            break
-                        fi
-                        ;;
-                esac
-                local shown="$selections"
-                if [ "${#invalid[@]}" -gt 0 ]; then
-                    printf -v shown '%s ' "${invalid[@]}"
-                    shown="${shown% }"
+                show_banner
+                echo -e "${BOLD}=== $title ===${NC}"
+                echo -e "$prompt\n"
+                echo -e "${YELLOW}Toggle options by entering numbers separated by spaces (e.g. 1 3 5), or press ENTER to confirm current:${NC}"
+                if [ "$show_back" = "1" ]; then
+                    echo -e "${YELLOW}Enter 'b' to go Back, 'c' to Cancel.${NC}\n"
+                else
+                    echo -e "${YELLOW}Digite 'c' para cancelar.${NC}\n"
                 fi
-                printf "%bSeleção inválida: %s. Digite números de 1 a %d separados por espaço.%b\n" "$YELLOW" "$shown" "${#items[@]}" "$NC"
+                for idx in "${!items[@]}"; do
+                    local mark="[ ]"
+                    [ "${statuses[idx]}" = "ON" ] && mark="[X]"
+                    echo -e "  ${CYAN}[$((idx+1))]${NC} $mark ${items[idx]} - ${descs[idx]}"
+                done
+                echo ""
+                while true; do
+                    read -rp "Enter selection: " selections || [ -n "$selections" ] || { echo; return 1; }
+                    indexes=()
+                    invalid=()
+                    case "$selections" in
+                        "")
+                            break 2
+                            ;;
+                        [Bb])
+                            if [ "$show_back" = "1" ]; then
+                                return 3
+                            fi
+                            ;;
+                        [Cc])
+                            return 1
+                            ;;
+                        *)
+                            # read -a separa os números sem expansão de glob; uma entrada inválida não aplica nada.
+                            read -r -a tokens <<< "$selections" || true
+                            for num in "${tokens[@]}"; do
+                                if idx=$(parse_index "$num" "${#items[@]}"); then
+                                    indexes+=("$idx")
+                                else
+                                    invalid+=("$num")
+                                fi
+                            done
+                            if [ "${#invalid[@]}" -eq 0 ]; then
+                                break
+                            fi
+                            ;;
+                    esac
+                    local shown="$selections"
+                    if [ "${#invalid[@]}" -gt 0 ]; then
+                        printf -v shown '%s ' "${invalid[@]}"
+                        shown="${shown% }"
+                    fi
+                    printf "%bSeleção inválida: %s. Digite números de 1 a %d separados por espaço.%b\n" "$YELLOW" "$shown" "${#items[@]}" "$NC"
+                done
+                # Um número repetido na mesma entrada alterna o item uma vez só.
+                toggled=()
+                for idx in "${indexes[@]}"; do
+                    [ -n "${toggled[idx]:-}" ] && continue
+                    toggled[idx]=1
+                    if [ "${statuses[idx]}" = "ON" ]; then
+                        statuses[idx]="OFF"
+                    else
+                        statuses[idx]="ON"
+                    fi
+                done
             done
         } >&2
-        # Um número repetido alterna o item uma vez só.
-        for idx in "${indexes[@]}"; do
-            [ -n "${toggled[idx]:-}" ] && continue
-            toggled[idx]=1
-            if [ "${statuses[idx]}" = "ON" ]; then
-                statuses[idx]="OFF"
-            else
-                statuses[idx]="ON"
-            fi
-        done
         local selected=()
         for idx in "${!items[@]}"; do
             [ "${statuses[idx]}" = "ON" ] && selected+=("${items[idx]}")
@@ -259,7 +266,7 @@ tui_inputbox() {
                 echo -e "${YELLOW}(Digite 'c' para cancelar)${NC}"
             fi
             local val
-            read -rp "[$default_val]: " val || [ -n "$val" ] || return 1
+            read -rp "[$default_val]: " val || [ -n "$val" ] || { echo; return 1; }
             if [ "$show_back" = "1" ] && [[ "$val" == [Bb] ]]; then
                 return 3
             fi

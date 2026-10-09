@@ -42,7 +42,7 @@ EOF
 }
 
 # Converte uma seleção numérica (1..max) no índice base 0 e o imprime; falha se for inválida.
-# Zeros à esquerda são ignorados (08 = 8) e mais de 9 dígitos é recusado, para não estourar a aritmética do bash.
+# Zeros à esquerda são ignorados (08 = 8) e mais de 9 dígitos significativos é recusado, para não estourar a aritmética do bash.
 parse_index() {
     local value="$1"
     local max="$2"
@@ -69,48 +69,61 @@ tui_menu() {
     elif [ "$TUI_ENGINE" = "dialog" ]; then
         out=$(dialog --stdout "${extra_args[@]}" --backtitle "Workstation Ansible" --title "$title" --radiolist "$prompt" 18 70 8 "$@") || rc=$?
     else
-        # No modo cli, a exibição vai para stderr: quem chama captura o stdout com $(...) e só deve receber o valor escolhido.
-        show_banner >&2
-        echo -e "${BOLD}=== $title ===${NC}" >&2
-        echo -e "$prompt\n" >&2
-        local keys=()
-        local texts=()
-        local i=1
-        while [ $# -gt 0 ]; do
-            keys+=("$1")
-            texts+=("$2")
-            shift 3 # key, desc, status
-            echo -e "  ${CYAN}[$i]${NC} ${keys[$((i-1))]} - ${texts[$((i-1))]}" >&2
-            ((i++))
-        done
-        echo "" >&2
-        local nav_prompt="Select option [1-$((i-1))]"
-        [ "$show_back" = "1" ] && nav_prompt="[B] Back | [C] Cancel | $nav_prompt"
-        local choice idx
-        while true; do
-            read -rp "$nav_prompt: " choice
-            case "$choice" in
-                "")
-                    out="${keys[0]}"
-                    break
-                    ;;
-                [Bb])
-                    if [ "$show_back" = "1" ]; then
-                        return 3
-                    fi
-                    ;;
-                [Cc])
-                    return 1
-                    ;;
-                *)
-                    if idx=$(parse_index "$choice" "${#keys[@]}"); then
-                        out="${keys[idx]}"
+        # No modo cli, todo o bloco escreve em stderr: quem chama captura o stdout com $(...) e só deve receber o valor
+        # escolhido, que é impresso fora do bloco.
+        {
+            show_banner
+            echo -e "${BOLD}=== $title ===${NC}"
+            echo -e "$prompt\n"
+            local keys=()
+            local texts=()
+            local current=0
+            while [ $# -gt 0 ]; do
+                keys+=("$1")
+                texts+=("$2")
+                # Como no radiolist do whiptail/dialog, o item ON é o atual e Enter vazio o mantém.
+                [ "$3" = "ON" ] && current=$((${#keys[@]} - 1))
+                shift 3 # key, desc, status
+            done
+            local i mark
+            for i in "${!keys[@]}"; do
+                mark="( )"
+                [ "$i" -eq "$current" ] && mark="(*)"
+                echo -e "  ${CYAN}[$((i+1))]${NC} $mark ${keys[i]} - ${texts[i]}"
+            done
+            echo ""
+            local nav_prompt="Select option [1-${#keys[@]}, Enter = ${keys[current]}]"
+            if [ "$show_back" = "1" ]; then
+                nav_prompt="[B] Back | [C] Cancel | $nav_prompt"
+            else
+                nav_prompt="[C] Cancel | $nav_prompt"
+            fi
+            local choice idx
+            while true; do
+                read -rp "$nav_prompt: " choice
+                case "$choice" in
+                    "")
+                        out="${keys[current]}"
                         break
-                    fi
-                    ;;
-            esac
-            echo -e "${YELLOW}Opção inválida: '$choice'. Digite um número de 1 a ${#keys[@]}.${NC}" >&2
-        done
+                        ;;
+                    [Bb])
+                        if [ "$show_back" = "1" ]; then
+                            return 3
+                        fi
+                        ;;
+                    [Cc])
+                        return 1
+                        ;;
+                    *)
+                        if idx=$(parse_index "$choice" "${#keys[@]}"); then
+                            out="${keys[idx]}"
+                            break
+                        fi
+                        ;;
+                esac
+                echo -e "${YELLOW}Opção inválida: '$choice'. Digite um número de 1 a ${#keys[@]}.${NC}"
+            done
+        } >&2
     fi
     echo "$out"
     return $rc
@@ -133,57 +146,67 @@ tui_checklist() {
         out=$(dialog --stdout "${extra_args[@]}" --backtitle "Workstation Ansible" --title "$title" --checklist "$prompt" 22 75 12 "$@") || rc=$?
     else
         # Exibição em stderr, como em tui_menu.
-        show_banner >&2
-        echo -e "${BOLD}=== $title ===${NC}" >&2
-        echo -e "$prompt\n" >&2
-        local items=()
-        local descs=()
-        local statuses=()
-        local idx num selections
-        local tokens=() invalid=() toggled=()
-        while [ $# -gt 0 ]; do
-            items+=("$1")
-            descs+=("$2")
-            statuses+=("$3")
-            shift 3
-        done
+        {
+            show_banner
+            echo -e "${BOLD}=== $title ===${NC}"
+            echo -e "$prompt\n"
+            local items=()
+            local descs=()
+            local statuses=()
+            local idx num selections
+            local tokens=() indexes=() invalid=() toggled=()
+            while [ $# -gt 0 ]; do
+                items+=("$1")
+                descs+=("$2")
+                statuses+=("$3")
+                shift 3
+            done
 
-        echo -e "${YELLOW}Toggle options by entering numbers separated by spaces (e.g. 1 3 5), or press ENTER to confirm current:${NC}" >&2
-        [ "$show_back" = "1" ] && echo -e "${YELLOW}Enter 'b' to go Back, 'c' to Cancel.${NC}\n" >&2
-        for idx in "${!items[@]}"; do
-            local mark="[ ]"
-            [ "${statuses[idx]}" = "ON" ] && mark="[X]"
-            echo -e "  ${CYAN}[$((idx+1))]${NC} $mark ${items[idx]} - ${descs[idx]}" >&2
-        done
-        echo "" >&2
-        while true; do
-            read -rp "Enter selection: " selections
-            invalid=()
-            case "$selections" in
-                [Bb])
-                    if [ "$show_back" = "1" ]; then
-                        return 3
-                    fi
-                    ;;
-                [Cc])
-                    return 1
-                    ;;
-                *)
-                    # read -a separa os números sem expansão de glob; uma entrada inválida não aplica nada.
-                    read -r -a tokens <<< "$selections" || true
-                    for num in "${tokens[@]}"; do
-                        parse_index "$num" "${#items[@]}" >/dev/null || invalid+=("$num")
-                    done
-                    if [ "${#invalid[@]}" -eq 0 ]; then
-                        break
-                    fi
-                    ;;
-            esac
-            echo -e "${YELLOW}Seleção inválida: ${invalid[*]:-$selections}. Digite números de 1 a ${#items[@]} separados por espaço.${NC}" >&2
-        done
+            echo -e "${YELLOW}Toggle options by entering numbers separated by spaces (e.g. 1 3 5), or press ENTER to confirm current:${NC}"
+            if [ "$show_back" = "1" ]; then
+                echo -e "${YELLOW}Enter 'b' to go Back, 'c' to Cancel.${NC}\n"
+            else
+                echo -e "${YELLOW}Enter 'c' to Cancel.${NC}\n"
+            fi
+            for idx in "${!items[@]}"; do
+                local mark="[ ]"
+                [ "${statuses[idx]}" = "ON" ] && mark="[X]"
+                echo -e "  ${CYAN}[$((idx+1))]${NC} $mark ${items[idx]} - ${descs[idx]}"
+            done
+            echo ""
+            while true; do
+                read -rp "Enter selection: " selections
+                indexes=()
+                invalid=()
+                case "$selections" in
+                    [Bb])
+                        if [ "$show_back" = "1" ]; then
+                            return 3
+                        fi
+                        ;;
+                    [Cc])
+                        return 1
+                        ;;
+                    *)
+                        # read -a separa os números sem expansão de glob; uma entrada inválida não aplica nada.
+                        read -r -a tokens <<< "$selections" || true
+                        for num in "${tokens[@]}"; do
+                            if idx=$(parse_index "$num" "${#items[@]}"); then
+                                indexes+=("$idx")
+                            else
+                                invalid+=("$num")
+                            fi
+                        done
+                        if [ "${#invalid[@]}" -eq 0 ]; then
+                            break
+                        fi
+                        ;;
+                esac
+                echo -e "${YELLOW}Seleção inválida: ${invalid[*]:-$selections}. Digite números de 1 a ${#items[@]} separados por espaço.${NC}"
+            done
+        } >&2
         # Um número repetido alterna o item uma vez só.
-        for num in "${tokens[@]}"; do
-            idx=$(parse_index "$num" "${#items[@]}")
+        for idx in "${indexes[@]}"; do
             [ -n "${toggled[idx]:-}" ] && continue
             toggled[idx]=1
             if [ "${statuses[idx]}" = "ON" ]; then
@@ -219,26 +242,32 @@ tui_inputbox() {
         out=$(dialog --stdout "${extra_args[@]}" --backtitle "Workstation Ansible" --title "$title" --inputbox "$prompt" 12 65 "$default_val") || rc=$?
     else
         # Exibição em stderr, como em tui_menu. Só b/c sozinhos navegam, para valores como "bruno" passarem.
-        show_banner >&2
-        echo -e "${BOLD}=== $title ===${NC}" >&2
-        echo -e "$prompt" >&2
-        [ "$show_back" = "1" ] && echo -e "${YELLOW}(Enter 'b' to go Back, 'c' to Cancel)${NC}" >&2
-        local val
-        read -rp "[$default_val]: " val
-        case "$val" in
-            [Bb])
-                if [ "$show_back" = "1" ]; then
-                    return 3
-                fi
-                out="$val"
-                ;;
-            [Cc])
-                return 1
-                ;;
-            *)
-                out="${val:-$default_val}"
-                ;;
-        esac
+        {
+            show_banner
+            echo -e "${BOLD}=== $title ===${NC}"
+            echo -e "$prompt"
+            if [ "$show_back" = "1" ]; then
+                echo -e "${YELLOW}(Enter 'b' to go Back, 'c' to Cancel)${NC}"
+            else
+                echo -e "${YELLOW}(Enter 'c' to Cancel)${NC}"
+            fi
+            local val
+            read -rp "[$default_val]: " val
+            case "$val" in
+                [Bb])
+                    if [ "$show_back" = "1" ]; then
+                        return 3
+                    fi
+                    out="$val"
+                    ;;
+                [Cc])
+                    return 1
+                    ;;
+                *)
+                    out="${val:-$default_val}"
+                    ;;
+            esac
+        } >&2
     fi
     echo "${out:-$default_val}"
     return $rc

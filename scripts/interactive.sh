@@ -92,15 +92,16 @@ tui_menu() {
                 echo -e "  ${CYAN}[$((i+1))]${NC} $mark ${keys[i]} - ${texts[i]}"
             done
             echo ""
-            local nav_prompt="Select option [1-${#keys[@]}, Enter = ${keys[current]}]"
+            local nav_prompt="Select option [1-${#keys[@]}] (Enter mantém: ${keys[current]})"
             if [ "$show_back" = "1" ]; then
                 nav_prompt="[B] Back | [C] Cancel | $nav_prompt"
             else
-                nav_prompt="[C] Cancel | $nav_prompt"
+                nav_prompt="[C] Cancelar | $nav_prompt"
             fi
             local choice idx
             while true; do
-                read -rp "$nav_prompt: " choice
+                # Ctrl-D (fim da entrada) cancela, como o Esc do whiptail/dialog.
+                read -rp "$nav_prompt: " choice || return 1
                 case "$choice" in
                     "")
                         out="${keys[current]}"
@@ -167,7 +168,7 @@ tui_checklist() {
             if [ "$show_back" = "1" ]; then
                 echo -e "${YELLOW}Enter 'b' to go Back, 'c' to Cancel.${NC}\n"
             else
-                echo -e "${YELLOW}Enter 'c' to Cancel.${NC}\n"
+                echo -e "${YELLOW}Digite 'c' para cancelar.${NC}\n"
             fi
             for idx in "${!items[@]}"; do
                 local mark="[ ]"
@@ -176,7 +177,7 @@ tui_checklist() {
             done
             echo ""
             while true; do
-                read -rp "Enter selection: " selections
+                read -rp "Enter selection: " selections || return 1
                 indexes=()
                 invalid=()
                 case "$selections" in
@@ -190,8 +191,7 @@ tui_checklist() {
                         ;;
                     *)
                         # read -a separa os números sem expansão de glob; uma entrada inválida não aplica nada.
-                        # O IFS explícito evita herdar o IFS="," do passo 6 de main quando o usuário volta de lá.
-                        IFS=' ' read -r -a tokens <<< "$selections" || true
+                        read -r -a tokens <<< "$selections" || true
                         for num in "${tokens[@]}"; do
                             if idx=$(parse_index "$num" "${#items[@]}"); then
                                 indexes+=("$idx")
@@ -256,10 +256,10 @@ tui_inputbox() {
             if [ "$show_back" = "1" ]; then
                 echo -e "${YELLOW}(Enter 'b' to go Back, 'c' to Cancel)${NC}"
             else
-                echo -e "${YELLOW}(Enter 'c' to Cancel)${NC}"
+                echo -e "${YELLOW}(Digite 'c' para cancelar)${NC}"
             fi
             local val
-            read -rp "[$default_val]: " val
+            read -rp "[$default_val]: " val || return 1
             case "$val" in
                 [Bb])
                     if [ "$show_back" = "1" ]; then
@@ -574,8 +574,8 @@ main() {
                 if [ "${#selected_tags_array[@]}" -eq 0 ]; then
                     formatted_tags="all"
                 else
-                    local IFS=","
-                    formatted_tags="${selected_tags_array[*]}"
+                    # O IFS="," fica num subshell: um "local IFS" valeria para o resto de main, inclusive depois de Back.
+                    formatted_tags=$(IFS=","; echo "${selected_tags_array[*]}")
                 fi
 
                 local make_args=()

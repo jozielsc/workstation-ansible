@@ -29,6 +29,7 @@ Legenda de evidência:
 | B16 | No modo `cli`, o `tui_yesno` (passos 5 e 6 do wizard) não segue as regras dos outros prompts: o resumo da confirmação sai numa linha só, com `\n` literais (`read -p` não interpreta escapes); qualquer resposta que começa com `b`/`c` navega (ex.: `bruno` volta); e no passo 5 `c` conta como "não" e segue para o passo 6 em vez de cancelar | `scripts/interactive.sh` (`tui_yesno`) | Confirmado (`bash -x` em modo `cli`) | #48 |
 | B17 | No modo `local`, Back no passo 3 do wizard reabre o passo 3: o passo 2 não tem caso para `local` e devolve para o 3, então só dá para voltar ao passo 1 cancelando | `scripts/interactive.sh` (passos 2 e 3) | Confirmado (modo `cli`) | #49 |
 | B18 | `make sandbox` apaga e recria o container a cada chamada (`docker rm -f` + `docker run`), apesar da mensagem "Garantindo que o container … esteja rodando": uma segunda execução pelo `make` provisiona um container limpo, então a idempotência pedida pela Definição de pronto não é testável por ele | `Makefile` (target `sandbox`) | Confirmado (sandbox void, #13) | #51 |
+| B19 | Em check mode (`DRY=1`), num Debian/Ubuntu sem `python3-apt`, a instalação em lote falha (`python3-apt must be installed to use check mode`), cai no `rescue` e a instalação individual reporta todos os pacotes como `ok`, porque o `failed_when: false` esconde a mesma falha: a simulação não mostra o que seria instalado | `devtools`, `editors`, `ui` (instalação resiliente) | Confirmado (sandbox ubuntu, `devtools`) | #52 |
 
 ## Inconsistências de configuração
 

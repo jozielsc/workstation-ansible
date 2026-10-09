@@ -155,6 +155,7 @@ tui_checklist() {
             local statuses=()
             local idx num selections
             local tokens=() indexes=() invalid=() toggled=()
+            local eof=0
             while [ $# -gt 0 ]; do
                 items+=("$1")
                 descs+=("$2")
@@ -179,7 +180,11 @@ tui_checklist() {
                 done
                 echo ""
                 while true; do
-                    read -rp "Enter selection: " selections || [ -n "$selections" ] || { echo; return 1; }
+                    # Fim da entrada sem nada digitado cancela; com um valor, vale como o valor seguido do Enter que confirma.
+                    if ! read -rp "Enter selection: " selections; then
+                        [ -n "$selections" ] || { echo; return 1; }
+                        eof=1
+                    fi
                     indexes=()
                     invalid=()
                     case "$selections" in
@@ -227,6 +232,7 @@ tui_checklist() {
                         statuses[idx]="ON"
                     fi
                 done
+                [ "$eof" -eq 1 ] && break
             done
         } >&2
         local selected=()

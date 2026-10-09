@@ -73,6 +73,7 @@ tui_menu() {
         echo ""
         local nav_prompt="Select option [1-$((i-1))]"
         [ "$show_back" = "1" ] && nav_prompt="[B] Back | [C] Cancel | $nav_prompt"
+        local choice
         read -rp "$nav_prompt: " choice
         case "$choice" in
             [Bb]*)
@@ -85,7 +86,7 @@ tui_menu() {
                 ;;
             *)
                 if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -lt "$i" ]; then
-                    out="${keys[$((choice-1))]}"
+                    out="${keys[$((10#$choice - 1))]}"
                 else
                     out="${keys[0]}"
                 fi
@@ -118,6 +119,7 @@ tui_checklist() {
         local items=()
         local descs=()
         local statuses=()
+        local idx num selections
         while [ $# -gt 0 ]; do
             items+=("$1")
             descs+=("$2")
@@ -147,7 +149,7 @@ tui_checklist() {
                 if [ -n "$selections" ]; then
                     for num in $selections; do
                         if [[ "$num" =~ ^[0-9]+$ ]] && [ "$num" -ge 1 ] && [ "$num" -le "${#items[@]}" ]; then
-                            local idx=$((num-1))
+                            idx=$((10#$num - 1))
                             if [ "${statuses[idx]}" = "ON" ]; then
                                 statuses[idx]="OFF"
                             else
@@ -188,6 +190,7 @@ tui_inputbox() {
         echo -e "${BOLD}=== $title ===${NC}"
         echo -e "$prompt"
         [ "$show_back" = "1" ] && echo -e "${YELLOW}(Enter 'b' to go Back, 'c' to Cancel)${NC}"
+        local val
         read -rp "[$default_val]: " val
         case "$val" in
             [Bb]*)
@@ -224,6 +227,7 @@ tui_yesno() {
         echo -e "${BOLD}=== $title ===${NC}"
         local nav_prompt="$prompt (y/N)"
         [ "$show_back" = "1" ] && nav_prompt="$prompt (y/N/b=Back/c=Cancel)"
+        local ans
         read -rp "$nav_prompt: " ans
         case "$ans" in
             [Bb]*)

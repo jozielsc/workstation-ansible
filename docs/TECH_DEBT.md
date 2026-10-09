@@ -22,7 +22,6 @@ Legenda de evidência:
 | B6 | Tags `uv` e `pipx` não funcionam sozinhas, porque o include só tem a tag `python` | `roles/languages/tasks/` | Confirmado (teste de herança de tags) | #15 |
 | B7 | Tarefas "📌 STATUS" de node, rust e go não têm tag própria e não aparecem com `--tags node/rust/go` | `roles/languages/tasks/` | Confirmado | #15 |
 | B8 | No wizard, desmarcar todos os componentes resulta em `TAGS=all` | `scripts/interactive.sh` (passo 6) | Confirmado (leitura) | #16 |
-| B9 | `make local DRY=1` deve falhar no Lazygit: `tempfile` não suporta check mode (é pulado), então `devtools_lazygit_temp.path` fica indefinido no `unarchive` | `install_lazygit.yml` | Provável | #13 |
 | B10 | A mensagem diz "Node.js e NPM", mas `npm` é um pacote separado em Debian e Arch e não é instalado | `node.yml` | Provável | #17 |
 | B11 | O instalador do uv e o `pipx ensurepath` podem alterar `~/.bashrc`, `~/.zshrc` e `~/.profile` antes do stow, gerando conflitos que fazem pacotes de dotfiles serem pulados | `python.yml` + `dotfiles` | A verificar | #18 |
 | B12 | `USER ?= $(shell whoami)` nunca vale, porque `USER` sempre existe no ambiente: `remote`/`tunnel` usam o `$USER` do shell como usuário SSH, e a doc o apresenta como opcional | `Makefile` | Confirmado (`make -n remote IP=x`) | #35 |
@@ -52,7 +51,7 @@ Legenda de evidência:
 ## Reprodutibilidade e cadeia de suprimentos
 
 - `curl | sh` sem checksum (uv, rustup). (#26)
-- Lazygit consulta `releases/latest` na API do GitHub a cada execução: rate limit de 60 req/h sem token, e baixa de novo mesmo quando já está instalado. (#13)
+- Lazygit consulta `releases/latest` na API do GitHub a cada execução (rate limit de 60 req/h sem token), porque a versão desejada é sempre a última; o download só acontece quando a versão muda. (#26)
 - Oh-My-Zsh, p10k, plugins e TPM usam `master` com update a cada execução, então o resultado não é reproduzível e há `changed` em execuções repetidas. (#26)
 - O repositório de dotfiles padrão é pessoal (`jozielsc/dotfiles`). (sem Issue: escolha de design do mantenedor)
 

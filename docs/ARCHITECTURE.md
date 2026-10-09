@@ -107,9 +107,12 @@ Uma lista com um pacote inexistente não aborta o play: a instalação passa a s
 - Pacotes CLI por distro.
 - `install_lazygit.yml` (quando `devtools_features.lazygit`):
   1. mapeia `ansible_facts.architecture` para o asset do release (`x86_64`, `arm64`, `armv6`);
-  2. consulta `api.github.com/…/releases/latest` (com `check_mode: false`);
-  3. baixa o asset em um `tempfile` e copia para `/usr/local/bin/lazygit`;
-  4. remove o diretório temporário no `always`.
+  2. lê a versão instalada com `/usr/local/bin/lazygit --version` (o `version=` da saída) e consulta `api.github.com/…/releases/latest`, ambos com `check_mode: false`;
+  3. só quando as versões diferem, baixa o asset em um `tempfile` e copia para `/usr/local/bin/lazygit`. Em check mode, não baixa: uma tarefa `debug` com `changed_when: true` informa a versão que seria instalada, porque o `tempfile` não roda em check mode;
+  4. no `rescue`, uma falha (rede, rate limit da API, download) vira aviso e o play continua, sem fallback para pacote da distro;
+  5. remove o diretório temporário no `always`.
+
+  A API do GitHub ainda é consultada a cada execução (60 requisições por hora sem token), porque a versão desejada é sempre a última; fixar a versão é a #26.
 - TPM: `git clone` em `~/.tmux/plugins/tpm` quando `devtools_features.tpm`.
 
 ### languages
@@ -153,7 +156,7 @@ Como `dotfiles` roda por último, qualquer arquivo que roles anteriores criem no
 |---|---|---|
 | `astral.sh/uv/install.sh` | languages/python | latest (curl \| sh) |
 | `sh.rustup.rs` | languages/rust | latest (curl \| sh) |
-| `api.github.com` + releases `jesseduffield/lazygit` | devtools | latest |
+| `api.github.com` + releases `jesseduffield/lazygit` | devtools | latest (baixa só quando difere da instalada) |
 | `github.com/tmux-plugins/tpm` | devtools | `master` |
 | `github.com/ohmyzsh/ohmyzsh`, `romkatv/powerlevel10k`, `zsh-users/*` | zsh | `master` |
 | `download.docker.com` | docker (Debian) | canal `stable` |

@@ -14,7 +14,7 @@ make local | remote | tunnel
        inventário ad-hoc: -i "<host>,"  (sem arquivo de inventário)
 
 make sandbox
-  └─ docker build tests/sandbox/Dockerfile.$DISTRO → docker run (tail -f)
+  └─ docker build tests/sandbox/Dockerfile.$DISTRO → docker rm -f (container anterior) → docker run (tail -f)
   └─ ansible-playbook … -i "<container>," -c docker -u dev   (comando próprio, sem ANS_FLAGS)
 ```
 

@@ -22,7 +22,7 @@ Legenda de evidência:
 | B6 | Tags `uv` e `pipx` não funcionam sozinhas, porque o include só tem a tag `python` | `roles/languages/tasks/` | Confirmado (teste de herança de tags) | #15 |
 | B7 | Tarefas "📌 STATUS" de node, rust e go não têm tag própria e não aparecem com `--tags node/rust/go` | `roles/languages/tasks/` | Confirmado | #15 |
 | B8 | No wizard, desmarcar todos os componentes resulta em `TAGS=all` | `scripts/interactive.sh` (passo 6) | Confirmado (leitura) | #16 |
-| B10 | A mensagem diz "Node.js e NPM", mas `npm` é um pacote separado em Debian e Arch e não é instalado | `node.yml` | Provável | #17 |
+| B10 | A mensagem diz "Node.js e NPM", mas `npm` é um pacote separado em Debian e Arch e não é instalado | `node.yml` | Confirmado no Arch (sandbox `arch`, #9) | #17 |
 | B11 | O instalador do uv e o `pipx ensurepath` podem alterar `~/.bashrc`, `~/.zshrc` e `~/.profile` antes do stow, gerando conflitos que fazem pacotes de dotfiles serem pulados | `python.yml` + `dotfiles` | A verificar | #18 |
 | B12 | `USER ?= $(shell whoami)` nunca vale, porque `USER` sempre existe no ambiente: `remote`/`tunnel` usam o `$USER` do shell como usuário SSH, e a doc o apresenta como opcional | `Makefile` | Confirmado (`make -n remote IP=x`) | #35 |
 | B13 | Um pacote de dotfiles com conflito reporta `changed` sem alterar nada: com `--verbose`, o stow imprime os `LINK:` planejados antes de abortar, e o `changed_when` só procura `LINK: `. Com um conflito, a execução nunca chega a `changed=0`. Além disso, o `failed_when` aceita qualquer rc != 0 com `BUG` no stderr, e o relatório só mostra `existing target`: um erro interno do stow deixa o pacote sem aplicar e o play termina verde, sem aviso | `dotfiles/tasks/stow_repo.yml` | `changed`: Confirmado (sandbox void); `BUG`: Confirmado (leitura) | #39 |
@@ -30,6 +30,8 @@ Legenda de evidência:
 | B17 | No modo `local`, Back no passo 3 do wizard reabre o passo 3: o passo 2 não tem caso para `local` e devolve para o 3, então só dá para voltar ao passo 1 cancelando | `scripts/interactive.sh` (passos 2 e 3) | Confirmado (modo `cli`) | #49 |
 | B18 | `make sandbox` apaga e recria o container a cada chamada (`docker rm -f` + `docker run`), apesar da mensagem "Garantindo que o container … esteja rodando": uma segunda execução pelo `make` provisiona um container limpo, então a idempotência pedida pela Definição de pronto não é testável por ele | `Makefile` (target `sandbox`) | Confirmado (sandbox void, #13) | #51 |
 | B19 | Em check mode (`DRY=1`), num Debian/Ubuntu sem `python3-apt`, a instalação em lote falha (`python3-apt must be installed to use check mode`), cai no `rescue` e a instalação individual reporta todos os pacotes como `ok`, porque o `failed_when: false` esconde a mesma falha: a simulação não mostra o que seria instalado | `devtools`, `editors`, `ui` (instalação resiliente) | Confirmado (sandbox ubuntu, `devtools`) | #52 |
+| B20 | As roles que instalam pacotes não atualizam o índice do gerenciador (só `docker/tasks/debian.yml` usa `update_cache`): no Arch e no Void com o sync DB velho, ou numa imagem do sandbox reaproveitada do cache de camadas, a instalação em lote falha com 404 e o `rescue` deixa os pacotes faltando só com avisos | `devtools`, `editors`, `ui`, `languages` | Provável (leitura; revisão do PR #54) | #55 |
+| B21 | No Fedora ≥ 41 (dnf5), o módulo `package` precisa do `python3-libdnf5` no alvo, e nada no play o instala: num Fedora Server/Cloud/minimal sem ele, toda instalação de pacote falha. A imagem do sandbox `fedora` instala o pacote no Dockerfile, então o sandbox não reproduz a falha | `playbooks/site.yml`, `tests/sandbox/Dockerfile.fedora` | Provável (leitura; revisão do PR #54) | #56 |
 
 ## Inconsistências de configuração
 
@@ -62,5 +64,5 @@ Legenda de evidência:
 - `make deps` referencia um `requirements.yml` que não existe. (#20)
 - As collections não são declaradas em lugar nenhum, e o `community.general` é dependência implícita no Void e no Arch. Detalhes em [ARCHITECTURE.md](ARCHITECTURE.md#collections-ansible-necessárias-no-controlador). (#20)
 - O CI só roda o `make lint`. Não há CI do provisionamento, testes de idempotência (rodar duas vezes e conferir `changed=0`) nem verificação depois do provisionamento. (#29)
-- O sandbox só tem Void e Ubuntu e não tem init, então RedHat, Arch e os caminhos de serviço não são testados. (#9, #29)
+- O sandbox não tem init, então os caminhos de serviço (systemd e runit) não são testados, e as distros só rodam manualmente. (#29)
 - Não há checagem de distro suportada no início do play. Uma distro desconhecida cai nos fallbacks mínimos sem aviso. (#10)

@@ -14,7 +14,7 @@ O arquivo `Makefile` é a interface principal:
 *   `make local`: Configura a máquina atual (localhost).
 *   `make remote IP=<IP> USER=<USER>`: Configura uma máquina remota via SSH. O `IP` é obrigatório e deve ser um único host (sem espaços nem vírgulas).
 *   `make tunnel IP=<IP> JUMP_IP=<JUMP_IP> JUMP_USER=<JUMP_USER>`: Configura uma máquina através de um Bastion Host. `IP`, `JUMP_IP` e `JUMP_USER` são obrigatórios, e cada um deve ser um único valor (sem espaços nem vírgulas).
-*   `make sandbox [DISTRO=void|ubuntu]`: Cria um container Docker isolado, executa o Ansible e o mantém ativo para testes.
+*   `make sandbox [DISTRO=void|ubuntu|fedora|arch]`: Cria um container Docker isolado, executa o Ansible e o mantém ativo para testes. Em `fedora` e `arch`, a role `docker` ainda falha (#7), então rode as outras tags (ex.: `TAGS=devtools,languages,zsh,editors,dotfiles`).
 *   `make sandbox-shell`: Abre o terminal interativo (`bash`) no container sandbox atual.
 *   `make sandbox-clean`: Para e remove o container sandbox.
 *   `make deps`: Deveria instalar as dependências do Galaxy, mas hoje não faz nada, porque não existe `requirements.yml` (#20). Veja como obter as collections em [ARCHITECTURE.md](ARCHITECTURE.md#collections-ansible-necessárias-no-controlador).
@@ -32,7 +32,7 @@ Você pode passar variáveis extras para qualquer comando `make`:
     *   Exemplo: `make local TAGS=zsh,dotfiles` ou `make sandbox DISTRO=ubuntu TAGS=node`
 *   `PROFILE`: Define qual perfil de variáveis carregar (padrão: `default`).
     *   Exemplo: `make local PROFILE=local`
-*   `DISTRO`: Escolhe a distribuição para o sandbox Docker (padrão: `void`, suporte: `void`, `ubuntu`).
+*   `DISTRO`: Escolhe a distribuição para o sandbox Docker (padrão: `void`, suporte: `void`, `ubuntu`, `fedora`, `arch`).
     *   Exemplo: `make sandbox DISTRO=ubuntu`
 *   `DRY`: Se definido (`DRY=1`), executa em modo de simulação (Check Mode), mostrando o que seria alterado sem aplicar nada.
 
@@ -47,7 +47,7 @@ Para testar o provisionamento sem afetar sua máquina pessoal ou servidor, o pro
    make sandbox
    ```
 
-2. **Executar em outra distro (ex: Ubuntu):**
+2. **Executar em outra distro (`ubuntu`, `fedora` ou `arch`; ex: Ubuntu):**
    ```bash
    make sandbox DISTRO=ubuntu
    ```

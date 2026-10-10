@@ -31,7 +31,8 @@
     - "'docker.service' in ansible_facts['services']"
 
 # O grupo docker vem do pacote. Numa distro sem tarefa de instalação, ou em check mode antes da instalação,
-# ele não existe e o módulo user falharia; nesse caso só avisa.
+# ele não existe e o módulo user falharia; nesse caso só avisa. Depois de uma instalação real, a falta do grupo
+# é erro: o usuário ficaria sem acesso ao Docker com o play terminando ok.
 - name: Verificar se o grupo docker existe
   ansible.builtin.getent:
     database: group
@@ -50,4 +51,16 @@
     msg: >-
       ⚠️ Grupo 'docker' não existe{{ ' (check mode: a instalação acima só foi simulada)' if ansible_check_mode else '' }};
       '{{ user_id }}' não foi adicionado a ele.
-  when: ansible_facts['getent_group']['docker'] is none
+  when:
+    - ansible_facts['getent_group']['docker'] is none
+    - ansible_check_mode or not (docker_install_supported | bool)
+
+- name: Falhar quando o Docker foi instalado e o grupo docker não existe
+  ansible.builtin.fail:
+    msg: >-
+      O Docker foi instalado, mas o grupo 'docker' não existe; '{{ user_id }}' não pode ser adicionado a ele.
+      Crie o grupo (ex.: 'sudo groupadd -r docker') e rode a role de novo.
+  when:
+    - ansible_facts['getent_group']['docker'] is none
+    - not ansible_check_mode
+    - docker_install_supported | bool

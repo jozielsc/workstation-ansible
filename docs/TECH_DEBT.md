@@ -33,6 +33,7 @@ Legenda de evidência:
 | B21 | No Fedora ≥ 41 (dnf5), o módulo `package` precisa do `python3-libdnf5` no alvo, e nada no play o instala: num Fedora Server/Cloud/minimal sem ele, toda instalação de pacote falha. A imagem do sandbox `fedora` instala o pacote no Dockerfile, então o sandbox não reproduz a falha | `playbooks/site.yml`, `tests/sandbox/Dockerfile.fedora` | Provável (leitura; revisão do PR #54) | #56 |
 | B22 | Em check mode, num Debian/Ubuntu sem o repositório do Docker, a chave e o `apt_repository` só são simulados, e "Instalar Docker" falha com `No package matching 'docker-ce' is available` | `roles/docker/tasks/debian.yml` | Confirmado (sandbox `ubuntu` com `python3-apt`) | #57 |
 | B23 | No Void, a role `docker` instala só o pacote `docker`, sem `docker-buildx` e `docker-compose`: `docker buildx` e `docker compose` não existem, ao contrário das outras distros | `roles/docker/tasks/void.yml` | Confirmado (sandbox `void`) | #58 |
+| B24 | No RedHat/Fedora, o `docker-ce`/`containerd.io` do repositório oficial conflitam com `moby-engine`, `podman-docker` e `runc` (container-tools); com um deles instalado, o dnf recusa a transação e o play para na role `docker` | `roles/docker/tasks/redhat.yml` | Provável (leitura; revisão do PR #59) | #60 |
 
 ## Inconsistências de configuração
 

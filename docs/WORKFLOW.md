@@ -187,7 +187,7 @@ Não pule etapas e não abra branch sem uma Issue por trás.
 
 - `make lint` (`ansible-playbook --syntax-check`, `ansible-lint`, `yamllint` e `shellcheck`, via uv) passa. É a mesma checagem do CI.
 - `make test` (`uv run molecule test`) passa, quando o cenário Molecule existir (#34). Ele complementa o sandbox, não o substitui.
-- As tags afetadas foram executadas no sandbox, em `void` e `ubuntu` (`make sandbox DISTRO=<d> TAGS=<tags>`), sem falhas. Mudanças que alteram estado devem mostrar `changed=0` numa segunda execução (idempotência).
+- As tags afetadas foram executadas no sandbox, em `void` e `ubuntu` (`make sandbox DISTRO=<d> TAGS=<tags>`), sem falhas. Mudanças que alteram estado devem mostrar `changed=0` numa segunda execução (idempotência). Como `make sandbox` recria o container a cada chamada (#51), a segunda execução é o `ansible-playbook` que `make -n sandbox DISTRO=<d> TAGS=<tags>` imprime, rodado de novo contra o container que ficou de pé.
 - Quando a mudança é específica de uma distro que não tem sandbox (RedHat, Arch), a limitação está registrada no PR.
 - A documentação afetada foi atualizada no mesmo PR: `docs/`, e também `README.md` e `USAGE.md` quando o comportamento visível muda. A lista de tags está sincronizada nos lugares listados no `CLAUDE.md`.
 - Nenhum documento descreve comportamento obsoleto. O item correspondente do `TECH_DEBT.md` foi removido, e a matriz e as seções do `ARCHITECTURE.md` refletem o novo estado.

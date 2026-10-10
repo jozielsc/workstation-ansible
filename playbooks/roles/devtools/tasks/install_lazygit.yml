@@ -16,9 +16,26 @@
     msg: "⚠️ Arquitetura '{{ ansible_facts['architecture'] }}' não mapeada para o Lazygit; instalação ignorada."
   when: _devtools_lazygit_arch | length == 0
 
+# Só baixa quando não há Lazygit ou a versão instalada é mais antiga que a última do GitHub. Falha de rede ou rate
+# limit (consulta e download) vira aviso no rescue e não aborta o play; qualquer outro erro continua falhando.
 - name: Instalar Lazygit (binário oficial)
   when: _devtools_lazygit_arch | length > 0
+  vars:
+    # Avaliado no rescue, pelo resultado e não pelo nome da tarefa: sem conexão (status -1 do uri, "Request failed"
+    # ou "urlopen error" do unarchive, timeout), rate limit da API (403/429) ou erro temporário do GitHub (5xx).
+    # Um 404 no asset, um erro ao extrair ou gravar e um erro de template continuam falhando o play.
+    _devtools_lazygit_network_failure: >-
+      {{ (ansible_failed_result.status | default(0) | int) in [-1, 403, 429]
+      or (ansible_failed_result.status | default(0) | int) >= 500
+      or (ansible_failed_result.msg | default('')) is search('Request failed|urlopen error|timed out|HTTP Error 5[0-9][0-9]') }}
   block:
+    - name: Verificar versão instalada do Lazygit
+      ansible.builtin.command: /usr/local/bin/lazygit --version
+      register: devtools_lazygit_installed
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
     - name: Descobrir última versão do Lazygit
       ansible.builtin.uri:
         url: https://api.github.com/repos/jesseduffield/lazygit/releases/latest
@@ -26,32 +43,81 @@
       register: devtools_lazygit_release
       check_mode: false
 
-    - name: Criar diretório temporário para Lazygit
-      ansible.builtin.tempfile:
-        state: directory
-        suffix: lazygit
-      register: devtools_lazygit_temp
+    - name: Comparar versão instalada com a última do Lazygit
+      ansible.builtin.set_fact:
+        # A saída tem "version=X" e, mais adiante, "git version=Y"; a âncora pega só a do Lazygit.
+        _devtools_lazygit_current: >-
+          {{ devtools_lazygit_installed.stdout | default('')
+          | regex_findall('(?:^|, )version=([0-9][^,]*)') | first | default('') }}
+        _devtools_lazygit_latest: "{{ devtools_lazygit_release.json.tag_name | regex_replace('^v', '') }}"
 
-    - name: Baixar e extrair Lazygit
+    - name: Decidir se o Lazygit precisa ser instalado
+      ansible.builtin.set_fact:
+        # Só instala quando não há binário, ou atualiza quando a versão é mais antiga. Uma versão mais nova que a
+        # release ou não reconhecida (build local, "version=unversioned") não é tocada.
+        # A tag precisa parecer uma versão (ex.: 0.66.0) para a comparação; senão nada é instalado.
+        _devtools_lazygit_latest_valid: "{{ _devtools_lazygit_latest is match('^[0-9]+([.][0-9]+)*$') }}"
+        _devtools_lazygit_needs_install: >-
+          {{ _devtools_lazygit_latest is match('^[0-9]+([.][0-9]+)*$')
+          and (devtools_lazygit_installed.rc != 0
+               or (_devtools_lazygit_current | length > 0
+                   and _devtools_lazygit_current is version(_devtools_lazygit_latest, '<'))) }}
+
+    - name: Avisar quando a última release do Lazygit não tem uma versão reconhecível
+      ansible.builtin.debug:
+        msg: "⚠️ A última release do Lazygit tem a tag '{{ devtools_lazygit_release.json.tag_name | default('') }}', que não é uma versão; nada foi instalado."
+      when: not (_devtools_lazygit_latest_valid | bool)
+
+    - name: Avisar quando a versão do Lazygit instalado não é reconhecida
+      ansible.builtin.debug:
+        msg: >-
+          ⚠️ /usr/local/bin/lazygit existe, mas a versão não foi reconhecida em
+          '{{ devtools_lazygit_installed.stdout | default('') | truncate(120) }}'; o binário não é substituído.
+      when:
+        - devtools_lazygit_installed.rc == 0
+        - _devtools_lazygit_current | length == 0
+
+    - name: Informar a versão do Lazygit que seria instalada (check mode)
+      ansible.builtin.debug:
+        msg: >-
+          Lazygit seria
+          {{ 'atualizado de ' ~ _devtools_lazygit_current ~ ' para' if devtools_lazygit_installed.rc == 0 else 'instalado na versão' }}
+          {{ _devtools_lazygit_latest }}.
+      changed_when: true
+      when:
+        - ansible_check_mode
+        - _devtools_lazygit_needs_install | bool
+
+    # O unarchive extrai só o binário direto em /usr/local/bin, sem diretório temporário. Um symlink em
+    # /usr/local/bin/lazygit é trocado por um arquivo regular.
+    - name: Baixar e instalar Lazygit
       ansible.builtin.unarchive:
-        src: "https://github.com/jesseduffield/lazygit/releases/download/{{ _devtools_lazygit_tag }}/{{ _devtools_lazygit_tarball }}"
-        dest: "{{ devtools_lazygit_temp.path }}"
+        src: "https://github.com/jesseduffield/lazygit/releases/download/{{ devtools_lazygit_release.json.tag_name }}/{{ _devtools_lazygit_tarball }}"
+        dest: /usr/local/bin
         remote_src: true
-      vars:
-        _devtools_lazygit_tag: "{{ devtools_lazygit_release.json.tag_name }}"
-        _devtools_lazygit_tarball: "lazygit_{{ _devtools_lazygit_tag | regex_replace('^v', '') }}_{{ _devtools_lazygit_arch }}.tar.gz"
-
-    - name: Instalar binário do Lazygit
-      ansible.builtin.copy:
-        src: "{{ devtools_lazygit_temp.path }}/lazygit"
-        dest: /usr/local/bin/lazygit
+        include:
+          - lazygit
+        owner: root
+        group: root
         mode: '0755'
-        remote_src: true
-      become: true
+      vars:
+        _devtools_lazygit_tarball: "lazygit_{{ _devtools_lazygit_latest }}_{{ _devtools_lazygit_arch }}.tar.gz"
+      when:
+        - not ansible_check_mode
+        - _devtools_lazygit_needs_install | bool
 
-  always:
-    - name: Remover diretório temporário
-      ansible.builtin.file:
-        path: "{{ devtools_lazygit_temp.path }}"
-        state: absent
-      when: devtools_lazygit_temp.path is defined
+  rescue:
+    - name: Avisar que o Lazygit não foi instalado (falha de rede ou da API)
+      ansible.builtin.debug:
+        msg: >-
+          ⚠️ Não foi possível instalar ou atualizar o Lazygit por falha de rede ou da API (tarefa '{{ ansible_failed_task.name }}'):
+          {{ ansible_failed_result.msg | default('erro desconhecido') }}. O play continua sem essa atualização.
+      when: _devtools_lazygit_network_failure | bool
+
+    - name: Falhar nos erros do Lazygit que não são de rede
+      ansible.builtin.fail:
+        msg: >-
+          Falha na tarefa '{{ ansible_failed_task.name }}': {{ ansible_failed_result.msg | default('erro desconhecido') }}
+          {{- ' (rc=' ~ ansible_failed_result.rc ~ ')' if ansible_failed_result.rc is defined else '' }}
+          {{- '. stderr: ' ~ ansible_failed_result.stderr if ansible_failed_result.stderr | default('') | length > 0 else '' }}
+      when: not (_devtools_lazygit_network_failure | bool)

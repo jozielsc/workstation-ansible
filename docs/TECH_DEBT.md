@@ -30,6 +30,7 @@ Legenda de evidência:
 | B17 | No modo `local`, Back no passo 3 do wizard reabre o passo 3: o passo 2 não tem caso para `local` e devolve para o 3, então só dá para voltar ao passo 1 cancelando | `scripts/interactive.sh` (passos 2 e 3) | Confirmado (modo `cli`) | #49 |
 | B18 | `make sandbox` apaga e recria o container a cada chamada (`docker rm -f` + `docker run`), apesar da mensagem "Garantindo que o container … esteja rodando": uma segunda execução pelo `make` provisiona um container limpo, então a idempotência pedida pela Definição de pronto não é testável por ele | `Makefile` (target `sandbox`) | Confirmado (sandbox void, #13) | #51 |
 | B19 | Em check mode (`DRY=1`), num Debian/Ubuntu sem `python3-apt`, a instalação em lote falha (`python3-apt must be installed to use check mode`), cai no `rescue` e a instalação individual reporta todos os pacotes como `ok`, porque o `failed_when: false` esconde a mesma falha: a simulação não mostra o que seria instalado | `devtools`, `editors`, `ui` (instalação resiliente) | Confirmado (sandbox ubuntu, `devtools`) | #52 |
+| B20 | As roles que instalam pacotes não atualizam o índice do gerenciador (só `docker/tasks/debian.yml` usa `update_cache`): no Arch e no Void com o sync DB velho, ou numa imagem do sandbox reaproveitada do cache de camadas, a instalação em lote falha com 404 e o `rescue` deixa os pacotes faltando só com avisos | `devtools`, `editors`, `ui`, `languages` | Provável (leitura; revisão do PR #54) | #55 |
 
 ## Inconsistências de configuração
 

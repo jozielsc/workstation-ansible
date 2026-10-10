@@ -4,3 +4,18 @@ docker_apt_arch:
   aarch64: arm64
   armv7l: armhf
   armv6l: armel
+
+# Diretório do repositório oficial (download.docker.com/linux/<dir>) por distribuição da família RedHat.
+# Rocky e AlmaLinux usam o repositório do CentOS, como indica a documentação do Docker.
+docker_rpm_repo_distro:
+  Fedora: fedora
+  RedHat: rhel
+  CentOS: centos
+  Rocky: centos
+  AlmaLinux: centos
+
+# Distros em que a role tem tarefa de instalação do Docker (usado para decidir se a falta do grupo é erro).
+docker_install_supported: >-
+  {{ ansible_facts['os_family'] in ['Debian', 'Archlinux']
+  or ansible_facts['distribution'] == 'Void'
+  or (ansible_facts['os_family'] == 'RedHat' and ansible_facts['distribution'] in docker_rpm_repo_distro) }}

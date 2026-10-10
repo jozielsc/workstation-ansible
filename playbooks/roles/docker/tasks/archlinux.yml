@@ -1,0 +1,8 @@
+---
+- name: Instalar Docker
+  ansible.builtin.package:
+    name:
+      - docker
+      - docker-buildx
+      - docker-compose
+    state: present

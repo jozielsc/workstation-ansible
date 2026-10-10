@@ -39,10 +39,3 @@
       - docker-buildx-plugin
       - docker-compose-plugin
     state: present
-
-- name: Habilitar serviço Docker
-  ansible.builtin.service:
-    name: docker
-    enabled: true
-    state: started
-  when: ansible_facts['service_mgr'] == "systemd"

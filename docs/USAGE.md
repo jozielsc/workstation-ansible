@@ -14,7 +14,7 @@ O arquivo `Makefile` é a interface principal:
 *   `make local`: Configura a máquina atual (localhost).
 *   `make remote IP=<IP> USER=<USER>`: Configura uma máquina remota via SSH. O `IP` é obrigatório e deve ser um único host (sem espaços nem vírgulas).
 *   `make tunnel IP=<IP> JUMP_IP=<JUMP_IP> JUMP_USER=<JUMP_USER>`: Configura uma máquina através de um Bastion Host. `IP`, `JUMP_IP` e `JUMP_USER` são obrigatórios, e cada um deve ser um único valor (sem espaços nem vírgulas).
-*   `make sandbox [DISTRO=void|ubuntu|fedora|arch]`: Cria um container Docker isolado, executa o Ansible e o mantém ativo para testes. Em `fedora` e `arch`, a role `docker` ainda falha (#7), então rode as outras tags (ex.: `TAGS=devtools,languages,zsh,editors,dotfiles`).
+*   `make sandbox [DISTRO=void|ubuntu|fedora|arch]`: Cria um container Docker isolado, executa o Ansible e o mantém ativo para testes.
 *   `make sandbox-shell`: Abre o terminal interativo (`bash`) no container sandbox atual.
 *   `make sandbox-clean`: Para e remove o container sandbox.
 *   `make deps`: Deveria instalar as dependências do Galaxy, mas hoje não faz nada, porque não existe `requirements.yml` (#20). Veja como obter as collections em [ARCHITECTURE.md](ARCHITECTURE.md#collections-ansible-necessárias-no-controlador).

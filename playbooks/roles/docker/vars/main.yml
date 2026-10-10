@@ -4,3 +4,12 @@ docker_apt_arch:
   aarch64: arm64
   armv7l: armhf
   armv6l: armel
+
+# Diretório do repositório oficial (download.docker.com/linux/<dir>) por distribuição da família RedHat.
+# Rocky e AlmaLinux usam o repositório do CentOS, como indica a documentação do Docker.
+docker_rpm_repo_distro:
+  Fedora: fedora
+  RedHat: rhel
+  CentOS: centos
+  Rocky: centos
+  AlmaLinux: centos

@@ -1,0 +1,55 @@
+---
+- name: Avisar quando a distribuição RedHat não tem repositório Docker mapeado
+  ansible.builtin.debug:
+    msg: >-
+      ⚠️ Distribuição '{{ ansible_facts['distribution'] }}' sem repositório oficial do Docker mapeado
+      (docker_rpm_repo_distro); Docker não instalado.
+  when: ansible_facts['distribution'] not in docker_rpm_repo_distro
+
+- name: Instalar Docker pelo repositório oficial (RedHat/Fedora)
+  when: ansible_facts['distribution'] in docker_rpm_repo_distro
+  vars:
+    _docker_rpm_repo_url: "https://download.docker.com/linux/{{ docker_rpm_repo_distro[ansible_facts['distribution']] }}"
+  block:
+    - name: Importar chave GPG do Docker
+      ansible.builtin.rpm_key:
+        key: "{{ _docker_rpm_repo_url }}/gpg"
+        state: present
+
+    # yum_repository grava o .repo direto, sem depender do "dnf config-manager" (sintaxe diferente no dnf5).
+    - name: Configurar repositório oficial do Docker
+      ansible.builtin.yum_repository:
+        name: docker-ce-stable
+        description: Docker CE Stable - $basearch
+        baseurl: "{{ _docker_rpm_repo_url }}/$releasever/$basearch/stable"
+        gpgcheck: true
+        gpgkey: "{{ _docker_rpm_repo_url }}/gpg"
+        enabled: true
+      register: docker_rpm_repo
+
+    # Em check mode, um repositório ainda não configurado só foi simulado, e o docker-ce não existe para o dnf.
+    - name: Informar que o Docker seria instalado (check mode)
+      ansible.builtin.debug:
+        msg: Docker seria instalado do repositório oficial ({{ _docker_rpm_repo_url }}).
+      changed_when: true
+      when:
+        - ansible_check_mode
+        - docker_rpm_repo is changed
+
+    - name: Instalar Docker
+      ansible.builtin.package:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+      when: not (ansible_check_mode and docker_rpm_repo is changed)
+
+    - name: Habilitar serviço Docker
+      ansible.builtin.service:
+        name: docker
+        enabled: true
+        state: started
+      when: ansible_facts['service_mgr'] == "systemd"

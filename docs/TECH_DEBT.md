@@ -16,7 +16,6 @@ Legenda de evidência:
 | # | Item | Onde | Evidência | Issue |
 |---|---|---|---|---|
 | B2 | `make sandbox` ignora `DRY=1` (monta um comando próprio sem `ANS_FLAGS`), mas o wizard oferece dry-run para o sandbox | `Makefile`, `scripts/interactive.sh` | Confirmado (`make -n sandbox DRY=1`) | #12 |
-| B3 | Em RedHat e Arch, a role docker não instala nada e depois tenta adicionar o usuário ao grupo `docker`, que não existe | `roles/docker/tasks/main.yml` | Confirmado (leitura) | #7 |
 | B4 | Go não é instalado em RedHat nem Arch, sem aviso | `roles/languages/tasks/go.yml` | Confirmado (leitura) | #8 |
 | B5 | Nome do pacote pipx divergente: `python.yml` usa `python3-pipx` para Debian, `devtools/vars/Debian.yml` usa `pipx`. O `failed_when: false` esconde a falha | `python.yml`, `devtools/vars/Debian.yml` | Confirmado (divergência); pacote inexistente: Provável | #14 |
 | B6 | Tags `uv` e `pipx` não funcionam sozinhas, porque o include só tem a tag `python` | `roles/languages/tasks/` | Confirmado (teste de herança de tags) | #15 |

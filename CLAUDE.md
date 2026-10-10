@@ -56,7 +56,7 @@ make sandbox-shell DISTRO=void       # inspect the container afterwards
 make sandbox-clean DISTRO=void
 ```
 
-`make sandbox` builds `tests/sandbox/Dockerfile.$(DISTRO)`, starts a container, and runs the playbook against it with `-c docker -u dev` (passwordless sudo, no `-K`). It builds its own `ansible-playbook` command, so `ANS_FLAGS` (including `DRY`) do not apply to it. The containers have no init system (runit/systemd not PID 1), so service-enablement paths are skipped there and are never exercised by the sandbox. Dockerfiles exist for `void`, `ubuntu`, `fedora` and `arch`; on `fedora`/`arch` the `docker` role still fails (#7), so test the other tags there. CI (`.github/workflows/ci.yml`) only runs `make lint` on PRs and pushes to `main`; the sandbox has no CI yet (#29).
+`make sandbox` builds `tests/sandbox/Dockerfile.$(DISTRO)`, starts a container, and runs the playbook against it with `-c docker -u dev` (passwordless sudo, no `-K`). It builds its own `ansible-playbook` command, so `ANS_FLAGS` (including `DRY`) do not apply to it. The containers have no init system (runit/systemd not PID 1), so service-enablement paths are skipped there and are never exercised by the sandbox. Dockerfiles exist for `void`, `ubuntu`, `fedora` and `arch`. CI (`.github/workflows/ci.yml`) only runs `make lint` on PRs and pushes to `main`; the sandbox has no CI yet (#29).
 
 Dev tools (ansible, ansible-lint, yamllint, shellcheck-py, molecule) come from the uv `dev` group in `pyproject.toml` (`uv sync`); run them via `uv run` / `make lint|test|check`. Molecule is an additional test layer: it does **not** replace the sandbox matrix (#29) or the lint CI unless the maintainer says so.
 

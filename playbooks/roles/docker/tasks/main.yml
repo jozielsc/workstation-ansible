@@ -15,6 +15,21 @@
   ansible.builtin.include_tasks: void.yml
   when: ansible_facts['distribution'] == "Void"
 
+# Um único passo de serviço para as distros com systemd. O docker.service vem do pacote: numa distro sem
+# instalação, ou em check mode antes dela, ele não existe e o módulo falharia, então só habilita se existir.
+- name: Coletar os serviços do systemd
+  ansible.builtin.service_facts:
+  when: ansible_facts['service_mgr'] == "systemd"
+
+- name: Habilitar serviço Docker
+  ansible.builtin.service:
+    name: docker
+    enabled: true
+    state: started
+  when:
+    - ansible_facts['service_mgr'] == "systemd"
+    - "'docker.service' in ansible_facts['services']"
+
 # O grupo docker vem do pacote. Numa distro sem tarefa de instalação, ou em check mode antes da instalação,
 # ele não existe e o módulo user falharia; nesse caso só avisa.
 - name: Verificar se o grupo docker existe

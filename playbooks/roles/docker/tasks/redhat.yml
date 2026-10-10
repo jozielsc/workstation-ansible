@@ -17,14 +17,19 @@
         state: present
 
     # yum_repository grava o .repo direto, sem depender do "dnf config-manager" (sintaxe diferente no dnf5).
+    # Mesmo arquivo e seção do docker-ce.repo oficial, para não duplicar o repositório num host que seguiu o
+    # guia do Docker. skip_if_unavailable: numa versão do Fedora que o Docker ainda não publicou ($releasever
+    # dá 404), só a instalação do Docker falha, não toda operação do dnf nas outras roles.
     - name: Configurar repositório oficial do Docker
       ansible.builtin.yum_repository:
         name: docker-ce-stable
+        file: docker-ce
         description: Docker CE Stable - $basearch
         baseurl: "{{ _docker_rpm_repo_url }}/$releasever/$basearch/stable"
         gpgcheck: true
         gpgkey: "{{ _docker_rpm_repo_url }}/gpg"
         enabled: true
+        skip_if_unavailable: true
       register: docker_rpm_repo
 
     # Em check mode, um repositório ainda não configurado só foi simulado, e o docker-ce não existe para o dnf.
@@ -46,10 +51,3 @@
           - docker-compose-plugin
         state: present
       when: not (ansible_check_mode and docker_rpm_repo is changed)
-
-    - name: Habilitar serviço Docker
-      ansible.builtin.service:
-        name: docker
-        enabled: true
-        state: started
-      when: ansible_facts['service_mgr'] == "systemd"

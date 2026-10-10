@@ -416,7 +416,9 @@ main() {
                         res=$(tui_menu 1 "Step 2/5: Sandbox Linux Distribution" \
                             "Select Docker base distribution for Sandbox container:" \
                             "void" "Void Linux (glibc - Default)" "$([ "$distro" = "void" ] && echo ON || echo OFF)" \
-                            "ubuntu" "Ubuntu 24.04 LTS" "$([ "$distro" = "ubuntu" ] && echo ON || echo OFF)") || rc=$?
+                            "ubuntu" "Ubuntu 24.04 LTS" "$([ "$distro" = "ubuntu" ] && echo ON || echo OFF)" \
+                            "fedora" "Fedora 44" "$([ "$distro" = "fedora" ] && echo ON || echo OFF)" \
+                            "arch" "Arch Linux (rolling)" "$([ "$distro" = "arch" ] && echo ON || echo OFF)") || rc=$?
 
                         if [ "$rc" -eq 3 ]; then
                             step=1

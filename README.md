@@ -16,7 +16,7 @@ Este projeto é uma solução completa de *Infrastructure as Code* (IaC) para pr
 ### 🚀 Funcionalidades
 
 - **Multiplataforma Resiliente:** Suporte nativo para **Debian/Ubuntu**, **Void Linux**, **RedHat/Fedora** e **Arch Linux**.
-- **Sandbox Testing Pipeline (NOVO):** Teste todo o provisionamento em containers isolados via Docker (`Void Linux glibc` default ou `Ubuntu`) sem alterar sua máquina local!
+- **Sandbox Testing Pipeline (NOVO):** Teste todo o provisionamento em containers isolados via Docker (`Void Linux glibc` default, `Ubuntu`, `Fedora` ou `Arch`) sem alterar sua máquina local!
 - **Gerenciamento Inteligente de Pacotes:** Separação de pacotes por família de SO (`Debian.yml`, `Void.yml`, `RedHat.yml`, `Archlinux.yml`) com mecanismo de instalação em lote e *fallback* tolerante a falhas por pacote.
 - **Detecção de Init:** Suporte para `systemd` e `runit`.
 - **Linguagens Modernas (Granular):**
@@ -55,7 +55,7 @@ Quer testar o provisionamento antes de aplicar em sua máquina pessoal? Use o Sa
    make sandbox
    ```
 
-2. **Rodar Sandbox em Ubuntu:**
+2. **Rodar Sandbox em Ubuntu (ou `fedora`, `arch`):**
    ```bash
    make sandbox DISTRO=ubuntu
    ```
@@ -144,7 +144,7 @@ This project is a complete Infrastructure as Code (IaC) solution for developer e
 ### 🚀 Features
 
 - **Resilient Multiplatform:** Native support for **Debian/Ubuntu**, **Void Linux**, **RedHat/Fedora**, and **Arch Linux**.
-- **Sandbox Testing Pipeline (NEW):** Dry-run and test provisioning in isolated Docker containers (`Void Linux glibc` default or `Ubuntu`) without touching your local system!
+- **Sandbox Testing Pipeline (NEW):** Dry-run and test provisioning in isolated Docker containers (`Void Linux glibc` default, `Ubuntu`, `Fedora` or `Arch`) without touching your local system!
 - **Smart Package Management:** Distro-specific package name mapping (`Debian.yml`, `Void.yml`, `RedHat.yml`, `Archlinux.yml`) with batch installation and fault-tolerant per-package fallback.
 - **Init System Detection:** Works with `systemd` and `runit`.
 - **Modern Languages (Granular):**
@@ -176,7 +176,7 @@ Want to test provisioning safely before applying to your personal machine? Use t
    make sandbox
    ```
 
-2. **Run Sandbox in Ubuntu:**
+2. **Run Sandbox in Ubuntu (or `fedora`, `arch`):**
    ```bash
    make sandbox DISTRO=ubuntu
    ```
@@ -279,7 +279,7 @@ workstation-ansible/
 │       ├── ui/           # Graphical Environment (Sway, Waybar, Fonts - Opt-in)
 │       └── dotfiles/     # GNU Stow symlink integration
 └── tests/
-    └── sandbox/          # Sandbox test pipeline Dockerfiles (void, ubuntu)
+    └── sandbox/          # Sandbox test pipeline Dockerfiles (void, ubuntu, fedora, arch)
 ```
 
 ---

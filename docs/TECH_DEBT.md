@@ -53,7 +53,7 @@ Legenda de evidência:
 ## Reprodutibilidade e cadeia de suprimentos
 
 - `curl | sh` sem checksum (uv, rustup). (#26)
-- Lazygit consulta `releases/latest` na API do GitHub a cada execução (rate limit de 60 req/h sem token), porque a versão desejada é sempre a última; o download só acontece quando a versão muda. (#26)
+- Lazygit consulta `releases/latest` na API do GitHub a cada execução (rate limit de 60 req/h sem token), porque a versão desejada é sempre a última; o download só acontece quando não há binário ou o instalado é mais antigo. (#26)
 - Oh-My-Zsh, p10k, plugins e TPM usam `master` com update a cada execução, então o resultado não é reproduzível e há `changed` em execuções repetidas. (#26)
 - O repositório de dotfiles padrão é pessoal (`jozielsc/dotfiles`). (sem Issue: escolha de design do mantenedor)
 

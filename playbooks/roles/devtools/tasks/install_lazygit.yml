@@ -22,11 +22,12 @@
   when: _devtools_lazygit_arch | length > 0
   vars:
     # Avaliado no rescue, pelo resultado e não pelo nome da tarefa: sem conexão (status -1 do uri, "Request failed"
-    # ou "urlopen error" do unarchive, timeout) ou rate limit da API (403/429). Um 404 no asset, um erro ao extrair
-    # ou gravar e um erro de template continuam falhando o play.
+    # ou "urlopen error" do unarchive, timeout), rate limit da API (403/429) ou erro temporário do GitHub (5xx).
+    # Um 404 no asset, um erro ao extrair ou gravar e um erro de template continuam falhando o play.
     _devtools_lazygit_network_failure: >-
-      {{ (ansible_failed_result.status | default(0)) in [-1, 403, 429]
-      or (ansible_failed_result.msg | default('')) is search('Request failed|urlopen error|timed out') }}
+      {{ (ansible_failed_result.status | default(0) | int) in [-1, 403, 429]
+      or (ansible_failed_result.status | default(0) | int) >= 500
+      or (ansible_failed_result.msg | default('')) is search('Request failed|urlopen error|timed out|HTTP Error 5[0-9][0-9]') }}
   block:
     - name: Verificar versão instalada do Lazygit
       ansible.builtin.command: /usr/local/bin/lazygit --version
@@ -54,10 +55,18 @@
       ansible.builtin.set_fact:
         # Só instala quando não há binário, ou atualiza quando a versão é mais antiga. Uma versão mais nova que a
         # release ou não reconhecida (build local, "version=unversioned") não é tocada.
+        # A tag precisa parecer uma versão (ex.: 0.66.0) para a comparação; senão nada é instalado.
+        _devtools_lazygit_latest_valid: "{{ _devtools_lazygit_latest is match('^[0-9]+([.][0-9]+)*$') }}"
         _devtools_lazygit_needs_install: >-
-          {{ devtools_lazygit_installed.rc != 0
-          or (_devtools_lazygit_current | length > 0
-              and _devtools_lazygit_current is version(_devtools_lazygit_latest, '<')) }}
+          {{ _devtools_lazygit_latest is match('^[0-9]+([.][0-9]+)*$')
+          and (devtools_lazygit_installed.rc != 0
+               or (_devtools_lazygit_current | length > 0
+                   and _devtools_lazygit_current is version(_devtools_lazygit_latest, '<'))) }}
+
+    - name: Avisar quando a última release do Lazygit não tem uma versão reconhecível
+      ansible.builtin.debug:
+        msg: "⚠️ A última release do Lazygit tem a tag '{{ devtools_lazygit_release.json.tag_name | default('') }}', que não é uma versão; nada foi instalado."
+      when: not (_devtools_lazygit_latest_valid | bool)
 
     - name: Avisar quando a versão do Lazygit instalado não é reconhecida
       ansible.builtin.debug:

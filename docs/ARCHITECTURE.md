@@ -108,8 +108,8 @@ Uma lista com um pacote inexistente não aborta o play: a instalação passa a s
 - `install_lazygit.yml` (quando `devtools_features.lazygit`):
   1. mapeia `ansible_facts.architecture` para o asset do release (`x86_64`, `arm64`, `armv6`);
   2. lê a versão instalada com `/usr/local/bin/lazygit --version` (o `version=` da saída) e consulta `api.github.com/…/releases/latest`, ambos com `check_mode: false`;
-  3. só quando não há binário em `/usr/local/bin/lazygit` ou a versão instalada é mais antiga que a última release, um único `unarchive` baixa o asset e extrai só o binário em `/usr/local/bin` (`include: [lazygit]`, `0755`, `root`). Uma versão mais nova que a release não é rebaixada, e um binário cuja versão não é reconhecida (ex.: `version=unversioned` de um build local) não é tocado, só gera aviso. Um symlink em `/usr/local/bin/lazygit` é trocado por um arquivo regular. Em check mode, não baixa: uma tarefa `debug` com `changed_when: true` informa a versão que seria instalada;
-  4. no `rescue`, só falha de rede ou rate limit vira aviso e o play continua. A classificação é pelo resultado, não pelo nome da tarefa: `status` -1, 403 ou 429 no `uri`, ou `Request failed`/`urlopen error`/`timed out` na mensagem. Um 404 no asset (asset renomeado, arquitetura deixou de ser publicada) e erros ao extrair, gravar ou montar templates falham o play, com `rc` e `stderr` quando existem. Não há fallback para pacote da distro. Só `/usr/local/bin/lazygit` é consultado: um Lazygit em outro caminho (pacote da distro, `~/go/bin`) é ignorado e ganha uma segunda cópia.
+  3. só quando não há binário em `/usr/local/bin/lazygit` ou a versão instalada é mais antiga que a última release, um único `unarchive` baixa o asset e extrai só o binário em `/usr/local/bin` (`include: [lazygit]`, `0755`, `root`). Uma versão mais nova que a release não é rebaixada, e um binário cuja versão não é reconhecida (ex.: `version=unversioned` de um build local) não é tocado, só gera aviso. Se a tag da última release não parece uma versão (ex.: `nightly`), nada é instalado e há um aviso. Um symlink em `/usr/local/bin/lazygit` é trocado por um arquivo regular, e a extração não é atômica: se for interrompida, o binário fica truncado até a execução seguinte, que o reinstala. Em check mode, não baixa: uma tarefa `debug` com `changed_when: true` informa a versão que seria instalada;
+  4. no `rescue`, só falha de rede ou rate limit vira aviso e o play continua. A classificação é pelo resultado, não pelo nome da tarefa: `status` -1, 403, 429 ou 5xx no `uri`, ou `Request failed`/`urlopen error`/`timed out`/`HTTP Error 5xx` na mensagem. Um 404 no asset (asset renomeado, arquitetura deixou de ser publicada) e erros ao extrair, gravar ou montar templates falham o play, com `rc` e `stderr` quando existem. Não há fallback para pacote da distro. Só `/usr/local/bin/lazygit` é consultado: um Lazygit em outro caminho (pacote da distro, `~/go/bin`) é ignorado e ganha uma segunda cópia.
 
   A API do GitHub ainda é consultada a cada execução (60 requisições por hora sem token), porque a versão desejada é sempre a última; fixar a versão é a #26.
 - TPM: `git clone` em `~/.tmux/plugins/tpm` quando `devtools_features.tpm`.
@@ -155,7 +155,7 @@ Como `dotfiles` roda por último, qualquer arquivo que roles anteriores criem no
 |---|---|---|
 | `astral.sh/uv/install.sh` | languages/python | latest (curl \| sh) |
 | `sh.rustup.rs` | languages/rust | latest (curl \| sh) |
-| `api.github.com` + releases `jesseduffield/lazygit` | devtools | latest (baixa só quando difere da instalada) |
+| `api.github.com` + releases `jesseduffield/lazygit` | devtools | latest (baixa só quando não há binário ou o instalado é mais antigo) |
 | `github.com/tmux-plugins/tpm` | devtools | `master` |
 | `github.com/ohmyzsh/ohmyzsh`, `romkatv/powerlevel10k`, `zsh-users/*` | zsh | `master` |
 | `download.docker.com` | docker (Debian) | canal `stable` |

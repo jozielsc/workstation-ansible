@@ -59,6 +59,7 @@ Quer testar o provisionamento antes de aplicar em sua máquina pessoal? Use o Sa
    ```bash
    make sandbox DISTRO=ubuntu
    ```
+   Em `fedora` e `arch`, a role `docker` ainda falha (#7); rode as outras tags, ex.: `TAGS=devtools,languages,zsh,editors,dotfiles`.
 
 3. **Acessar o terminal interativo do container mantido UP:**
    ```bash
@@ -180,6 +181,7 @@ Want to test provisioning safely before applying to your personal machine? Use t
    ```bash
    make sandbox DISTRO=ubuntu
    ```
+   On `fedora` and `arch`, the `docker` role still fails (#7); run the other tags, e.g. `TAGS=devtools,languages,zsh,editors,dotfiles`.
 
 3. **Access the interactive container terminal (kept UP):**
    ```bash

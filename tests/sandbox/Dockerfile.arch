@@ -1,7 +1,8 @@
 FROM archlinux:base
 
 # Instalar dependências básicas para o Ansible operar via docker connection
-# (Arch é rolling: -Syu atualiza a imagem inteira junto, evitando atualização parcial)
+# (Arch é rolling: -Syu atualiza a imagem inteira junto, evitando atualização parcial; o -Scc com --noconfirm
+# responde "não" e mantém o cache, por isso a limpeza é feita com rm)
 RUN pacman -Syu --noconfirm --needed \
         python \
         sudo \
@@ -9,7 +10,7 @@ RUN pacman -Syu --noconfirm --needed \
         git \
         curl \
         ca-certificates && \
-    pacman -Scc --noconfirm
+    rm -rf /var/cache/pacman/pkg/*
 
 # Criar usuário não-root 'dev' com acesso sudo sem senha
 RUN useradd -m -s /bin/bash dev && \

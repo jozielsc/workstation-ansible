@@ -1,0 +1,7 @@
+---
+# Pacote do Go por os_family. Uma família fora deste mapa só gera aviso (go.yml).
+languages_go_package:
+  Debian: golang
+  RedHat: golang
+  Void: go
+  Archlinux: go

@@ -2,7 +2,9 @@
 - name: "📌 STATUS: Configurando ambiente Golang"
   ansible.builtin.debug:
     msg: "🦫 LANG: Instalando compilador Go..."
-  when: languages_features.golang | default(true)
+  when:
+    - languages_features.golang | default(true)
+    - ansible_facts['os_family'] in languages_go_package
 
 - name: Instalar Golang (Repository)
   ansible.builtin.package:

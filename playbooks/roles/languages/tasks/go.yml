@@ -2,24 +2,25 @@
 - name: "📌 STATUS: Configurando ambiente Golang"
   ansible.builtin.debug:
     msg: "🦫 LANG: Instalando compilador Go..."
-  when: languages_features.golang | default(true)
+  when:
+    - languages_features.golang | default(true)
+    - ansible_facts['os_family'] in languages_go_package
 
 - name: Instalar Golang (Repository)
   ansible.builtin.package:
-    name:
-      - golang
+    name: "{{ languages_go_package[ansible_facts['os_family']] }}"
     state: present
   when:
     - languages_features.golang | default(true)
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['os_family'] in languages_go_package
   tags: [go, golang]
 
-- name: Instalar Golang (Repository)
-  ansible.builtin.package:
-    name:
-      - go
-    state: present
+- name: Avisar que o Go não tem pacote mapeado nesta distro
+  ansible.builtin.debug:
+    msg: >-
+      ⚠️ Go não instalado: a família '{{ ansible_facts['os_family'] }}'
+      ({{ ansible_facts['distribution'] }}) não tem pacote em languages_go_package.
   when:
     - languages_features.golang | default(true)
-    - ansible_facts['distribution'] == 'Void'
+    - ansible_facts['os_family'] not in languages_go_package
   tags: [go, golang]

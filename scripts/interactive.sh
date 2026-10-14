@@ -48,7 +48,7 @@ parse_index() {
 #   UI_ACTION  ok | no (só em ui_yesno) | back | cancel
 #   UI_VALUE   item escolhido (ui_menu) ou texto digitado (ui_input)
 #   UI_LIST    itens marcados (ui_checklist)
-# O motor fica escondido aqui, na ordem dialog > whiptail > cli (TUI_ENGINE escolhe por onde começar). Cada motor tem um
+# O motor fica escondido aqui, na ordem dialog > whiptail > cli (TUI_ENGINE força um, sem fallback). Cada motor tem um
 # adaptador que traduz Back e Cancel para o que ele oferece. Se um motor falha, ele sai de UI_ENGINES e o mesmo diálogo
 # é repetido no próximo. Por isso as funções não são chamadas com $(...): a troca de motor precisa valer para o resto do wizard.
 
@@ -72,47 +72,57 @@ ui_pause() {
     fi
 }
 
+ui_fatal() {
+    ui_warn "$*"
+    exit 1
+}
+
+# Sem TUI_ENGINE, detecta os motores na ordem dialog > whiptail > cli, com fallback. Com TUI_ENGINE, usa só o motor
+# pedido, sem fallback: quem força um motor (por exemplo, para testá-lo) não pode acabar usando outro sem perceber.
 ui_init() {
-    local requested="${TUI_ENGINE:-}"
-    local engine started=0 warned=0
+    local engine
     # Um diretório só para os temporários (stderr do motor, texto do help), removido na saída, inclusive no Ctrl-C.
     UI_TMP_DIR=$(mktemp -d)
     trap 'rm -rf "$UI_TMP_DIR"' EXIT
     trap 'exit 130' INT
     trap 'exit 143' TERM
-    case "$requested" in
-        ""|dialog|whiptail|cli) ;;
-        *)
-            ui_warn "TUI_ENGINE=$requested não é suportado (use dialog, whiptail ou cli); usando a detecção automática."
-            requested=""
-            warned=1
-            ;;
-    esac
-    [ -z "$requested" ] && started=1
-    for engine in dialog whiptail cli; do
-        [ "$engine" = "$requested" ] && started=1
-        [ "$started" -eq 1 ] || continue
-        if [ "$engine" = "cli" ] || command -v "$engine" >/dev/null 2>&1; then
+
+    # dialog e whiptail desenham no terminal e leem dele: sem tty em stdin ou stdout, os dois falham. Checar uma vez
+    # aqui evita um aviso e uma pausa por motor a cada diálogo.
+    local has_tty=1
+    { [ -t 0 ] && [ -t 1 ]; } || has_tty=0
+
+    if [ -n "${TUI_ENGINE:-}" ]; then
+        case "$TUI_ENGINE" in
+            dialog|whiptail)
+                command -v "$TUI_ENGINE" >/dev/null 2>&1 || ui_fatal "TUI_ENGINE=$TUI_ENGINE, mas o $TUI_ENGINE não está instalado."
+                [ "$has_tty" -eq 1 ] || ui_fatal "TUI_ENGINE=$TUI_ENGINE precisa de um terminal em stdin e stdout."
+                ;;
+            cli) ;;
+            *) ui_fatal "TUI_ENGINE=$TUI_ENGINE não é suportado (use dialog, whiptail ou cli)." ;;
+        esac
+        UI_ENGINES=("$TUI_ENGINE")
+        return 0
+    fi
+
+    for engine in dialog whiptail; do
+        if command -v "$engine" >/dev/null 2>&1; then
             UI_ENGINES+=("$engine")
-        elif [ "$engine" = "$requested" ]; then
-            ui_warn "TUI_ENGINE=$engine, mas o $engine não está instalado; usando o próximo motor."
-            warned=1
         fi
     done
-    # dialog e whiptail desenham no terminal e leem dele. Sem tty em stdin ou stdout, os dois falham; checar uma vez aqui
-    # evita um aviso e uma pausa por motor a cada diálogo.
-    if [ "${UI_ENGINES[0]}" != "cli" ] && { [ ! -t 0 ] || [ ! -t 1 ]; }; then
+    if [ "${#UI_ENGINES[@]}" -gt 0 ] && [ "$has_tty" -eq 0 ]; then
         ui_warn "stdin ou stdout não é um terminal: dialog e whiptail não funcionam; usando o modo cli."
-        UI_ENGINES=(cli)
-        warned=1
-    fi
-    if [ "$warned" -eq 1 ]; then
+        UI_ENGINES=()
         ui_pause
     fi
+    UI_ENGINES+=(cli)
 }
 
 ui_engine_failed() {
     local failed="${UI_ENGINES[0]}"
+    if [ -n "${TUI_ENGINE:-}" ]; then
+        ui_fatal "O $failed falhou: ${UI_ERROR} (TUI_ENGINE=$TUI_ENGINE força o motor, sem fallback)."
+    fi
     UI_ENGINES=("${UI_ENGINES[@]:1}")
     ui_warn "O $failed falhou: ${UI_ERROR}"
     ui_warn "Continuando com o ${UI_ENGINES[0]}."
@@ -198,12 +208,28 @@ ui_tui() {
             box=(--inputbox "$prompt" 12 65 "$1")
             ;;
         yesno)
+            # O resumo do passo 6 pode ter mais linhas do que cabem na altura padrão: a caixa cresce com o texto (linhas
+            # quebradas na largura da caixa) até a altura do terminal; acima disso, o texto rola.
+            local text_lines term_lines height
+            text_lines=$(printf '%s\n' "${prompt//\\n/$'\n'}" | fold -s -w 71 | wc -l)
+            term_lines=$(tput lines 2>/dev/null || echo 24)
             if [ "$back_menu" -eq 1 ]; then
+                # Bordas, lista Yes/No, espaços e botões ocupam 9 linhas além do texto.
+                height=$(( text_lines + 9 ))
+                [ "$height" -lt 22 ] && height=22
                 opts+=(--notags)
-                box=(--menu "$prompt" 22 75 2 yes "Yes" no "No")
+                if [ "$height" -gt "$term_lines" ]; then
+                    height="$term_lines"
+                    opts+=(--scrolltext)
+                fi
+                box=(--menu "$prompt" "$height" 75 2 yes "Yes" no "No")
             else
+                # Bordas, espaços e botões ocupam 6 linhas além do texto.
+                height=$(( text_lines + 6 ))
+                [ "$height" -lt 20 ] && height=20
+                [ "$height" -gt "$term_lines" ] && height="$term_lines"
                 [ "$back" = "1" ] && opts+=(--help-button --help-label "Cancel")
-                box=(--yesno "$prompt" 20 75)
+                box=(--yesno "$prompt" "$height" 75)
             fi
             ;;
         text)
@@ -214,6 +240,11 @@ ui_tui() {
 
     while true; do
         ui_tui_exec "$engine" "${opts[@]}" "${box[@]}" || return 1
+        # Fechar o texto, com qualquer botão ou Esc, só volta ao passo.
+        if [ "$kind" = "text" ]; then
+            UI_ACTION="ok"
+            return 0
+        fi
         case "$UI_RC" in
             0)
                 UI_ACTION="ok"
@@ -255,10 +286,6 @@ ui_tui() {
                 mapfile -t UI_LIST <<< "$UI_OUT"
             fi
             ;;
-        text)
-            # Fechar o texto, com qualquer botão ou Esc, só volta ao passo.
-            UI_ACTION="ok"
-            ;;
     esac
     return 0
 }
@@ -266,6 +293,12 @@ ui_tui() {
 # --- Adaptador cli ---
 # Texto puro, para quando não há dialog nem whiptail. Só b e c sozinhos navegam, para valores como "bruno" passarem;
 # b só vale onde há Back. O fim da entrada (Ctrl-D) sem nada digitado cancela, como o Esc.
+
+# Imprime o texto de um diálogo. Só as sequências \n viram quebra de linha, como no dialog/whiptail: com echo -e, um \c
+# ou \033 num valor digitado (por exemplo, no resumo do passo 6) seria interpretado.
+ui_cli_print() {
+    printf '%s\n' "${1//\\n/$'\n'}"
+}
 
 # Fim da entrada sem nada digitado. Num terminal, é o Ctrl-D, que cancela. Sem terminal, as respostas do stdin acabaram
 # antes do fim do wizard: isso não é uma ação do usuário, então o wizard sai com erro em vez de "cancelled by user".
@@ -286,7 +319,8 @@ ui_cli_menu() {
 
     show_banner
     echo -e "${BOLD}=== $title ===${NC}"
-    echo -e "$prompt\n"
+    ui_cli_print "$prompt"
+    echo ""
     local keys=()
     local texts=()
     local current=0
@@ -365,7 +399,8 @@ ui_cli_checklist() {
     while true; do
         show_banner
         echo -e "${BOLD}=== $title ===${NC}"
-        echo -e "$prompt\n"
+        ui_cli_print "$prompt"
+    echo ""
         echo -e "${YELLOW}Toggle options by entering numbers separated by spaces (e.g. 1 3 5), or press ENTER to confirm current:${NC}"
         if [ "$back" = "1" ]; then
             echo -e "${YELLOW}Enter 'b' to go Back, 'c' to Cancel.${NC}\n"
@@ -451,7 +486,7 @@ ui_cli_input() {
 
     show_banner
     echo -e "${BOLD}=== $title ===${NC}"
-    echo -e "$prompt"
+    ui_cli_print "$prompt"
     if [ "$back" = "1" ]; then
         echo -e "${YELLOW}(Enter 'b' to go Back, 'c' to Cancel)${NC}"
     else
@@ -483,7 +518,8 @@ ui_cli_yesno() {
 
     show_banner
     echo -e "${BOLD}=== $title ===${NC}"
-    echo -e "$prompt\n"
+    ui_cli_print "$prompt"
+    echo ""
     local nav_prompt="(y/N, c=Cancel)"
     [ "$back" = "1" ] && nav_prompt="(y/N, b=Back, c=Cancel)"
     local ans=""
@@ -513,7 +549,11 @@ ui_cli_text() {
     show_banner
     echo -e "${BOLD}=== $title ===${NC}\n"
     if command -v less >/dev/null 2>&1; then
+        # O less usa o Ctrl-C (por exemplo, para abortar uma busca); com o trap de INT de ui_init, o bash sairia do
+        # wizard quando o less terminasse.
+        trap : INT
         less "$file_path" || cat "$file_path"
+        trap 'exit 130' INT
     else
         cat "$file_path"
         echo ""
@@ -534,6 +574,14 @@ ui_dialog() {
             return 0
         fi
         ui_tui "${UI_ENGINES[0]}" "$@" && return 0
+        # Uma falha só no texto (por exemplo, terminal pequeno demais para a caixa) não tira do motor os outros passos,
+        # que funcionam: o texto é mostrado no modo cli desta vez.
+        if [ "$1" = "text" ]; then
+            ui_warn "O ${UI_ENGINES[0]} não conseguiu mostrar o texto: ${UI_ERROR}"
+            ui_pause
+            ui_cli_text "${@:2}"
+            return 0
+        fi
         ui_engine_failed
     done
 }

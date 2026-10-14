@@ -163,7 +163,7 @@ ui_tui_back_or_cancel() {
         cancel "Cancelar o wizard" \
         stay "Continuar nesta tela" || return 1
     UI_ACTION="stay"
-    # Esc fecha só este menu e volta ao passo.
+    # Esc fecha só este menu e volta à tela.
     if [ "$UI_RC" -eq 0 ]; then
         case "$UI_OUT" in
             back|cancel) UI_ACTION="$UI_OUT" ;;
@@ -241,7 +241,7 @@ ui_tui() {
 
     while true; do
         ui_tui_exec "$engine" "${opts[@]}" "${box[@]}" || return 1
-        # Fechar o texto, com qualquer botão ou Esc, só volta ao passo.
+        # Fechar o texto, com qualquer botão ou Esc, só volta à tela.
         if [ "$kind" = "text" ]; then
             UI_ACTION="ok"
             return 0
@@ -633,18 +633,36 @@ cancel_wizard() {
     exit 0
 }
 
-# Monta em "screens" as telas do modo atual, na ordem em que aparecem. main só guarda a posição (pos) nessa lista: OK
-# avança e Back volta uma posição. Como a lista só tem as telas que o modo mostra, o Back sempre leva à última tela vista,
-# inclusive entre os campos do modo, e um modo sem parâmetros (local) não precisa de caso especial em outra tela.
-# screens e pos são variáveis locais de main: com o escopo dinâmico do bash, as atribuições aqui valem lá.
+# Monta em "screens" as telas do modo atual, na ordem em que aparecem, e em "screen_numbers" (paralelo a screens) o
+# número do passo de cada uma. A lista é feita de passos: cada passo é uma ou mais telas, e os campos do modo formam um
+# passo só, definido num lugar só. main guarda apenas a posição (pos) em screens: OK avança e Back volta uma posição.
+# Como a lista só tem as telas que o modo mostra, o Back sempre leva à última tela vista, inclusive entre os campos do
+# modo, e um modo sem campos (local) não precisa de caso especial em outra tela. A confirmação não é numerada (0).
+# screens, screen_numbers, step_total e pos são variáveis locais de main: com o escopo dinâmico do bash, as atribuições
+# aqui valem lá.
 wizard_screens() {
-    screens=(target)
+    local mode_fields=""
     case "$target_mode" in
-        sandbox) screens+=(distro) ;;
-        remote) screens+=(remote_ip remote_user) ;;
-        tunnel) screens+=(remote_ip remote_user jump_ip jump_user) ;;
+        sandbox) mode_fields="distro" ;;
+        remote) mode_fields="remote_ip remote_user" ;;
+        tunnel) mode_fields="remote_ip remote_user jump_ip jump_user" ;;
     esac
-    screens+=(profile tags dry_run confirm)
+    local steps=("target" "$mode_fields" "profile" "tags" "dry_run")
+    local step step_screens=() screen
+    screens=()
+    screen_numbers=()
+    step_total=0
+    for step in "${steps[@]}"; do
+        [ -n "$step" ] || continue
+        step_total=$((step_total + 1))
+        read -r -a step_screens <<< "$step"
+        for screen in "${step_screens[@]}"; do
+            screens+=("$screen")
+            screen_numbers+=("$step_total")
+        done
+    done
+    screens+=(confirm)
+    screen_numbers+=(0)
 }
 
 # Trata a ação do diálogo da tela atual: ok devolve 0 e a tela segue; back volta à tela anterior e devolve 1, para a tela
@@ -657,40 +675,22 @@ screen_nav() {
     esac
 }
 
-# Passo a que cada tela pertence: os campos do modo formam um passo só; as outras telas são um passo cada.
-screen_step() {
-    case "$1" in
-        distro|remote_ip|remote_user|jump_ip|jump_user) echo "mode_fields" ;;
-        *) echo "$1" ;;
-    esac
-}
-
-# Título "Step N/T: <nome>". N e T contam os passos da lista de telas do modo atual (sem a confirmação, que não é
-# numerada), então um modo sem campos tem um passo a menos e nenhum número é pulado. A escolha do modo não mostra o
-# total, porque ele depende do modo que ainda vai ser escolhido.
+# Título "Step N/T: <nome>" da tela atual (screens[pos]), com o número calculado por wizard_screens. A escolha do modo
+# não mostra o total, porque ele depende do modo que ainda vai ser escolhido.
 step_title() {
-    local screen="$1"
-    local name="$2"
-    if [ "$screen" = "target" ]; then
-        echo "Step 1: $name"
-        return 0
+    local number="${screen_numbers[pos]}"
+    if [ "$number" -eq 1 ]; then
+        echo "Step 1: $1"
+    else
+        echo "Step $number/$step_total: $1"
     fi
-    local current s step last="" number=0 total=0
-    current=$(screen_step "$screen")
-    for s in "${screens[@]}"; do
-        [ "$s" = "confirm" ] && continue
-        step=$(screen_step "$s")
-        [ "$step" = "$last" ] && continue
-        last="$step"
-        total=$((total + 1))
-        [ "$step" = "$current" ] && number="$total"
-    done
-    echo "Step $number/$total: $name"
 }
 
 main() {
     local pos=0
     local screens=()
+    local screen_numbers=()
+    local step_total=0
     local target_mode="local"
     local distro="void"
     local remote_ip="192.168.1.50"
@@ -707,7 +707,7 @@ main() {
         wizard_screens
         case "${screens[pos]}" in
             target)
-                ui_menu 0 "$(step_title target "Target Selection")" \
+                ui_menu 0 "$(step_title "Target Selection")" \
                     "Select where you want to provision the workstation environment:" \
                     "local" "Local Machine (localhost)" "$([ "$target_mode" = "local" ] && echo ON || echo OFF)" \
                     "sandbox" "Isolated Docker Container (Sandbox)" "$([ "$target_mode" = "sandbox" ] && echo ON || echo OFF)" \
@@ -726,7 +726,7 @@ main() {
                 ;;
 
             distro)
-                ui_menu 1 "$(step_title distro "Sandbox Linux Distribution")" \
+                ui_menu 1 "$(step_title "Sandbox Linux Distribution")" \
                     "Select Docker base distribution for Sandbox container:" \
                     "void" "Void Linux (glibc - Default)" "$([ "$distro" = "void" ] && echo ON || echo OFF)" \
                     "ubuntu" "Ubuntu 24.04 LTS" "$([ "$distro" = "ubuntu" ] && echo ON || echo OFF)" \
@@ -740,9 +740,9 @@ main() {
             remote_ip)
                 # No tunnel, o host de destino é alcançado pelo bastion: mesmo campo, outro título.
                 if [ "$target_mode" = "tunnel" ]; then
-                    ui_input 1 "$(step_title remote_ip "Target IP Address")" "Enter destination IP address:" "$remote_ip"
+                    ui_input 1 "$(step_title "Target IP Address")" "Enter destination IP address:" "$remote_ip"
                 else
-                    ui_input 1 "$(step_title remote_ip "Remote SSH Host")" "Enter target IP address:" "$remote_ip"
+                    ui_input 1 "$(step_title "Remote SSH Host")" "Enter target IP address:" "$remote_ip"
                 fi
                 screen_nav || continue
                 [ -n "$UI_VALUE" ] && remote_ip="$UI_VALUE"
@@ -750,22 +750,22 @@ main() {
 
             remote_user)
                 if [ "$target_mode" = "tunnel" ]; then
-                    ui_input 1 "$(step_title remote_user "Target Username")" "Enter SSH username on target host:" "$remote_user"
+                    ui_input 1 "$(step_title "Target Username")" "Enter SSH username on target host:" "$remote_user"
                 else
-                    ui_input 1 "$(step_title remote_user "Remote SSH User")" "Enter SSH username:" "$remote_user"
+                    ui_input 1 "$(step_title "Remote SSH User")" "Enter SSH username:" "$remote_user"
                 fi
                 screen_nav || continue
                 [ -n "$UI_VALUE" ] && remote_user="$UI_VALUE"
                 ;;
 
             jump_ip)
-                ui_input 1 "$(step_title jump_ip "Bastion Jump IP")" "Enter Jump Box IP address:" "$jump_ip"
+                ui_input 1 "$(step_title "Bastion Jump IP")" "Enter Jump Box IP address:" "$jump_ip"
                 screen_nav || continue
                 [ -n "$UI_VALUE" ] && jump_ip="$UI_VALUE"
                 ;;
 
             jump_user)
-                ui_input 1 "$(step_title jump_user "Bastion Username")" "Enter SSH username on Jump Box:" "$jump_user"
+                ui_input 1 "$(step_title "Bastion Username")" "Enter SSH username on Jump Box:" "$jump_user"
                 screen_nav || continue
                 [ -n "$UI_VALUE" ] && jump_user="$UI_VALUE"
                 ;;
@@ -788,7 +788,7 @@ main() {
                     profile_choices+=("$p" "$desc" "$status")
                 done
 
-                ui_menu 1 "$(step_title profile "Profile Selection")" \
+                ui_menu 1 "$(step_title "Profile Selection")" \
                     "Select configuration profile to apply:" \
                     "${profile_choices[@]}"
 
@@ -825,7 +825,7 @@ main() {
                     tag_choices+=("$tag_name" "$tag_desc" "$status")
                 done
 
-                ui_checklist 1 "$(step_title tags "Component Selection")" \
+                ui_checklist 1 "$(step_title "Component Selection")" \
                     "Select components to install/configure (Space to toggle, Enter to confirm):" \
                     "${tag_choices[@]}"
 
@@ -834,7 +834,7 @@ main() {
                 ;;
 
             dry_run)
-                ui_yesno 1 "$(step_title dry_run "Simulation (Dry-Run)")" "Do you want to run in simulation mode (--check --diff) without modifying the system?"
+                ui_yesno 1 "$(step_title "Simulation (Dry-Run)")" "Do you want to run in simulation mode (--check --diff) without modifying the system?"
                 case "$UI_ACTION" in
                     ok) dry_run="yes" ;;
                     no) dry_run="no" ;;

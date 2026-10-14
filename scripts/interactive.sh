@@ -152,15 +152,16 @@ ui_tui_exec() {
 }
 
 # No whiptail, o botão "Voltar/Cancelar" abre este menu, porque ele não tem um terceiro botão para o Back.
-# "Continuar neste passo" reabre o diálogo com os valores do início do passo: com o segundo botão, o whiptail não
+# "Continuar nesta tela" reabre o diálogo com os valores de quando ela foi aberta: com o segundo botão, o whiptail não
 # devolve o que foi editado.
 ui_tui_back_or_cancel() {
     local engine="$1"
     local title="$2"
+    # Itens sem acento: o newt mede a largura da lista em bytes e cortaria o texto ("à" ocupa dois).
     ui_tui_exec "$engine" --title "$title" --notags --nocancel --menu "O que deseja fazer?" 12 50 3 \
-        back "Voltar ao passo anterior" \
+        back "Voltar para a tela anterior" \
         cancel "Cancelar o wizard" \
-        stay "Continuar neste passo" || return 1
+        stay "Continuar nesta tela" || return 1
     UI_ACTION="stay"
     # Esc fecha só este menu e volta ao passo.
     if [ "$UI_RC" -eq 0 ]; then
@@ -641,7 +642,7 @@ wizard_screens() {
     case "$target_mode" in
         sandbox) screens+=(distro) ;;
         remote) screens+=(remote_ip remote_user) ;;
-        tunnel) screens+=(tunnel_ip tunnel_user jump_ip jump_user) ;;
+        tunnel) screens+=(remote_ip remote_user jump_ip jump_user) ;;
     esac
     screens+=(profile tags dry_run confirm)
 }
@@ -656,20 +657,35 @@ screen_nav() {
     esac
 }
 
-# Título "Step N/T: <nome>". Os campos do modo contam como um passo só (o 2), e um modo sem eles tem um passo a menos.
-# A escolha do modo não mostra o total, porque ele depende do modo que ainda vai ser escolhido.
+# Passo a que cada tela pertence: os campos do modo formam um passo só; as outras telas são um passo cada.
+screen_step() {
+    case "$1" in
+        distro|remote_ip|remote_user|jump_ip|jump_user) echo "mode_fields" ;;
+        *) echo "$1" ;;
+    esac
+}
+
+# Título "Step N/T: <nome>". N e T contam os passos da lista de telas do modo atual (sem a confirmação, que não é
+# numerada), então um modo sem campos tem um passo a menos e nenhum número é pulado. A escolha do modo não mostra o
+# total, porque ele depende do modo que ainda vai ser escolhido.
 step_title() {
     local screen="$1"
     local name="$2"
-    local total=5
-    [ "${#screens[@]}" -eq 5 ] && total=4
-    case "$screen" in
-        target) echo "Step 1: $name"; return 0 ;;
-        profile) echo "Step $((total - 2))/$total: $name" ;;
-        tags) echo "Step $((total - 1))/$total: $name" ;;
-        dry_run) echo "Step $total/$total: $name" ;;
-        *) echo "Step 2/$total: $name" ;;
-    esac
+    if [ "$screen" = "target" ]; then
+        echo "Step 1: $name"
+        return 0
+    fi
+    local current s step last="" number=0 total=0
+    current=$(screen_step "$screen")
+    for s in "${screens[@]}"; do
+        [ "$s" = "confirm" ] && continue
+        step=$(screen_step "$s")
+        [ "$step" = "$last" ] && continue
+        last="$step"
+        total=$((total + 1))
+        [ "$step" = "$current" ] && number="$total"
+    done
+    echo "Step $number/$total: $name"
 }
 
 main() {
@@ -722,25 +738,22 @@ main() {
                 ;;
 
             remote_ip)
-                ui_input 1 "$(step_title remote_ip "Remote SSH Host")" "Enter target IP address:" "$remote_ip"
+                # No tunnel, o host de destino é alcançado pelo bastion: mesmo campo, outro título.
+                if [ "$target_mode" = "tunnel" ]; then
+                    ui_input 1 "$(step_title remote_ip "Target IP Address")" "Enter destination IP address:" "$remote_ip"
+                else
+                    ui_input 1 "$(step_title remote_ip "Remote SSH Host")" "Enter target IP address:" "$remote_ip"
+                fi
                 screen_nav || continue
                 [ -n "$UI_VALUE" ] && remote_ip="$UI_VALUE"
                 ;;
 
             remote_user)
-                ui_input 1 "$(step_title remote_user "Remote SSH User")" "Enter SSH username:" "$remote_user"
-                screen_nav || continue
-                [ -n "$UI_VALUE" ] && remote_user="$UI_VALUE"
-                ;;
-
-            tunnel_ip)
-                ui_input 1 "$(step_title tunnel_ip "Target IP Address")" "Enter destination IP address:" "$remote_ip"
-                screen_nav || continue
-                [ -n "$UI_VALUE" ] && remote_ip="$UI_VALUE"
-                ;;
-
-            tunnel_user)
-                ui_input 1 "$(step_title tunnel_user "Target Username")" "Enter SSH username on target host:" "$remote_user"
+                if [ "$target_mode" = "tunnel" ]; then
+                    ui_input 1 "$(step_title remote_user "Target Username")" "Enter SSH username on target host:" "$remote_user"
+                else
+                    ui_input 1 "$(step_title remote_user "Remote SSH User")" "Enter SSH username:" "$remote_user"
+                fi
                 screen_nav || continue
                 [ -n "$UI_VALUE" ] && remote_user="$UI_VALUE"
                 ;;
@@ -871,14 +884,18 @@ main() {
                         break
                         ;;
                     back)
-                        pos=$((pos - 1))
-                        continue
+                        screen_nav || continue
                         ;;
                     *)
                         echo -e "\n${YELLOW}Provisioning cancelled by user.${NC}"
                         exit 0
                         ;;
                 esac
+                ;;
+
+            *)
+                # Uma tela da lista sem case seria pulada em silêncio, e o Back nunca passaria dela.
+                ui_fatal "Tela sem tratamento no wizard: ${screens[pos]}"
                 ;;
         esac
         pos=$((pos + 1))

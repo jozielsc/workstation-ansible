@@ -59,6 +59,7 @@ UI_LIST=()
 UI_RC=0
 UI_OUT=""
 UI_ERROR=""
+UI_TMP_DIR=""
 
 ui_warn() {
     printf '%b%s%b\n' "$YELLOW" "$*" "$NC" >&2
@@ -74,6 +75,11 @@ ui_pause() {
 ui_init() {
     local requested="${TUI_ENGINE:-}"
     local engine started=0 warned=0
+    # Um diretório só para os temporários (stderr do motor, texto do help), removido na saída, inclusive no Ctrl-C.
+    UI_TMP_DIR=$(mktemp -d)
+    trap 'rm -rf "$UI_TMP_DIR"' EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
     case "$requested" in
         ""|dialog|whiptail|cli) ;;
         *)
@@ -93,6 +99,13 @@ ui_init() {
             warned=1
         fi
     done
+    # dialog e whiptail desenham no terminal e leem dele. Sem tty em stdin ou stdout, os dois falham; checar uma vez aqui
+    # evita um aviso e uma pausa por motor a cada diálogo.
+    if [ "${UI_ENGINES[0]}" != "cli" ] && { [ ! -t 0 ] || [ ! -t 1 ]; }; then
+        ui_warn "stdin ou stdout não é um terminal: dialog e whiptail não funcionam; usando o modo cli."
+        UI_ENGINES=(cli)
+        warned=1
+    fi
     if [ "$warned" -eq 1 ]; then
         ui_pause
     fi
@@ -108,32 +121,29 @@ ui_engine_failed() {
 
 # Roda o dialog ou o whiptail e guarda o código de saída em UI_RC e o valor em UI_OUT. O valor sai pelo fd 3, a tela
 # vai para o terminal (fd 4, o stdout do wizard) e o stderr para um arquivo: assim uma mensagem de erro do motor não se
-# mistura ao valor. Devolve 1 quando o motor falhou (mensagem em UI_ERROR): sem terminal, um código diferente de
-# 0/1/3/255, ou stderr não vazio com código diferente de 0 (o whiptail sai com 1 numa opção inválida, igual ao Cancel).
+# mistura ao valor. Devolve 1 quando o motor falhou (mensagem em UI_ERROR): um código fora de 0/1/2/3/255, ou stderr não
+# vazio com código diferente de 0 (o whiptail sai com 1 numa opção inválida, igual ao Cancel). O terminal é checado
+# uma vez, em ui_init.
 ui_tui_exec() {
     local engine="$1"
     shift
+    local err_file="$UI_TMP_DIR/stderr"
     UI_RC=0
     UI_OUT=""
     UI_ERROR=""
-    if [ ! -t 0 ] || [ ! -t 1 ]; then
-        UI_ERROR="precisa de um terminal interativo"
-        return 1
-    fi
-    local err_file
-    err_file=$(mktemp)
     { UI_OUT=$("$engine" --output-fd 3 --backtitle "Workstation Ansible" "$@" 3>&1 1>&4 2>"$err_file"); } 4>&1 || UI_RC=$?
-    UI_ERROR=$(cat "$err_file")
-    rm -f "$err_file"
+    UI_ERROR=$(<"$err_file")
     case "$UI_RC" in
         0) return 0 ;;
-        1|3|255) [ -z "$UI_ERROR" ] && return 0 ;;
+        1|2|3|255) [ -z "$UI_ERROR" ] && return 0 ;;
         *) [ -n "$UI_ERROR" ] || UI_ERROR="saiu com o código $UI_RC" ;;
     esac
     return 1
 }
 
 # No whiptail, o botão "Voltar/Cancelar" abre este menu, porque ele não tem um terceiro botão para o Back.
+# "Continuar neste passo" reabre o diálogo com os valores do início do passo: com o segundo botão, o whiptail não
+# devolve o que foi editado.
 ui_tui_back_or_cancel() {
     local engine="$1"
     local title="$2"
@@ -151,9 +161,10 @@ ui_tui_back_or_cancel() {
     return 0
 }
 
-# Adaptador do dialog e do whiptail. Códigos: 0 = OK/Yes, 1 = Cancel/No, 3 = botão extra (Back, só no dialog), 255 = Esc.
-# O whiptail só tem dois botões e o newt do Fedora ignora o Esc: com Back, o segundo botão vira "Voltar/Cancelar" e abre
-# ui_tui_back_or_cancel, e o sim/não vira um menu, para caber sim, não e esse botão.
+# Adaptador do dialog e do whiptail. Códigos: 0 = OK/Yes, 1 = Cancel/No, 2 = botão help (Cancel no sim/não do dialog),
+# 3 = botão extra (Back, só no dialog), 255 = Esc. O sim/não do dialog com Back ganha um quarto botão, Cancel, porque o
+# No já é uma resposta. O whiptail só tem dois botões e o newt do Fedora ignora o Esc: com Back, o segundo botão vira
+# "Voltar/Cancelar" e abre ui_tui_back_or_cancel, e o sim/não vira um menu, para caber sim, não e esse botão.
 ui_tui() {
     local engine="$1"
     local kind="$2"
@@ -191,6 +202,7 @@ ui_tui() {
                 opts+=(--notags)
                 box=(--menu "$prompt" 22 75 2 yes "Yes" no "No")
             else
+                [ "$back" = "1" ] && opts+=(--help-button --help-label "Cancel")
                 box=(--yesno "$prompt" 20 75)
             fi
             ;;
@@ -222,13 +234,15 @@ ui_tui() {
             3)
                 UI_ACTION="back"
                 ;;
-            255)
+            2|255)
                 UI_ACTION="cancel"
                 ;;
         esac
         break
     done
 
+    # Valor só com ok: depois do menu Voltar/Cancelar, UI_OUT é "back" ou "cancel", não algo que o usuário escolheu.
+    [ "$UI_ACTION" = "ok" ] || return 0
     case "$kind" in
         menu)
             UI_VALUE="$UI_OUT"
@@ -252,6 +266,17 @@ ui_tui() {
 # --- Adaptador cli ---
 # Texto puro, para quando não há dialog nem whiptail. Só b e c sozinhos navegam, para valores como "bruno" passarem;
 # b só vale onde há Back. O fim da entrada (Ctrl-D) sem nada digitado cancela, como o Esc.
+
+# Fim da entrada sem nada digitado. Num terminal, é o Ctrl-D, que cancela. Sem terminal, as respostas do stdin acabaram
+# antes do fim do wizard: isso não é uma ação do usuário, então o wizard sai com erro em vez de "cancelled by user".
+ui_cli_eof() {
+    echo
+    if [ ! -t 0 ]; then
+        ui_warn "A entrada acabou antes do fim do wizard: sem terminal, as respostas vêm do stdin e faltaram respostas."
+        exit 1
+    fi
+    UI_ACTION="cancel"
+}
 
 ui_cli_menu() {
     local back="$1"
@@ -287,7 +312,7 @@ ui_cli_menu() {
     fi
     local choice="" idx
     while true; do
-        read -rp "$nav_prompt: " choice || [ -n "$choice" ] || { echo; UI_ACTION="cancel"; return 0; }
+        read -rp "$nav_prompt: " choice || [ -n "$choice" ] || { ui_cli_eof; return 0; }
         case "$choice" in
             "")
                 UI_ACTION="ok"
@@ -356,7 +381,7 @@ ui_cli_checklist() {
         while true; do
             # Fim da entrada sem nada digitado cancela; com um valor, vale como o valor seguido do Enter que confirma.
             if ! read -rp "Enter selection: " selections; then
-                [ -n "$selections" ] || { echo; UI_ACTION="cancel"; return 0; }
+                [ -n "$selections" ] || { ui_cli_eof; return 0; }
                 eof=1
             fi
             indexes=()
@@ -433,7 +458,7 @@ ui_cli_input() {
         echo -e "${YELLOW}(Digite 'c' para cancelar)${NC}"
     fi
     local val=""
-    read -rp "[$default_val]: " val || [ -n "$val" ] || { echo; UI_ACTION="cancel"; return 0; }
+    read -rp "[$default_val]: " val || [ -n "$val" ] || { ui_cli_eof; return 0; }
     if [ "$back" = "1" ] && [[ "$val" == [Bb] ]]; then
         UI_ACTION="back"
         return 0
@@ -462,7 +487,7 @@ ui_cli_yesno() {
     local nav_prompt="(y/N, c=Cancel)"
     [ "$back" = "1" ] && nav_prompt="(y/N, b=Back, c=Cancel)"
     local ans=""
-    read -rp "$nav_prompt: " ans || [ -n "$ans" ] || { echo; UI_ACTION="cancel"; return 0; }
+    read -rp "$nav_prompt: " ans || [ -n "$ans" ] || { ui_cli_eof; return 0; }
     if [ "$back" = "1" ] && [[ "$ans" == [Bb] ]]; then
         UI_ACTION="back"
         return 0
@@ -547,11 +572,9 @@ ui_text() {
     local box_cols=$(( term_cols > 10 ? term_cols - 6 : 74 ))
     local wrap_width=$(( box_cols > 10 ? box_cols - 6 : 70 ))
 
-    local tmp_file
-    tmp_file=$(mktemp)
+    local tmp_file="$UI_TMP_DIR/text"
     fold -s -w "$wrap_width" "$file_path" > "$tmp_file" 2>/dev/null || cp "$file_path" "$tmp_file"
     ui_dialog text 0 "$title" "" "$tmp_file" "$box_lines" "$box_cols"
-    rm -f "$tmp_file"
 }
 
 # --- Main Wizard Flow ---
@@ -559,6 +582,17 @@ ui_text() {
 cancel_wizard() {
     echo -e "${YELLOW}Wizard cancelled by user.${NC}"
     exit 0
+}
+
+# Trata a ação do diálogo de um passo: ok devolve 0 e o passo segue; back faz step=<passo de destino> e devolve 1, para
+# o passo fazer "continue"; qualquer outra ação cancela. step é a variável local de main: com o escopo dinâmico do bash,
+# a atribuição aqui vale lá.
+step_nav() {
+    case "$UI_ACTION" in
+        ok) return 0 ;;
+        back) step="$1"; return 1 ;;
+        *) cancel_wizard ;;
+    esac
 }
 
 main() {
@@ -608,63 +642,35 @@ main() {
                             "fedora" "Fedora 44" "$([ "$distro" = "fedora" ] && echo ON || echo OFF)" \
                             "arch" "Arch Linux (rolling)" "$([ "$distro" = "arch" ] && echo ON || echo OFF)"
 
-                        case "$UI_ACTION" in
-                            back) step=1; continue ;;
-                            ok) ;;
-                            *) cancel_wizard ;;
-                        esac
+                        step_nav 1 || continue
                         [ -n "$UI_VALUE" ] && distro="$UI_VALUE"
                         ;;
 
                     remote)
                         ui_input 1 "Step 2/5: Remote SSH Host" "Enter target IP address:" "$remote_ip"
-                        case "$UI_ACTION" in
-                            back) step=1; continue ;;
-                            ok) ;;
-                            *) cancel_wizard ;;
-                        esac
+                        step_nav 1 || continue
                         [ -n "$UI_VALUE" ] && remote_ip="$UI_VALUE"
 
                         ui_input 1 "Step 2/5: Remote SSH User" "Enter SSH username:" "$remote_user"
-                        case "$UI_ACTION" in
-                            back) continue ;;
-                            ok) ;;
-                            *) cancel_wizard ;;
-                        esac
+                        step_nav 2 || continue
                         [ -n "$UI_VALUE" ] && remote_user="$UI_VALUE"
                         ;;
 
                     tunnel)
                         ui_input 1 "Step 2/5: Target IP Address" "Enter destination IP address:" "$remote_ip"
-                        case "$UI_ACTION" in
-                            back) step=1; continue ;;
-                            ok) ;;
-                            *) cancel_wizard ;;
-                        esac
+                        step_nav 1 || continue
                         [ -n "$UI_VALUE" ] && remote_ip="$UI_VALUE"
 
                         ui_input 1 "Step 2/5: Target Username" "Enter SSH username on target host:" "$remote_user"
-                        case "$UI_ACTION" in
-                            back) continue ;;
-                            ok) ;;
-                            *) cancel_wizard ;;
-                        esac
+                        step_nav 2 || continue
                         [ -n "$UI_VALUE" ] && remote_user="$UI_VALUE"
 
                         ui_input 1 "Step 2/5: Bastion Jump IP" "Enter Jump Box IP address:" "$jump_ip"
-                        case "$UI_ACTION" in
-                            back) continue ;;
-                            ok) ;;
-                            *) cancel_wizard ;;
-                        esac
+                        step_nav 2 || continue
                         [ -n "$UI_VALUE" ] && jump_ip="$UI_VALUE"
 
                         ui_input 1 "Step 2/5: Bastion Username" "Enter SSH username on Jump Box:" "$jump_user"
-                        case "$UI_ACTION" in
-                            back) continue ;;
-                            ok) ;;
-                            *) cancel_wizard ;;
-                        esac
+                        step_nav 2 || continue
                         [ -n "$UI_VALUE" ] && jump_user="$UI_VALUE"
                         ;;
                 esac
@@ -693,11 +699,7 @@ main() {
                     "Select configuration profile to apply:" \
                     "${profile_choices[@]}"
 
-                case "$UI_ACTION" in
-                    back) step=2; continue ;;
-                    ok) ;;
-                    *) cancel_wizard ;;
-                esac
+                step_nav 2 || continue
                 [ -n "$UI_VALUE" ] && selected_profile="$UI_VALUE"
                 step=4
                 ;;
@@ -735,11 +737,7 @@ main() {
                     "Select components to install/configure (Space to toggle, Enter to confirm):" \
                     "${tag_choices[@]}"
 
-                case "$UI_ACTION" in
-                    back) step=3; continue ;;
-                    ok) ;;
-                    *) cancel_wizard ;;
-                esac
+                step_nav 3 || continue
                 selected_tags_array=("${UI_LIST[@]}")
                 step=5
                 ;;
@@ -749,8 +747,7 @@ main() {
                 case "$UI_ACTION" in
                     ok) dry_run="yes" ;;
                     no) dry_run="no" ;;
-                    back) step=4; continue ;;
-                    *) cancel_wizard ;;
+                    *) step_nav 4 || continue ;;
                 esac
                 step=6
                 ;;

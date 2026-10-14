@@ -208,7 +208,7 @@ ui_tui() {
             box=(--inputbox "$prompt" 12 65 "$1")
             ;;
         yesno)
-            # O resumo do passo 6 pode ter mais linhas do que cabem na altura padrão: a caixa cresce com o texto (linhas
+            # O resumo da confirmação pode ter mais linhas do que cabem na altura padrão: a caixa cresce com o texto (linhas
             # quebradas na largura da caixa) até a altura do terminal; acima disso, o texto rola.
             local text_lines term_lines height
             text_lines=$(printf '%s\n' "${prompt//\\n/$'\n'}" | fold -s -w 71 | wc -l)
@@ -295,7 +295,7 @@ ui_tui() {
 # b só vale onde há Back. O fim da entrada (Ctrl-D) sem nada digitado cancela, como o Esc.
 
 # Imprime o texto de um diálogo. Só as sequências \n viram quebra de linha, como no dialog/whiptail: com echo -e, um \c
-# ou \033 num valor digitado (por exemplo, no resumo do passo 6) seria interpretado.
+# ou \033 num valor digitado (por exemplo, no resumo da confirmação) seria interpretado.
 ui_cli_print() {
     printf '%s\n' "${1//\\n/$'\n'}"
 }
@@ -632,19 +632,49 @@ cancel_wizard() {
     exit 0
 }
 
-# Trata a ação do diálogo de um passo: ok devolve 0 e o passo segue; back faz step=<passo de destino> e devolve 1, para
-# o passo fazer "continue"; qualquer outra ação cancela. step é a variável local de main: com o escopo dinâmico do bash,
-# a atribuição aqui vale lá.
-step_nav() {
+# Monta em "screens" as telas do modo atual, na ordem em que aparecem. main só guarda a posição (pos) nessa lista: OK
+# avança e Back volta uma posição. Como a lista só tem as telas que o modo mostra, o Back sempre leva à última tela vista,
+# inclusive entre os campos do modo, e um modo sem parâmetros (local) não precisa de caso especial em outra tela.
+# screens e pos são variáveis locais de main: com o escopo dinâmico do bash, as atribuições aqui valem lá.
+wizard_screens() {
+    screens=(target)
+    case "$target_mode" in
+        sandbox) screens+=(distro) ;;
+        remote) screens+=(remote_ip remote_user) ;;
+        tunnel) screens+=(tunnel_ip tunnel_user jump_ip jump_user) ;;
+    esac
+    screens+=(profile tags dry_run confirm)
+}
+
+# Trata a ação do diálogo da tela atual: ok devolve 0 e a tela segue; back volta à tela anterior e devolve 1, para a tela
+# fazer "continue"; qualquer outra ação cancela.
+screen_nav() {
     case "$UI_ACTION" in
         ok) return 0 ;;
-        back) step="$1"; return 1 ;;
+        back) pos=$((pos - 1)); return 1 ;;
         *) cancel_wizard ;;
     esac
 }
 
+# Título "Step N/T: <nome>". Os campos do modo contam como um passo só (o 2), e um modo sem eles tem um passo a menos.
+# A escolha do modo não mostra o total, porque ele depende do modo que ainda vai ser escolhido.
+step_title() {
+    local screen="$1"
+    local name="$2"
+    local total=5
+    [ "${#screens[@]}" -eq 5 ] && total=4
+    case "$screen" in
+        target) echo "Step 1: $name"; return 0 ;;
+        profile) echo "Step $((total - 2))/$total: $name" ;;
+        tags) echo "Step $((total - 1))/$total: $name" ;;
+        dry_run) echo "Step $total/$total: $name" ;;
+        *) echo "Step 2/$total: $name" ;;
+    esac
+}
+
 main() {
-    local step=1
+    local pos=0
+    local screens=()
     local target_mode="local"
     local distro="void"
     local remote_ip="192.168.1.50"
@@ -658,9 +688,10 @@ main() {
     ui_init
 
     while true; do
-        case "$step" in
-            1) # Step 1: Target Selection
-                ui_menu 0 "Step 1/5: Target Selection" \
+        wizard_screens
+        case "${screens[pos]}" in
+            target)
+                ui_menu 0 "$(step_title target "Target Selection")" \
                     "Select where you want to provision the workstation environment:" \
                     "local" "Local Machine (localhost)" "$([ "$target_mode" = "local" ] && echo ON || echo OFF)" \
                     "sandbox" "Isolated Docker Container (Sandbox)" "$([ "$target_mode" = "sandbox" ] && echo ON || echo OFF)" \
@@ -672,60 +703,61 @@ main() {
 
                 if [ "$UI_VALUE" = "help" ]; then
                     ui_text "Documentation - Manual de Uso" "$REPO_DIR/docs/USAGE.md"
-                    step=1
                     continue
                 fi
 
                 [ -n "$UI_VALUE" ] && target_mode="$UI_VALUE"
-                step=2
                 ;;
 
-            2) # Step 2: Mode-Specific Parameters
-                case "$target_mode" in
-                    sandbox)
-                        ui_menu 1 "Step 2/5: Sandbox Linux Distribution" \
-                            "Select Docker base distribution for Sandbox container:" \
-                            "void" "Void Linux (glibc - Default)" "$([ "$distro" = "void" ] && echo ON || echo OFF)" \
-                            "ubuntu" "Ubuntu 24.04 LTS" "$([ "$distro" = "ubuntu" ] && echo ON || echo OFF)" \
-                            "fedora" "Fedora 44" "$([ "$distro" = "fedora" ] && echo ON || echo OFF)" \
-                            "arch" "Arch Linux (rolling)" "$([ "$distro" = "arch" ] && echo ON || echo OFF)"
+            distro)
+                ui_menu 1 "$(step_title distro "Sandbox Linux Distribution")" \
+                    "Select Docker base distribution for Sandbox container:" \
+                    "void" "Void Linux (glibc - Default)" "$([ "$distro" = "void" ] && echo ON || echo OFF)" \
+                    "ubuntu" "Ubuntu 24.04 LTS" "$([ "$distro" = "ubuntu" ] && echo ON || echo OFF)" \
+                    "fedora" "Fedora 44" "$([ "$distro" = "fedora" ] && echo ON || echo OFF)" \
+                    "arch" "Arch Linux (rolling)" "$([ "$distro" = "arch" ] && echo ON || echo OFF)"
 
-                        step_nav 1 || continue
-                        [ -n "$UI_VALUE" ] && distro="$UI_VALUE"
-                        ;;
-
-                    remote)
-                        ui_input 1 "Step 2/5: Remote SSH Host" "Enter target IP address:" "$remote_ip"
-                        step_nav 1 || continue
-                        [ -n "$UI_VALUE" ] && remote_ip="$UI_VALUE"
-
-                        ui_input 1 "Step 2/5: Remote SSH User" "Enter SSH username:" "$remote_user"
-                        step_nav 2 || continue
-                        [ -n "$UI_VALUE" ] && remote_user="$UI_VALUE"
-                        ;;
-
-                    tunnel)
-                        ui_input 1 "Step 2/5: Target IP Address" "Enter destination IP address:" "$remote_ip"
-                        step_nav 1 || continue
-                        [ -n "$UI_VALUE" ] && remote_ip="$UI_VALUE"
-
-                        ui_input 1 "Step 2/5: Target Username" "Enter SSH username on target host:" "$remote_user"
-                        step_nav 2 || continue
-                        [ -n "$UI_VALUE" ] && remote_user="$UI_VALUE"
-
-                        ui_input 1 "Step 2/5: Bastion Jump IP" "Enter Jump Box IP address:" "$jump_ip"
-                        step_nav 2 || continue
-                        [ -n "$UI_VALUE" ] && jump_ip="$UI_VALUE"
-
-                        ui_input 1 "Step 2/5: Bastion Username" "Enter SSH username on Jump Box:" "$jump_user"
-                        step_nav 2 || continue
-                        [ -n "$UI_VALUE" ] && jump_user="$UI_VALUE"
-                        ;;
-                esac
-                step=3
+                screen_nav || continue
+                [ -n "$UI_VALUE" ] && distro="$UI_VALUE"
                 ;;
 
-            3) # Step 3: Profile Selection
+            remote_ip)
+                ui_input 1 "$(step_title remote_ip "Remote SSH Host")" "Enter target IP address:" "$remote_ip"
+                screen_nav || continue
+                [ -n "$UI_VALUE" ] && remote_ip="$UI_VALUE"
+                ;;
+
+            remote_user)
+                ui_input 1 "$(step_title remote_user "Remote SSH User")" "Enter SSH username:" "$remote_user"
+                screen_nav || continue
+                [ -n "$UI_VALUE" ] && remote_user="$UI_VALUE"
+                ;;
+
+            tunnel_ip)
+                ui_input 1 "$(step_title tunnel_ip "Target IP Address")" "Enter destination IP address:" "$remote_ip"
+                screen_nav || continue
+                [ -n "$UI_VALUE" ] && remote_ip="$UI_VALUE"
+                ;;
+
+            tunnel_user)
+                ui_input 1 "$(step_title tunnel_user "Target Username")" "Enter SSH username on target host:" "$remote_user"
+                screen_nav || continue
+                [ -n "$UI_VALUE" ] && remote_user="$UI_VALUE"
+                ;;
+
+            jump_ip)
+                ui_input 1 "$(step_title jump_ip "Bastion Jump IP")" "Enter Jump Box IP address:" "$jump_ip"
+                screen_nav || continue
+                [ -n "$UI_VALUE" ] && jump_ip="$UI_VALUE"
+                ;;
+
+            jump_user)
+                ui_input 1 "$(step_title jump_user "Bastion Username")" "Enter SSH username on Jump Box:" "$jump_user"
+                screen_nav || continue
+                [ -n "$UI_VALUE" ] && jump_user="$UI_VALUE"
+                ;;
+
+            profile)
                 local profiles=()
                 for pfile in "$REPO_DIR"/profiles/*.yml; do
                     local pname
@@ -743,19 +775,15 @@ main() {
                     profile_choices+=("$p" "$desc" "$status")
                 done
 
-                ui_menu 1 "Step 3/5: Profile Selection" \
+                ui_menu 1 "$(step_title profile "Profile Selection")" \
                     "Select configuration profile to apply:" \
                     "${profile_choices[@]}"
 
-                # No modo local, o passo 2 não tem tela: voltar a ele reabriria este passo, então o Back vai ao passo 1.
-                local back_step=2
-                [ "$target_mode" = "local" ] && back_step=1
-                step_nav "$back_step" || continue
+                screen_nav || continue
                 [ -n "$UI_VALUE" ] && selected_profile="$UI_VALUE"
-                step=4
                 ;;
 
-            4) # Step 4: Component Checklist
+            tags)
                 local available_tags=(
                     "devtools" "Base CLI tools (git, tmux, fzf, stow, btop)"
                     "languages" "All programming languages (Python, Node, Rust, Go)"
@@ -784,26 +812,24 @@ main() {
                     tag_choices+=("$tag_name" "$tag_desc" "$status")
                 done
 
-                ui_checklist 1 "Step 4/5: Component Selection" \
+                ui_checklist 1 "$(step_title tags "Component Selection")" \
                     "Select components to install/configure (Space to toggle, Enter to confirm):" \
                     "${tag_choices[@]}"
 
-                step_nav 3 || continue
+                screen_nav || continue
                 selected_tags_array=("${UI_LIST[@]}")
-                step=5
                 ;;
 
-            5) # Step 5: Dry-Run Mode Toggle
-                ui_yesno 1 "Step 5/5: Simulation (Dry-Run)" "Do you want to run in simulation mode (--check --diff) without modifying the system?"
+            dry_run)
+                ui_yesno 1 "$(step_title dry_run "Simulation (Dry-Run)")" "Do you want to run in simulation mode (--check --diff) without modifying the system?"
                 case "$UI_ACTION" in
                     ok) dry_run="yes" ;;
                     no) dry_run="no" ;;
-                    *) step_nav 4 || continue ;;
+                    *) screen_nav || continue ;;
                 esac
-                step=6
                 ;;
 
-            6) # Step 6: Summary & Confirmation
+            confirm)
                 local formatted_tags
                 if [ "${#selected_tags_array[@]}" -eq 0 ]; then
                     formatted_tags="all"
@@ -845,7 +871,7 @@ main() {
                         break
                         ;;
                     back)
-                        step=5
+                        pos=$((pos - 1))
                         continue
                         ;;
                     *)
@@ -855,6 +881,7 @@ main() {
                 esac
                 ;;
         esac
+        pos=$((pos + 1))
     done
 }
 

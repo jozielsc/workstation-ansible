@@ -19,7 +19,7 @@ Legenda de evidência:
 | B5 | Nome do pacote pipx divergente: `python.yml` usa `python3-pipx` para Debian, `devtools/vars/Debian.yml` usa `pipx`. O `failed_when: false` esconde a falha | `python.yml`, `devtools/vars/Debian.yml` | Confirmado (divergência); pacote inexistente: Provável | #14 |
 | B6 | Tags `uv` e `pipx` não funcionam sozinhas, porque o include só tem a tag `python` | `roles/languages/tasks/` | Confirmado (teste de herança de tags) | #15 |
 | B7 | Tarefas "📌 STATUS" de node, rust e go não têm tag própria e não aparecem com `--tags node/rust/go` | `roles/languages/tasks/` | Confirmado | #15 |
-| B8 | No wizard, desmarcar todos os componentes resulta em `TAGS=all` | `scripts/interactive.sh` (passo 6) | Confirmado (leitura) | #16 |
+| B8 | No wizard, desmarcar todos os componentes resulta em `TAGS=all` | `scripts/interactive.sh` (confirmação) | Confirmado (leitura) | #16 |
 | B10 | A mensagem diz "Node.js e NPM", mas `npm` é um pacote separado em Debian e Arch e não é instalado | `node.yml` | Confirmado no Arch (sandbox `arch`, #9) | #17 |
 | B11 | O instalador do uv e o `pipx ensurepath` podem alterar `~/.bashrc`, `~/.zshrc` e `~/.profile` antes do stow, gerando conflitos que fazem pacotes de dotfiles serem pulados | `python.yml` + `dotfiles` | A verificar | #18 |
 | B12 | `USER ?= $(shell whoami)` nunca vale, porque `USER` sempre existe no ambiente: `remote`/`tunnel` usam o `$USER` do shell como usuário SSH, e a doc o apresenta como opcional | `Makefile` | Confirmado (`make -n remote IP=x`) | #35 |
@@ -31,8 +31,6 @@ Legenda de evidência:
 | B22 | Em check mode, num Debian/Ubuntu sem o repositório do Docker, a chave e o `apt_repository` só são simulados, e "Instalar Docker" falha com `No package matching 'docker-ce' is available` | `roles/docker/tasks/debian.yml` | Confirmado (sandbox `ubuntu` com `python3-apt`) | #57 |
 | B23 | No Void, a role `docker` instala só o pacote `docker`, sem `docker-buildx` e `docker-compose`: `docker buildx` e `docker compose` não existem, ao contrário das outras distros | `roles/docker/tasks/void.yml` | Confirmado (sandbox `void`) | #58 |
 | B24 | No RedHat/Fedora, o `docker-ce`/`containerd.io` do repositório oficial conflitam com `moby-engine`, `podman-docker` e `runc` (container-tools); com um deles instalado, o dnf recusa a transação e o play para na role `docker` | `roles/docker/tasks/redhat.yml` | Provável (leitura; revisão do PR #59) | #60 |
-| B25 | No wizard, em `remote` e `tunnel`, o Back volta à primeira tela do passo 2, não à anterior: Back no passo 3 leva ao 1º campo (IP de destino), e Back em qualquer campo do passo 2 recomeça do 1º. O Back aponta para um número de passo, e o passo 2 tem várias telas | `scripts/interactive.sh` (passos 2 e 3 de `main`) | Confirmado (leitura; revisão do PR #64) | #65 |
-| B26 | No modo `local`, os títulos do wizard pulam de "Step 1/5" para "Step 3/5", porque o passo 2 não tem tela nesse modo | `scripts/interactive.sh` (títulos dos passos) | Confirmado (leitura; revisão do PR #64) | #65 |
 
 ## Inconsistências de configuração
 
@@ -50,7 +48,6 @@ Legenda de evidência:
 - O bloco de instalação resiliente e o banner de status estão copiados em `devtools`, `editors` e `ui` (cerca de 45 linhas cada). (#24)
 - O carregamento de vars por distro e o fallback estão repetidos nas mesmas três roles. (#24)
 - `languages_features.<x> | default(true)` está repetido em cada tarefa, em vez de ficar no include. (#15)
-- A regra "o modo `local` não tem tela no passo 2" fica no passo 3 do wizard (`back_step=1`), e não no passo 2: o passo 2 sem tela segue para o passo 3 mesmo quando foi alcançado por Back, então um modo novo sem tela ali traz de volta o bug da #49. (#65)
 - A lista de tags existe em 6 lugares: `site.yml`, `help` do Makefile, wizard, README (PT e EN), `USAGE.md`, e também no `CLAUDE.md`. (#25)
 - As listas de pacotes são 4 distros × 3 roles mantidas à mão, sem uma tabela única de nomes canônicos. (#21)
 

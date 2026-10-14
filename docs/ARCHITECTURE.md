@@ -6,7 +6,7 @@ Documento de referência técnica para quem vai modificar o projeto. Para uso do
 
 ```
 make  (sem target)
-  └─ scripts/interactive.sh      wizard TUI (whiptail > dialog > CLI puro)
+  └─ scripts/interactive.sh      wizard TUI (dialog > whiptail > CLI puro)
        └─ make <modo> PROFILE=… TAGS=… [DRY=1] [DISTRO=… | IP=… USER=… JUMP_IP=… JUMP_USER=…]
 
 make local | remote | tunnel
@@ -20,7 +20,21 @@ make sandbox
 
 O wizard só monta argumentos para o `make`; ele não tem lógica de provisionamento. O Makefile só monta a linha de comando do `ansible-playbook`. Toda a lógica fica em `playbooks/`.
 
-O wizard escolhe a interface pela ordem `whiptail` > `dialog` > `cli` (texto puro, quando não há nenhum dos dois; `TUI_ENGINE` força uma delas). Os passos capturam o resultado de `tui_menu`, `tui_checklist` e `tui_inputbox` com `$(...)`, então essas funções só podem escrever em stdout o valor escolhido. No modo `cli`, banner, título, opções e mensagens vão para stderr (cada ramo `cli` fica num único bloco `{ … } >&2`, para que uma linha nova não escape para o stdout). Nessas três funções, só `b` e `c` sozinhos navegam, então um valor como `bruno` passa. `b` (Back) só vale onde há a opção Back, e `c` (Cancel) vale em todos os passos, como o botão Cancel do whiptail; o fim da entrada (Ctrl-D) sem nada digitado também cancela, como o Esc. O `tui_yesno` (passos 5 e 6) não segue essa regra: aceita qualquer entrada que comece com `b`, `c` ou `y`, e no passo 5 `c` conta como "não" (vai para o passo 6) em vez de cancelar. Entrada vazia mantém o item atual do menu (o marcado `ON`, como no radiolist do whiptail/dialog) ou confirma a seleção do checklist (no checklist, cada entrada válida inverte os itens indicados e mostra a lista de novo, até o Enter vazio; um valor seguido do fim da entrada é aplicado e confirma), e qualquer outra entrada inválida mostra uma mensagem e pergunta de novo. A conversão de número para item (`parse_index`) lê em base 10 (`08` é o item 8) e recusa mais de 9 dígitos significativos. `tui_yesno` e `tui_textbox` não são capturados e escrevem direto no terminal. O wizard exige bash ≥ 4.4: ele roda com `set -u`, e expandir um array vazio (`"${extra_args[@]}"` nos diálogos do whiptail/dialog sem Back, `"${selected_tags_array[@]}"` quando todos os componentes são desmarcados) falha como variável não definida em versões anteriores.
+### Wizard e camada de interface
+
+O wizard escolhe a interface pela ordem `dialog` > `whiptail` > `cli` (texto puro, quando não há nenhum dos dois). `TUI_ENGINE` escolhe por qual motor começar. Um valor inválido ou um motor que não está instalado gera um aviso, e o wizard segue para o próximo da ordem. `ui_init` monta essa lista em `UI_ENGINES`, sempre com o `cli` no fim.
+
+Os passos de `main` não conhecem o motor: eles chamam `ui_menu`, `ui_checklist`, `ui_input`, `ui_yesno` e `ui_text` e leem `UI_ACTION` (`ok`, `no` (só no sim/não), `back` ou `cancel`), `UI_VALUE` (item escolhido ou texto digitado) e `UI_LIST` (itens marcados). Essas funções não são chamadas com `$(...)`: o resultado volta por variáveis globais, para que a troca de motor depois de um erro valha para o resto do wizard. `ui_dialog` despacha cada chamada para o adaptador do motor atual:
+
+- **`dialog`**: Back é o `--extra-button` (código 3), Cancel é o código 1 e Esc é 255. No sim/não, o código 1 é "não".
+- **`whiptail`**: só tem dois botões por diálogo, e o do Fedora (newt 0.52.25) ignora o Esc. Nos passos com Back, o segundo botão vira "Voltar/Cancelar" e abre um menu: voltar ao passo anterior, cancelar o wizard ou continuar no passo. O sim/não com Back vira um menu Yes/No com esse mesmo botão. Onde o Esc funciona (Debian/Ubuntu), ele cancela, como no `dialog`.
+- **`cli`**: só `b` e `c` sozinhos navegam, então um valor como `bruno` passa. `b` (Back) só vale onde há a opção Back, e `c` (Cancel) vale em todos os passos. O fim da entrada (Ctrl-D) sem nada digitado também cancela, como o Esc. No sim/não, só uma resposta que começa com `y` confirma; qualquer outra, inclusive Enter vazio, é "não". Entrada vazia mantém o item atual do menu (o marcado `ON`, como no radiolist do dialog/whiptail) ou confirma a seleção do checklist. No checklist, cada entrada válida inverte os itens indicados e mostra a lista de novo, até o Enter vazio; um valor seguido do fim da entrada é aplicado e confirma. Qualquer outra entrada inválida mostra uma mensagem e pergunta de novo. A conversão de número para item (`parse_index`) lê em base 10 (`08` é o item 8) e recusa mais de 9 dígitos significativos.
+
+O `dialog` e o `whiptail` rodam por `ui_tui_exec`. O valor sai por `--output-fd 3`, a tela vai para o terminal e o stderr vai para um arquivo temporário, então uma mensagem de erro do motor não se mistura ao valor. O motor falhou quando não há terminal em stdin e stdout, quando sai com um código fora de 0/1/3/255, ou quando sai com código diferente de 0 e escreve no stderr. Esse último critério é necessário porque o `whiptail` sai com 1 numa opção inválida, igual ao Cancel. Numa falha, `ui_engine_failed` mostra a mensagem, tira o motor de `UI_ENGINES` e o mesmo diálogo é repetido no próximo motor, no mesmo passo e com as escolhas preservadas. O `cli` não falha, então o wizard sempre termina por uma ação do usuário.
+
+Para adicionar um motor: inclua-o na ordem de `ui_init` e no `case` de `TUI_ENGINE`, e traduza as ações dele em `ui_tui` (se ele seguir a interface do dialog/whiptail) ou num adaptador próprio, como os `ui_cli_*`, chamado por `ui_dialog`. Os passos de `main` não mudam.
+
+O wizard exige bash ≥ 4.4: ele roda com `set -u`, e expandir um array vazio (`"${UI_LIST[@]}"` e `"${selected_tags_array[@]}"` quando todos os componentes são desmarcados) falha como variável não definida em versões anteriores.
 
 ### Modos de conexão
 

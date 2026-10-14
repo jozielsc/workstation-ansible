@@ -24,7 +24,6 @@ Legenda de evidência:
 | B11 | O instalador do uv e o `pipx ensurepath` podem alterar `~/.bashrc`, `~/.zshrc` e `~/.profile` antes do stow, gerando conflitos que fazem pacotes de dotfiles serem pulados | `python.yml` + `dotfiles` | A verificar | #18 |
 | B12 | `USER ?= $(shell whoami)` nunca vale, porque `USER` sempre existe no ambiente: `remote`/`tunnel` usam o `$USER` do shell como usuário SSH, e a doc o apresenta como opcional | `Makefile` | Confirmado (`make -n remote IP=x`) | #35 |
 | B13 | Um pacote de dotfiles com conflito reporta `changed` sem alterar nada: com `--verbose`, o stow imprime os `LINK:` planejados antes de abortar, e o `changed_when` só procura `LINK: `. Com um conflito, a execução nunca chega a `changed=0`. Além disso, o `failed_when` aceita qualquer rc != 0 com `BUG` no stderr, e o relatório só mostra `existing target`: um erro interno do stow deixa o pacote sem aplicar e o play termina verde, sem aviso | `dotfiles/tasks/stow_repo.yml` | `changed`: Confirmado (sandbox void); `BUG`: Confirmado (leitura) | #39 |
-| B17 | No modo `local`, Back no passo 3 do wizard reabre o passo 3: o passo 2 não tem caso para `local` e devolve para o 3, então só dá para voltar ao passo 1 cancelando | `scripts/interactive.sh` (passos 2 e 3) | Confirmado (modo `cli`) | #49 |
 | B18 | `make sandbox` apaga e recria o container a cada chamada (`docker rm -f` + `docker run`), apesar da mensagem "Garantindo que o container … esteja rodando": uma segunda execução pelo `make` provisiona um container limpo, então a idempotência pedida pela Definição de pronto não é testável por ele | `Makefile` (target `sandbox`) | Confirmado (sandbox void, #13) | #51 |
 | B19 | Em check mode (`DRY=1`), num Debian/Ubuntu sem `python3-apt`, a instalação em lote falha (`python3-apt must be installed to use check mode`), cai no `rescue` e a instalação individual reporta todos os pacotes como `ok`, porque o `failed_when: false` esconde a mesma falha: a simulação não mostra o que seria instalado | `devtools`, `editors`, `ui` (instalação resiliente) | Confirmado (sandbox ubuntu, `devtools`) | #52 |
 | B20 | As roles que instalam pacotes não atualizam o índice do gerenciador (só `docker/tasks/debian.yml` usa `update_cache`): no Arch e no Void com o sync DB velho, ou numa imagem do sandbox reaproveitada do cache de camadas, a instalação em lote falha com 404 e o `rescue` deixa os pacotes faltando só com avisos | `devtools`, `editors`, `ui`, `languages`, `docker` (Arch, Void e RedHat) | Provável (leitura; revisões dos PRs #54 e #59) | #55 |
@@ -32,6 +31,8 @@ Legenda de evidência:
 | B22 | Em check mode, num Debian/Ubuntu sem o repositório do Docker, a chave e o `apt_repository` só são simulados, e "Instalar Docker" falha com `No package matching 'docker-ce' is available` | `roles/docker/tasks/debian.yml` | Confirmado (sandbox `ubuntu` com `python3-apt`) | #57 |
 | B23 | No Void, a role `docker` instala só o pacote `docker`, sem `docker-buildx` e `docker-compose`: `docker buildx` e `docker compose` não existem, ao contrário das outras distros | `roles/docker/tasks/void.yml` | Confirmado (sandbox `void`) | #58 |
 | B24 | No RedHat/Fedora, o `docker-ce`/`containerd.io` do repositório oficial conflitam com `moby-engine`, `podman-docker` e `runc` (container-tools); com um deles instalado, o dnf recusa a transação e o play para na role `docker` | `roles/docker/tasks/redhat.yml` | Provável (leitura; revisão do PR #59) | #60 |
+| B25 | No wizard, em `remote` e `tunnel`, o Back volta à primeira tela do passo 2, não à anterior: Back no passo 3 leva ao 1º campo (IP de destino), e Back em qualquer campo do passo 2 recomeça do 1º. O Back aponta para um número de passo, e o passo 2 tem várias telas | `scripts/interactive.sh` (passos 2 e 3 de `main`) | Confirmado (leitura; revisão do PR #64) | #65 |
+| B26 | No modo `local`, os títulos do wizard pulam de "Step 1/5" para "Step 3/5", porque o passo 2 não tem tela nesse modo | `scripts/interactive.sh` (títulos dos passos) | Confirmado (leitura; revisão do PR #64) | #65 |
 
 ## Inconsistências de configuração
 
@@ -49,6 +50,7 @@ Legenda de evidência:
 - O bloco de instalação resiliente e o banner de status estão copiados em `devtools`, `editors` e `ui` (cerca de 45 linhas cada). (#24)
 - O carregamento de vars por distro e o fallback estão repetidos nas mesmas três roles. (#24)
 - `languages_features.<x> | default(true)` está repetido em cada tarefa, em vez de ficar no include. (#15)
+- A regra "o modo `local` não tem tela no passo 2" fica no passo 3 do wizard (`back_step=1`), e não no passo 2: o passo 2 sem tela segue para o passo 3 mesmo quando foi alcançado por Back, então um modo novo sem tela ali traz de volta o bug da #49. (#65)
 - A lista de tags existe em 6 lugares: `site.yml`, `help` do Makefile, wizard, README (PT e EN), `USAGE.md`, e também no `CLAUDE.md`. (#25)
 - As listas de pacotes são 4 distros × 3 roles mantidas à mão, sem uma tabela única de nomes canônicos. (#21)
 

@@ -747,7 +747,10 @@ main() {
                     "Select configuration profile to apply:" \
                     "${profile_choices[@]}"
 
-                step_nav 2 || continue
+                # No modo local, o passo 2 não tem tela: voltar a ele reabriria este passo, então o Back vai ao passo 1.
+                local back_step=2
+                [ "$target_mode" = "local" ] && back_step=1
+                step_nav "$back_step" || continue
                 [ -n "$UI_VALUE" ] && selected_profile="$UI_VALUE"
                 step=4
                 ;;

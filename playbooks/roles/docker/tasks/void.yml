@@ -1,7 +1,11 @@
 ---
+# Os plugins buildx e compose vêm em pacotes próprios, como no Arch (/usr/libexec/docker/cli-plugins/).
 - name: Instala Docker (Genérico)
   ansible.builtin.package:
-    name: docker
+    name:
+      - docker
+      - docker-buildx
+      - docker-compose
     state: present
 
 - name: Verificar se o service dir runit do docker existe (/etc/sv/docker)

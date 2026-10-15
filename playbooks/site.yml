@@ -73,15 +73,20 @@
     # sozinho na primeira tarefa de pacote, mas não em check mode, e versões anteriores falham. Antes das roles, para
     # que nenhuma tarefa de pacote dependa da versão do controlador.
     - name: Garantir o python3-libdnf5 (dnf5)
+      vars:
+        # Só o ModuleNotFoundError (texto que o Python não traduz) conta como pacote ausente. Outro erro do import
+        # (pacote quebrado, python3 de outra versão) não dispara a instalação, que não o resolveria e contaria como
+        # mudança em toda execução; o módulo de pacotes mostra o erro dele depois.
+        _libdnf5_missing: "{{ _libdnf5_query.rc != 0 and \"No module named 'libdnf5'\" in _libdnf5_query.stderr }}"
       when: ansible_facts['pkg_mgr'] == 'dnf5'
       tags: ['always']
       block:
-        # O mesmo teste do módulo dnf5: importar o libdnf5 no python do sistema (sem ele, rc 1, ImportError).
+        # O mesmo teste do módulo dnf5: importar o libdnf5 no python do sistema.
         - name: Verificar se o python3-libdnf5 está instalado
           ansible.builtin.command: /usr/bin/python3 -c 'import libdnf5'
           register: _libdnf5_query
           changed_when: false
-          failed_when: _libdnf5_query.rc not in [0, 1]
+          failed_when: false
           check_mode: false
 
         # Em check mode o host não muda, então o pacote não é instalado, e toda tarefa de pacote falharia.
@@ -93,12 +98,26 @@
               instale-o com: sudo dnf install python3-libdnf5
           when:
             - ansible_check_mode
-            - _libdnf5_query.rc != 0
+            - _libdnf5_missing | bool
 
+        # Uma falha (sem rede, proxy, repositório quebrado) só avisa: as roles seguem com o padrão resiliente delas, como
+        # antes desta tarefa existir.
         - name: Instalar o python3-libdnf5
           ansible.builtin.command: dnf install -y python3-libdnf5
-          changed_when: true
-          when: _libdnf5_query.rc != 0
+          register: _libdnf5_install
+          changed_when: _libdnf5_install.rc == 0
+          failed_when: false
+          when: _libdnf5_missing | bool
+
+        - name: Avisar que o python3-libdnf5 não foi instalado
+          ansible.builtin.debug:
+            msg: >-
+              ⚠️ Não foi possível instalar o python3-libdnf5 (dnf install, rc {{ _libdnf5_install.rc }}):
+              {{ (_libdnf5_install.stderr_lines | select | last | default('sem mensagem de erro', true)) | trim }}.
+              As tarefas de pacote podem falhar; o ansible-core ≥ 2.19 ainda tenta instalá-lo na primeira delas.
+          when:
+            - _libdnf5_missing | bool
+            - _libdnf5_install.rc != 0
 
     - name: Determinar diretório home e user do usuário real (sem sudo)
       become: false

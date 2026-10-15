@@ -5,20 +5,24 @@ Documento de referência técnica para quem vai modificar o projeto. Para uso do
 ## Visão geral do fluxo
 
 ```
-make  (sem target)
-  └─ scripts/interactive.sh      wizard TUI (dialog > whiptail > CLI puro)
-       └─ make <modo> PROFILE=… TAGS=… [DRY=1] [DISTRO=… | IP=… USER=… JUMP_IP=… JUMP_USER=…]
+scripts/workstation.sh  (sem comando)
+  └─ bash scripts/interactive.sh   wizard TUI (dialog > whiptail > CLI puro)
+       └─ scripts/workstation.sh <modo> --profile … --tags … [--dry-run] [--distro … | --ip … --user … --jump-ip … --jump-user …]
 
-make local | remote | tunnel
-  └─ ansible-playbook playbooks/site.yml -K --tags "$TAGS" -e profile=$PROFILE [--check --diff] $ARGS
+scripts/workstation.sh local | remote | tunnel
+  └─ ansible-playbook playbooks/site.yml -K --tags <tags> -e profile=<perfil> [--check --diff] [args depois de --]
        inventário ad-hoc: -i "<host>,"  (sem arquivo de inventário)
 
-make sandbox
-  └─ docker build tests/sandbox/Dockerfile.$DISTRO → docker rm -f (container anterior) → docker run (tail -f)
-  └─ ansible-playbook … -i "<container>," -c docker -u dev   (comando próprio, sem ANS_FLAGS)
+scripts/workstation.sh sandbox
+  └─ docker build tests/sandbox/Dockerfile.<distro> → docker rm -f (container anterior) → docker run (tail -f)
+  └─ ansible-playbook … -i "<container>," -c docker -u dev   (comando próprio: sem -K e sem --check --diff; com --dry-run, só avisa, #12)
 ```
 
-O wizard só monta argumentos para o `make`; ele não tem lógica de provisionamento. O Makefile só monta a linha de comando do `ansible-playbook`. Toda a lógica fica em `playbooks/`.
+O wizard só monta argumentos para o `scripts/workstation.sh`; ele não tem lógica de provisionamento. O script só valida as opções e monta a linha de comando do `ansible-playbook` (e do `docker`, no sandbox). Toda a lógica de provisionamento fica em `playbooks/`.
+
+O `scripts/workstation.sh` tem uma função por comando (`run_local`, `run_remote`, `run_tunnel`, `run_sandbox`, `run_sandbox_shell`, `run_sandbox_clean`), e `ansible_cmd` monta as flags comuns de `local`, `remote` e `tunnel`. As opções aceitam `--opção valor` e `--opção=valor`; um valor que começa com `-` só vale na segunda forma, para que `--tags --dry-run` não use `--dry-run` como tag. Uma opção desconhecida, uma opção que não se aplica ao comando (por exemplo, `--ip` com `local`), um segundo comando ou argumentos depois de `--` num comando que não roda o `ansible-playbook` encerram com código 2. `run_cmd` mostra cada comando antes de executá-lo, com aspas simples nos argumentos que precisam delas; com `--print`, só mostra (as mensagens de progresso somem). O script entra na raiz do repositório, então funciona chamado de qualquer pasta, e tem shebang `bash`: o shell de quem chama (bash ou zsh) não interfere. Ele exporta `ANSIBLE_FORCE_COLOR=1` e `PYTHONUNBUFFERED=1`. Sem comando, ele chama o wizard com `bash`.
+
+O `Makefile` só guarda as tarefas de desenvolvimento (`lint`, `test`, `check`) até a #68, que as leva para um `justfile`.
 
 ### Wizard e camada de interface
 
@@ -45,11 +49,11 @@ O wizard exige bash ≥ 4.4: ele roda com `set -u`, e expandir um array vazio (`
 | Modo | Inventário | Conexão | Escalonamento |
 |---|---|---|---|
 | `local` | `localhost,` | `-c local` | `-K` (senha do sudo) |
-| `remote` | `$IP,` | SSH, `-u $USER` | `-K` |
-| `tunnel` | `$IP,` | SSH via `ProxyCommand ssh -W` no bastion `$JUMP_USER@$JUMP_IP` | `-K` |
+| `remote` | `<ip>,` | SSH, `-u <user>` | `-K` |
+| `tunnel` | `<ip>,` | SSH via `ProxyCommand ssh -W` no bastion `<jump-user>@<jump-ip>` | `-K` |
 | `sandbox` | nome do container | `-c docker -u dev` | sudo NOPASSWD dentro da imagem |
 
-`remote` e `tunnel` validam o destino na leitura do Makefile (filtrando `MAKECMDGOALS`), então `make local remote` sem `IP` falha antes de rodar qualquer target. Não há default de `IP` (só o `local` usa `localhost`). `IP`, `JUMP_IP` e `JUMP_USER` passam pela função `single_host`: valores vazios, só com espaços, com espaços no meio ou com vírgulas são rejeitados, porque virariam outro inventário em `-i "$(IP),"` ou quebrariam o `ProxyCommand`. O `tunnel` exige os três. Como em qualquer variável do `make`, esses valores também podem vir do ambiente.
+`remote` e `tunnel` validam o destino antes de executar qualquer comando. Não há default de `--ip` (só o `local` usa `localhost`). `--ip`, `--jump-ip`, `--jump-user` e `--user` passam pela função `single_value`: os espaços nas pontas são descartados (um espaço digitado no wizard continua valendo), e valores vazios, só com espaços, com espaços no meio ou com vírgulas são rejeitados, porque virariam outro inventário em `-i "<ip>,"` ou quebrariam o `ProxyCommand`. O `tunnel` exige os três primeiros. Sem `--user`, o usuário SSH é o usuário atual (`whoami`); um `--user` vazio é recusado. As opções vêm só da linha de comando, não do ambiente.
 
 `ansible.cfg` define `become = True` / `become_method = sudo` globalmente, e o callback de saída `ansible.builtin.default` com `callback_result_format = yaml`, mais o `ansible.posix.timer` (veja [Collections Ansible necessárias no controlador](#collections-ansible-necessárias-no-controlador)).
 
@@ -103,7 +107,7 @@ Comportamento verificado com ansible-core 2.20:
 - As tags num `include_tasks` se aplicam **só ao include**. As tarefas incluídas precisam repetir a tag para rodar quando aquela tag é selecionada.
 - Uma tag que existe só dentro de um arquivo incluído não pode ser selecionada sozinha, porque o include não casa e o arquivo nem é carregado.
 - `--list-tags` não mostra tags de tarefas incluídas dinamicamente.
-- `ui` tem `never`, então só roda quando uma de suas tags é pedida explicitamente. `TAGS=all` (padrão) não inclui `ui`.
+- `ui` tem `never`, então só roda quando uma de suas tags é pedida explicitamente. `--tags all` (padrão) não inclui `ui`.
 
 ## Roles
 
@@ -204,7 +208,7 @@ Ressalva por distro do alvo:
 | Collection | Usada por | Sem ela |
 |---|---|---|
 | `community.general` | módulo `package` no Void (`xbps`) e no Arch (`pacman`) | **bloqueante**: a instalação de pacotes falha nessas distros (`Could not find a matching action for the "xbps" package manager`) |
-| `community.docker` | conexão `-c docker` do `make sandbox` | o sandbox não conecta ao container |
+| `community.docker` | conexão `-c docker` do `scripts/workstation.sh sandbox` | o sandbox não conecta ao container |
 | `ansible.posix` | callback `ansible.posix.timer` (`ansible.cfg`) | opcional: o Ansible só avisa e não mostra o tempo total |
 
 O callback de saída (`ansible.builtin.default`) não depende de collection.
@@ -225,9 +229,9 @@ Estado do código na v1.2.1 (2026-10). Atualize esta tabela quando a cobertura m
 
 ## Testes
 
-- O CI (`.github/workflows/ci.yml`, GitHub Actions) roda em todo PR e em push na `main`: `uv sync --locked` e `make lint`, ou seja, as mesmas checagens e versões (`uv.lock`) do ambiente local. A versão do próprio uv no CI é fixa no workflow (`version:` do setup-uv) e deve acompanhar a usada localmente. Ele só faz análise estática; o provisionamento continua validado manualmente pelo sandbox (`make sandbox`), cujo CI é a #29. As actions são pinadas por SHA, com a tag num comentário. Em PR, um push novo cancela o run anterior; na `main`, o grupo de concorrência é por commit, para que todo commit mergeado tenha resultado.
-- Ferramentas de desenvolvimento vêm do grupo `dev` do uv (`pyproject.toml`, `uv.lock`; `uv sync`). O projeto não é um pacote Python (`[tool.uv] package = false`). `make lint` roda, em sequência e parando na primeira falha, `ansible-playbook playbooks/site.yml --syntax-check`, `ansible-lint`, `yamllint --strict .` e `shellcheck` em todo `*.sh` versionado (`git ls-files`), todos via `uv run --locked` (o `shellcheck` vem do pacote `shellcheck-py`, então não depende do pacote da distro; o `uv.lock` só tem wheel para Linux x86_64 glibc, macOS e Windows, e em ARM ou musl, como o Void musl, o `uv sync` compila o sdist, que baixa o binário do shellcheck durante o build e falha sem rede; o `shellcheck` roda sobre o `git ls-files '*.sh'`, então o `make lint` precisa de um clone git); `make test` roda `uv run --locked molecule test`; `make check` roda os dois em sequência (o test só roda se o lint passar). O `--locked` garante as versões do `uv.lock`. O cenário Molecule ainda não existe (#34) e, quando existir, é **adicional** ao sandbox. Os targets de provisionamento (`local`, `remote`, `tunnel`, `sandbox`) continuam usando o Ansible do sistema, então lint e testes rodam com outro ansible-core e outras collections (#38).
+- O CI (`.github/workflows/ci.yml`, GitHub Actions) roda em todo PR e em push na `main`: `uv sync --locked` e `make lint`, ou seja, as mesmas checagens e versões (`uv.lock`) do ambiente local. A versão do próprio uv no CI é fixa no workflow (`version:` do setup-uv) e deve acompanhar a usada localmente. Ele só faz análise estática; o provisionamento continua validado manualmente pelo sandbox (`scripts/workstation.sh sandbox`), cujo CI é a #29. As actions são pinadas por SHA, com a tag num comentário. Em PR, um push novo cancela o run anterior; na `main`, o grupo de concorrência é por commit, para que todo commit mergeado tenha resultado.
+- Ferramentas de desenvolvimento vêm do grupo `dev` do uv (`pyproject.toml`, `uv.lock`; `uv sync`). O projeto não é um pacote Python (`[tool.uv] package = false`). `make lint` roda, em sequência e parando na primeira falha, `ansible-playbook playbooks/site.yml --syntax-check`, `ansible-lint`, `yamllint --strict .` e `shellcheck` em todo `*.sh` versionado (`git ls-files`), todos via `uv run --locked` (o `shellcheck` vem do pacote `shellcheck-py`, então não depende do pacote da distro; o `uv.lock` só tem wheel para Linux x86_64 glibc, macOS e Windows, e em ARM ou musl, como o Void musl, o `uv sync` compila o sdist, que baixa o binário do shellcheck durante o build e falha sem rede; o `shellcheck` roda sobre o `git ls-files '*.sh'`, então o `make lint` precisa de um clone git); `make test` roda `uv run --locked molecule test`; `make check` roda os dois em sequência (o test só roda se o lint passar). O `--locked` garante as versões do `uv.lock`. O cenário Molecule ainda não existe (#34) e, quando existir, é **adicional** ao sandbox. Os comandos de provisionamento do `scripts/workstation.sh` (`local`, `remote`, `tunnel`, `sandbox`) usam o Ansible do sistema, então lint e testes rodam com outro ansible-core e outras collections (#38).
 - As imagens do sandbox criam o usuário `dev` com sudo NOPASSWD e mantêm o container vivo com `tail -f /dev/null`. Não há init, então caminhos de serviço (systemd e runit) não são exercitados.
-- Imagens: `ubuntu:24.04`, `void-glibc-full:latest`, `fedora:44` e `archlinux:base`. O Void e o Arch são rolling, mas o `make sandbox` roda `docker build` sem `--pull` nem `--no-cache`, então a imagem fica no cache de camadas do Docker e continua com os pacotes e o índice do primeiro build. Para testar o estado atual da distro, remova a imagem (`docker rmi workstation-sandbox-image-<distro>`) ou rode `docker build --pull --no-cache` antes; um índice velho faz a instalação em lote falhar (#55). No Fedora, a imagem instala `python3-libdnf5`, sem o qual o módulo `package` (dnf5) do Ansible não instala pacotes; o play não o instala, então o sandbox não reproduz um Fedora mínimo sem ele (#56). O `fedora` não cobre RHEL/Rocky, que precisam do EPEL para parte de `vars/RedHat.yml`. No Arch, a imagem roda `pacman -Syu` junto com a instalação, porque o Arch não suporta atualização parcial. No Arch, o `npm` não é instalado (#17).
-- Para adicionar uma distro ao sandbox, crie `tests/sandbox/Dockerfile.<nome>` com `python3`, `sudo` e o usuário `dev`. O Makefile detecta o arquivo pelo nome. As distros também são listadas na tela `distro` do wizard (`scripts/interactive.sh`), no `help` do Makefile, no `README.md` (PT e EN, incluindo a árvore de `tests/sandbox/`), no `docs/USAGE.md` (`make sandbox`, `DISTRO`), na matriz de suporte acima, no `CLAUDE.md` e na definição de pronto do `docs/WORKFLOW.md`; atualize todos.
-- Verificações estáticas disponíveis: `ansible-playbook … --syntax-check`, `--list-tasks`, `--list-tags` e `make -n <target>`. `make lint` passa sem falhas. Configs versionadas: `.ansible-lint` (perfil `production`, sem `skip_list`/`warn_list`; o ansible-lint já ignora o que está no `.gitignore`), `.yamllint` (o default do yamllint com os ajustes que o ansible-lint exige para considerá-la compatível; o ansible-lint usa o mesmo arquivo na regra `yaml`) e `.shellcheckrc` (sem exceções). O `.yamllint` ignora `.venv/`, `.ansible/` e `profiles/local.y*ml` por uma lista explícita. O `**/` dos padrões de `profiles/` cobre a raiz e os caminhos absolutos que um editor passa, mas não um caminho relativo dentro de `profiles/`. A regra `truthy` também verifica chaves, por isso o `"on":` dos workflows fica entre aspas. O `shellcheck` recebe a lista do `git ls-files`, ou seja, do índice do git: um script novo sem `git add` só é checado no CI, e fora de um clone git o `make lint` falha logo no início. Uma exceção nova entra na config comentada e com a Issue que trata dela. Variáveis criadas por `register`/`set_fact` dentro de uma role levam o prefixo da role (`devtools_lazygit_release`; `_devtools_lazygit_arch` para fatos internos), como exige a regra `var-naming[no-role-prefix]`.
+- Imagens: `ubuntu:24.04`, `void-glibc-full:latest`, `fedora:44` e `archlinux:base`. O Void e o Arch são rolling, mas o `scripts/workstation.sh sandbox` roda `docker build` sem `--pull` nem `--no-cache`, então a imagem fica no cache de camadas do Docker e continua com os pacotes e o índice do primeiro build. Para testar o estado atual da distro, remova a imagem (`docker rmi workstation-sandbox-image-<distro>`) ou rode `docker build --pull --no-cache` antes; um índice velho faz a instalação em lote falhar (#55). No Fedora, a imagem instala `python3-libdnf5`, sem o qual o módulo `package` (dnf5) do Ansible não instala pacotes; o play não o instala, então o sandbox não reproduz um Fedora mínimo sem ele (#56). O `fedora` não cobre RHEL/Rocky, que precisam do EPEL para parte de `vars/RedHat.yml`. No Arch, a imagem roda `pacman -Syu` junto com a instalação, porque o Arch não suporta atualização parcial. No Arch, o `npm` não é instalado (#17).
+- Para adicionar uma distro ao sandbox, crie `tests/sandbox/Dockerfile.<nome>` com `python3`, `sudo` e o usuário `dev`. O `scripts/workstation.sh` detecta o arquivo pelo nome. As distros também são listadas na tela `distro` do wizard (`scripts/interactive.sh`), no `help` do `scripts/workstation.sh`, no `README.md` (PT e EN, incluindo a árvore de `tests/sandbox/`), no `docs/USAGE.md` (`sandbox`, `--distro`), na matriz de suporte acima, no `CLAUDE.md` e na definição de pronto do `docs/WORKFLOW.md`; atualize todos.
+- Verificações estáticas disponíveis: `ansible-playbook … --syntax-check`, `--list-tasks`, `--list-tags` e o `--print` do `scripts/workstation.sh`, que mostra os comandos sem executá-los. `make lint` passa sem falhas. Configs versionadas: `.ansible-lint` (perfil `production`, sem `skip_list`/`warn_list`; o ansible-lint já ignora o que está no `.gitignore`), `.yamllint` (o default do yamllint com os ajustes que o ansible-lint exige para considerá-la compatível; o ansible-lint usa o mesmo arquivo na regra `yaml`) e `.shellcheckrc` (sem exceções). O `.yamllint` ignora `.venv/`, `.ansible/` e `profiles/local.y*ml` por uma lista explícita. O `**/` dos padrões de `profiles/` cobre a raiz e os caminhos absolutos que um editor passa, mas não um caminho relativo dentro de `profiles/`. A regra `truthy` também verifica chaves, por isso o `"on":` dos workflows fica entre aspas. O `shellcheck` recebe a lista do `git ls-files`, ou seja, do índice do git: um script novo sem `git add` só é checado no CI, e fora de um clone git o `make lint` falha logo no início. Uma exceção nova entra na config comentada e com a Issue que trata dela. Variáveis criadas por `register`/`set_fact` dentro de uma role levam o prefixo da role (`devtools_lazygit_release`; `_devtools_lazygit_arch` para fatos internos), como exige a regra `var-naming[no-role-prefix]`.

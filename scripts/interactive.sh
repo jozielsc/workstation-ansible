@@ -854,8 +854,10 @@ main() {
                 ;;
 
             confirm)
-                # O passo tags garante ao menos um componente. O IFS="," fica num subshell: um "local IFS" valeria para o
-                # resto de main, inclusive depois de Back.
+                # O passo tags garante ao menos um componente; a checagem aqui protege contra uma mudança futura no fluxo,
+                # que levaria um --tags vazio ao scripts/workstation.sh depois da confirmação. O IFS="," fica num subshell:
+                # um "local IFS" valeria para o resto de main, inclusive depois de Back.
+                [ "${#selected_tags_array[@]}" -gt 0 ] || ui_fatal "Erro interno: nenhum componente selecionado na confirmação."
                 local formatted_tags
                 formatted_tags=$(IFS=","; echo "${selected_tags_array[*]}")
 

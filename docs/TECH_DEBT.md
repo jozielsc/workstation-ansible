@@ -36,7 +36,7 @@ Legenda de evidência:
 - Dicionários `*_features` são substituídos, não mesclados. Os defaults divergem: `default(false)` em devtools e ui, `default(true)` em languages. (#19)
 - Com `--profile local`, o `profiles/local.yml` é carregado duas vezes. (#19)
 - `-K` é sempre passado em `local`, `remote` e `tunnel`, mesmo com `--user root`. (#20)
-- As listas de pacotes divergem entre distros: Debian e RedHat não têm `delta`, `broot`, `tree-sitter` nem `kubectl`. Void não tem `lldb`. No Debian, `fd` e `bat` ficam como `fdfind` e `batcat`, sem alias. (#21)
+- As listas de pacotes divergem entre distros: Debian e RedHat não têm `delta`, `broot`, `tree-sitter` nem `kubectl`. No Debian, `fd` e `bat` ficam como `fdfind` e `batcat`, sem alias. (#21)
 - O repositório Docker usa `distribution | lower`, o que quebra em derivados do Ubuntu e do Debian (Mint, Pop!_OS). (#22)
 - A fonte da role `ui` depende de fontconfig (`fc-cache`) e de `unzip` (extração do zip), que não estão nas listas de pacotes da `ui`. O `unzip` vem da `devtools`, então `--tags ui` sozinho falha numa instalação mínima (confirmado no sandbox `void` e `ubuntu`). (#23)
 

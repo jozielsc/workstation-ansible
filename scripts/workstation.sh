@@ -297,7 +297,7 @@ run_sandbox() {
     msg "${GREEN}>> Garantindo que o container ${container} esteja rodando...${RESET}"
     run_cmd docker rm -f "$container" 2>/dev/null || true
     run_cmd docker run -d --name "$container" "$image"
-    msg "${GREEN}>> Executando ${MODE_LABEL} via Docker Connection no container ${container} [Tags: ${tags}]...${RESET}"
+    msg "${GREEN}>> Iniciando ${MODE_LABEL} SANDBOX no container ${container} via Docker Connection [Tags: ${tags}]...${RESET}"
     run_cmd "${ANSIBLE_CMD[@]}" -i "${container}," -c docker -u dev
 
     msg ""

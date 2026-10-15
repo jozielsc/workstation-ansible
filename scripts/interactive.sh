@@ -836,8 +836,11 @@ main() {
 
                 screen_nav || continue
                 selected_tags_array=("${UI_LIST[@]}")
-                # Sem nenhum componente, o --tags ficaria vazio: reabre o passo (com a lista vazia) em vez de seguir.
+                # Sem nenhum componente, o --tags ficaria vazio: reabre o passo (com a lista vazia) em vez de seguir. Sem
+                # terminal na entrada (respostas pelo stdin), o aviso seria apagado pela tela seguinte e as próximas
+                # respostas cairiam neste passo: o assistente para com o erro.
                 if [ "${#selected_tags_array[@]}" -eq 0 ]; then
+                    [ -t 0 ] || ui_fatal "Nenhum componente selecionado: as respostas pelo stdin precisam marcar ao menos um."
                     ui_warn "Nenhum componente selecionado: marque ao menos um para continuar, ou cancele o assistente."
                     ui_pause
                     continue

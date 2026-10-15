@@ -297,13 +297,18 @@ run_sandbox() {
     msg "${GREEN}>> Garantindo que o container ${container} esteja rodando...${RESET}"
     run_cmd docker rm -f "$container" 2>/dev/null || true
     run_cmd docker run -d --name "$container" "$image"
-    msg "${GREEN}>> Executando Ansible via Docker Connection no container ${container} [Tags: ${tags}]...${RESET}"
+    msg "${GREEN}>> Executando ${MODE_LABEL} via Docker Connection no container ${container} [Tags: ${tags}]...${RESET}"
     run_cmd "${ANSIBLE_CMD[@]}" -i "${container}," -c docker -u dev
 
     msg ""
     msg "${GREEN}======================================================================${RESET}"
-    msg "${GREEN} SUCCESS: Provisionamento Sandbox concluído!${RESET}"
-    msg "${YELLOW} Para entrar no container sandbox e testar a instalação:${RESET}"
+    if [ "$dry_run" -eq 1 ]; then
+        msg "${GREEN} SUCCESS: Simulação no Sandbox concluída (--dry-run): nada foi aplicado no container.${RESET}"
+        msg "${YELLOW} Para entrar no container sandbox (sem o provisionamento):${RESET}"
+    else
+        msg "${GREEN} SUCCESS: Provisionamento Sandbox concluído!${RESET}"
+        msg "${YELLOW} Para entrar no container sandbox e testar a instalação:${RESET}"
+    fi
     msg "   ${GREEN}${PROG} sandbox-shell --distro ${distro}${RESET}"
     msg "   ou: ${GREEN}docker exec -it ${container} /bin/bash${RESET}"
     msg "${YELLOW} Para remover o container sandbox:${RESET}"

@@ -4,9 +4,64 @@
     msg: "🟢 LANG: Instalando Node.js e NPM do sistema..."
   when: languages_features.node | default(true)
 
-- name: Instalar Node.js e NPM (Sistema)
+- name: Instalar Node.js (Sistema)
   ansible.builtin.package:
-    name: "{{ languages_node_packages[ansible_facts['os_family']] | default(['nodejs']) }}"
+    name: nodejs
     state: present
   tags: [node]
   when: languages_features.node | default(true)
+
+# O npm é um pacote separado no Debian/Ubuntu e no Arch, mas vem com o nodejs no Void e no Fedora, e o nodejs do
+# NodeSource também o traz (e declara conflito com o pacote npm da distro). Por isso o pacote só é instalado quando o
+# comando ainda não existe.
+- name: Verificar se o npm já está disponível
+  ansible.builtin.command:
+    argv: [sh, -c, command -v npm]
+  register: _languages_npm_query
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  tags: [node]
+  when: languages_features.node | default(true)
+
+# Uma falha (pacote indisponível, conflito, sem rede) só avisa, como no padrão de instalação resiliente: o nodejs já
+# está instalado e o play segue.
+- name: Instalar o npm (Sistema)
+  ansible.builtin.package:
+    name: npm
+    state: present
+  register: _languages_npm_install
+  failed_when: false
+  tags: [node]
+  when:
+    - languages_features.node | default(true)
+    - _languages_npm_query.rc != 0
+
+# Confere o resultado pelo comando, não pelo módulo: com o failed_when: false, a instalação nunca aparece como falha.
+# Em check mode nada foi instalado, então não há o que conferir.
+- name: Conferir o npm depois da instalação
+  ansible.builtin.command:
+    argv: [sh, -c, command -v npm]
+  register: _languages_npm_check
+  changed_when: false
+  failed_when: false
+  tags: [node]
+  when:
+    - languages_features.node | default(true)
+    - _languages_npm_query.rc != 0
+    - not ansible_check_mode
+
+# A mensagem do gerenciador pode ter várias linhas (o comando e cada erro): o aviso mostra só a última.
+- name: Avisar que o npm não foi instalado
+  vars:
+    _languages_npm_error: >-
+      {{ (_languages_npm_install.msg | default('') | string).splitlines() | select | last
+      | default('o pacote npm foi instalado, mas o comando não existe', true) | trim }}
+  ansible.builtin.debug:
+    msg: "⚠️ npm não instalado no {{ ansible_facts['distribution'] }}: {{ _languages_npm_error }}"
+  tags: [node]
+  when:
+    - languages_features.node | default(true)
+    - _languages_npm_query.rc != 0
+    - not ansible_check_mode
+    - _languages_npm_check.rc != 0

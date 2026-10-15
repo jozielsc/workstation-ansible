@@ -150,7 +150,7 @@ Uma lista com um pacote inexistente não aborta o play: a instalação passa a s
 | Arquivo | Mecanismo |
 |---|---|
 | `python.yml` | uv via `curl https://astral.sh/uv/install.sh \| sh` (`UV_INSTALL_DIR=~/.local/bin`, `creates:`), pipx pelo pacote do sistema e `python3 -m pipx ensurepath` |
-| `node.yml` | pacotes por `os_family`, mapeados em `languages_node_packages` (`vars/main.yml`): `nodejs` e `npm` em Debian, RedHat e Arch, só `nodejs` no Void (o pacote já traz o npm). Uma família fora do mapa instala só o `nodejs` |
+| `node.yml` | pacote `nodejs`; depois, o pacote `npm` só se o comando `npm` ainda não existir (`sh -c 'command -v npm'`). O npm é um pacote separado no Debian/Ubuntu e no Arch, mas vem com o `nodejs` no Void e no Fedora, e o `nodejs` do NodeSource o traz e declara conflito com o pacote `npm` da distro (o apt recusaria a instalação). Uma falha do `npm` (indisponível, sem rede) só gera um aviso `⚠️` com a última linha do erro, conferida pelo comando depois da instalação, e o play segue. No Debian/Ubuntu, o pacote `npm` puxa centenas de pacotes `node-*` e, pelos Recommends, o toolchain de compilação: é o empacotamento da distro, e o `package` não desliga os Recommends |
 | `rust.yml` | `stat` em `~/.cargo/bin/rustup`, depois o instalador oficial `sh.rustup.rs -y --no-modify-path` (`failed_when: false`), com fallback para o pacote `cargo` se o instalador falhar |
 | `go.yml` | um pacote por `os_family`, mapeado em `languages_go_package` (`vars/main.yml`): `golang` em Debian e RedHat, `go` em Void e Arch. Uma família fora do mapa só gera um aviso (`⚠️`) e o play segue. Como a variável vem de `vars/` da role, um perfil carregado por `include_vars` a sobrescreve (mapa inteiro, sem merge) |
 

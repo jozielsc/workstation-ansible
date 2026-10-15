@@ -5,11 +5,3 @@ languages_go_package:
   RedHat: golang
   Void: go
   Archlinux: go
-
-# Pacotes do Node.js por os_family. No Void, o nodejs já traz o npm; nas outras, o npm é um pacote separado. Uma
-# família fora deste mapa instala só o nodejs (node.yml).
-languages_node_packages:
-  Debian: [nodejs, npm]
-  RedHat: [nodejs, npm]
-  Void: [nodejs]
-  Archlinux: [nodejs, npm]

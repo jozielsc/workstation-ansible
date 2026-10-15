@@ -50,15 +50,17 @@ test: _require-uv
 check: lint test
 
 # Só chama o scripts/workstation.sh, sem lógica própria de docker ou ansible; ele mostra os comandos que executa. Os
-# parâmetros chegam ao script como argumentos posicionais ("$@"), sem passar pela interpolação do just no shell. Os
-# argumentos extras vão depois de um "--"; um "--" digitado ("just sandbox void go -- -vv") não é repetido. Com
+# parâmetros chegam ao script como argumentos posicionais ("$@"), sem passar pela interpolação do just no shell. Distro
+# e tags vão na forma "--opção valor", em que o script recusa um valor que começa com "-": "just sandbox ubuntu -vv",
+# sem as tags, sai com erro em vez de rodar com "--tags=-vv" (só as tarefas "always"). Os argumentos extras vão depois
+# de um "--"; um "--" digitado ("just sandbox void go -- -vv") não é repetido. Com
 # "uv run", o ansible-playbook do script é o do .venv. A segunda execução no mesmo container, para conferir a
 # idempotência, depende da #51.
-[doc("Provisiona um container sandbox; argumentos extras vão para o ansible-playbook. Ex.: just sandbox ubuntu rust -vv")]
+[doc("Provisiona um container sandbox; distro e tags vêm antes dos argumentos extras do ansible-playbook. Ex.: just sandbox ubuntu rust -vv")]
 [positional-arguments]
 sandbox distro="void" tags="all" *ansible_args:
     @distro="$1" tags="$2"; shift 2; [ "${1-}" != -- ] || shift; \
-        ./scripts/workstation.sh sandbox --distro="$distro" --tags="$tags" ${1+--} "$@"
+        ./scripts/workstation.sh sandbox --distro "$distro" --tags "$tags" ${1+--} "$@"
 
 _require-uv:
     @command -v uv >/dev/null 2>&1 || { \

@@ -9,16 +9,22 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-# Os caminhos abaixo são relativos à raiz do repositório, então o script funciona chamado de qualquer pasta.
-cd "$REPO_DIR"
+
+# shellcheck source=scripts/lib/quote.sh
+source "$SCRIPT_DIR/lib/quote.sh"
 
 # Cores e saída do Ansible em tempo real, inclusive quando a saída não é um terminal.
 export ANSIBLE_FORCE_COLOR=1
 export PYTHONUNBUFFERED=1
+# O script não muda de pasta, para que caminhos relativos depois de "--" (-e @vars.yml, --vault-password-file)
+# continuem relativos à pasta de quem chama. Por isso os caminhos do repositório são absolutos, e o ansible.cfg do
+# projeto vem do ANSIBLE_CONFIG (um ANSIBLE_CONFIG já definido continua valendo, como antes).
+export ANSIBLE_CONFIG="${ANSIBLE_CONFIG:-$REPO_DIR/ansible.cfg}"
 
-PROG="./scripts/workstation.sh"
-PLAYBOOK="playbooks/site.yml"
-SANDBOX_DIR="tests/sandbox"
+# Comando mostrado nas mensagens e nas sugestões: o caminho pelo qual o script foi chamado, que funciona na pasta atual.
+PROG="$(shell_quote "$0")"
+PLAYBOOK="$REPO_DIR/playbooks/site.yml"
+SANDBOX_DIR="$REPO_DIR/tests/sandbox"
 
 if command -v tput >/dev/null 2>&1; then
     GREEN="$(tput -Txterm setaf 2 2>/dev/null || true)"
@@ -161,42 +167,48 @@ check_options() {
     fi
 }
 
-# Valida um valor que vira um único host ou usuário na linha de comando. Os espaços nas pontas são descartados (um
-# espaço digitado no wizard continua valendo); vazio, espaço no meio ou vírgula viram vários hosts no inventário
-# "<ip>," ou quebram o ProxyCommand. Devolve o valor limpo em REPLY.
-single_value() {
-    local value="$1"
+# Valida um host ou usuário e o atribui à variável indicada. Os espaços nas pontas são descartados (um espaço digitado
+# no wizard continua valendo). Só passam letras, números e . _ - (e : e [] em hosts, para IPv6): uma vírgula ou um
+# espaço viraria outro host no inventário "<ip>,", e aspas, $, ; ou % quebrariam o ProxyCommand, que o ssh executa
+# num shell local, ou virariam tokens do ssh. O primeiro caractere não pode ser "-", que viraria opção do ssh.
+# Uso: require_value <variável> host|user <valor> <mensagem> <uso>
+require_value() {
+    local var="$1" kind="$2" value="$3" message="$4" usage="$5" pattern
     value="${value#"${value%%[![:space:]]*}"}"
     value="${value%"${value##*[![:space:]]}"}"
-    [ -n "$value" ] || return 1
-    case "$value" in
-        *[[:space:],]*) return 1 ;;
+    case "$kind" in
+        host) pattern='^([A-Za-z0-9:][A-Za-z0-9._:-]*|\[[0-9A-Fa-f:.]+\])$' ;;
+        user) pattern='^[A-Za-z0-9_][A-Za-z0-9._-]*$' ;;
     esac
-    REPLY="$value"
+    [[ "$value" =~ $pattern ]] ||
+        usage_error "$message (letras, números e . _ -$([ "$kind" = host ] && echo ' :, ou [IPv6]')): $usage"
+    printf -v "$var" '%s' "$value"
 }
 
-require_single() {
-    local value="$1" message="$2" usage="$3"
-    single_value "$value" || usage_error "$message: $usage"
+# Sem --user, o usuário SSH é o usuário atual (#35: o Makefile usava o $USER do ambiente). Um --user vazio é recusado,
+# em vez de cair no default.
+require_ssh_user() {
+    case "$used_opts" in
+        *" user "*) ;;
+        *) user="$(whoami)" ;;
+    esac
+    require_value user user "$user" "Defina um único usuário SSH" "$1"
+}
+
+# Os três comandos de sandbox só aceitam uma distro com Dockerfile: um --distro errado no sandbox-clean removeria um
+# container que não existe e sairia com sucesso.
+require_distro() {
+    [ -f "${SANDBOX_DIR}/Dockerfile.${distro}" ] ||
+        usage_error "Dockerfile para a distro '${distro}' não encontrado em ${SANDBOX_DIR}/Dockerfile.${distro}"
 }
 
 # --- Execução ---
-
-# Mostra um argumento como ele precisa ser digitado no shell: entre aspas simples quando tem caracteres especiais.
-quote_arg() {
-    local q="'\\''"
-    case "$1" in
-        "") printf "''" ;;
-        *[!A-Za-z0-9_./:=,@%+-]*) printf "'%s'" "${1//\'/$q}" ;;
-        *) printf '%s' "$1" ;;
-    esac
-}
 
 # Mostra o comando (como o make fazia) e o executa; com --print, só mostra.
 run_cmd() {
     local arg line=""
     for arg in "$@"; do
-        line+="${line:+ }$(quote_arg "$arg")"
+        line+="${line:+ }$(shell_quote "$arg")"
     done
     printf '%s\n' "$line"
     [ "$print_only" -eq 1 ] || "$@"
@@ -294,56 +306,50 @@ main() {
     case "$command" in
         "")
             check_options "" 0
-            # O wizard exige bash >= 4.4 (docs/ARCHITECTURE.md#wizard-e-camada-de-interface).
-            exec bash "$SCRIPT_DIR/interactive.sh"
+            # O wizard exige bash >= 4.4 (docs/ARCHITECTURE.md#wizard-e-camada-de-interface). Ele mostra o comando
+            # com o mesmo caminho pelo qual este script foi chamado.
+            WORKSTATION_PROG="$PROG" exec bash "$SCRIPT_DIR/interactive.sh"
             ;;
         help)
             show_help
             ;;
         help-docs)
             check_options "" 0
-            cat docs/USAGE.md
+            cat "$REPO_DIR/docs/USAGE.md"
             echo ''
             ;;
         local)
             check_options "$provision_opts" 1
             run_local
             ;;
-        remote|tunnel)
-            if [ "$command" = "remote" ]; then
-                check_options "$provision_opts ip user" 1
-                require_single "$ip" "Defina um único IP de destino" "$remote_usage"
-                ip="$REPLY"
-            else
-                check_options "$provision_opts ip user jump-ip jump-user" 1
-                require_single "$ip" "Defina um único IP de destino" "$tunnel_usage"
-                ip="$REPLY"
-                require_single "$jump_ip" "Defina um único IP do Bastion" "$tunnel_usage"
-                jump_ip="$REPLY"
-                require_single "$jump_user" "Defina um único usuário do Bastion" "$tunnel_usage"
-                jump_user="$REPLY"
-            fi
-            # Sem --user, o usuário SSH é o usuário atual (#35: o Makefile usava o $USER do ambiente). Um --user vazio é
-            # recusado abaixo, em vez de cair no default.
-            case "$used_opts" in
-                *" user "*) ;;
-                *) user="$(whoami)" ;;
-            esac
-            require_single "$user" "Defina um único usuário SSH" \
-                "$([ "$command" = "remote" ] && echo "$remote_usage" || echo "$tunnel_usage")"
-            user="$REPLY"
-            if [ "$command" = "remote" ]; then run_remote; else run_tunnel; fi
+        remote)
+            check_options "$provision_opts ip user" 1
+            require_value ip host "$ip" "Defina um único IP de destino" "$remote_usage"
+            require_ssh_user "$remote_usage"
+            run_remote
             ;;
-        sandbox|sandbox-shell|sandbox-clean)
-            if [ "$command" = "sandbox" ]; then
-                check_options "$provision_opts distro" 1
-                [ -f "${SANDBOX_DIR}/Dockerfile.${distro}" ] ||
-                    usage_error "Dockerfile para a distro '${distro}' não encontrado em ${SANDBOX_DIR}/Dockerfile.${distro}"
-                run_sandbox
-            else
-                check_options "distro print" 0
-                if [ "$command" = "sandbox-shell" ]; then run_sandbox_shell; else run_sandbox_clean; fi
-            fi
+        tunnel)
+            check_options "$provision_opts ip user jump-ip jump-user" 1
+            require_value ip host "$ip" "Defina um único IP de destino" "$tunnel_usage"
+            require_value jump_ip host "$jump_ip" "Defina um único IP do Bastion" "$tunnel_usage"
+            require_value jump_user user "$jump_user" "Defina um único usuário do Bastion" "$tunnel_usage"
+            require_ssh_user "$tunnel_usage"
+            run_tunnel
+            ;;
+        sandbox)
+            check_options "$provision_opts distro" 1
+            require_distro
+            run_sandbox
+            ;;
+        sandbox-shell)
+            check_options "distro print" 0
+            require_distro
+            run_sandbox_shell
+            ;;
+        sandbox-clean)
+            check_options "distro print" 0
+            require_distro
+            run_sandbox_clean
             ;;
         *)
             usage_error "comando desconhecido: $command"

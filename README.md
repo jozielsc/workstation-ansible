@@ -261,7 +261,8 @@ workstation-ansible/
 ├── Makefile              # Development tasks: lint, test, check (moving to a justfile: #68)
 ├── scripts/
 │   ├── workstation.sh    # Provisioning entry point (local, remote, tunnel, sandbox, wizard)
-│   └── interactive.sh    # Interactive TUI wizard
+│   ├── interactive.sh    # Interactive TUI wizard
+│   └── lib/quote.sh      # Shell quoting shared by both scripts
 ├── pyproject.toml        # uv dev environment (ansible, linters, molecule) + uv.lock
 ├── .github/workflows/    # CI: make lint on PRs and pushes to main
 ├── README.md             # Documentation (Bilingual)

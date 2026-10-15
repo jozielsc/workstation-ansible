@@ -17,6 +17,9 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
+# shellcheck source=scripts/lib/quote.sh
+source "$SCRIPT_DIR/lib/quote.sh"
+
 show_banner() {
     # Sem TERM, o clear falha; com set -e, isso derrubaria o wizard no modo cli.
     clear 2>/dev/null || true
@@ -41,17 +44,6 @@ parse_index() {
     [[ "$value" =~ ^[1-9][0-9]{0,8}$ ]] || return 1
     [ "$value" -le "$max" ] || return 1
     echo $((value - 1))
-}
-
-# Mostra um argumento como ele precisa ser digitado no shell: entre aspas simples quando tem caracteres especiais.
-# Mesma regra do quote_arg de scripts/workstation.sh (o printf %q escaparia até as vírgulas das tags).
-shell_quote() {
-    local q="'\\''"
-    case "$1" in
-        "") printf "''" ;;
-        *[!A-Za-z0-9_./:=,@%+-]*) printf "'%s'" "${1//\'/$q}" ;;
-        *) printf '%s' "$1" ;;
-    esac
 }
 
 # --- Camada de interface ---
@@ -875,8 +867,9 @@ main() {
 
                 [ "$dry_run" = "yes" ] && run_args+=(--dry-run)
 
-                # O comando mostrado pode ser copiado e colado.
-                local run_cmd="./scripts/workstation.sh"
+                # O comando mostrado pode ser copiado e colado: o caminho é o pelo qual o scripts/workstation.sh foi
+                # chamado (WORKSTATION_PROG, já entre aspas) ou, com o wizard chamado direto, o caminho absoluto.
+                local run_cmd="${WORKSTATION_PROG:-$(shell_quote "$REPO_DIR/scripts/workstation.sh")}"
                 local arg
                 for arg in "${run_args[@]}"; do
                     run_cmd+=" $(shell_quote "$arg")"

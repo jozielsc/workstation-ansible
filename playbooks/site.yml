@@ -8,12 +8,26 @@
 
   vars:
     profile: default
+    # Mínimo do ansible-core: o callback_result_format do ansible.cfg surgiu no 2.13 (antes, a saída volta a ser JSON).
+    min_ansible_core_version: '2.13'
     # Famílias com arquivo vars/<os_family>.yml nas roles. Uma distro fora delas para o play logo no início.
     supported_os_families: ['Debian', 'Void', 'RedHat', 'Archlinux']
     # true força a execução numa distro fora da lista (no profiles/local.yml ou com -e allow_unsupported_distro=true).
     allow_unsupported_distro: false
 
   pre_tasks:
+    # Primeira tarefa: o assert roda no controlador, então para antes de qualquer contato com o host.
+    - name: Verificar a versão mínima do ansible-core
+      ansible.builtin.assert:
+        that: ansible_version.full is version(min_ansible_core_version, '>=')
+        quiet: true
+        fail_msg: >-
+          ansible-core {{ ansible_version.full }} é anterior ao mínimo {{ min_ansible_core_version }}. Atualize o Ansible
+          do controlador (por exemplo, o Ansible 2.10 do apt no Ubuntu 22.04 e no Debian 11 é antigo demais); veja a seção
+          "Collections Ansible necessárias no controlador" do docs/ARCHITECTURE.md.
+      run_once: true
+      tags: ['always']
+
     - name: Carregar variáveis do perfil
       ansible.builtin.include_vars:
         file: "{{ playbook_dir }}/../profiles/{{ profile }}.yml"

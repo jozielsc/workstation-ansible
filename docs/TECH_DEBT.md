@@ -15,7 +15,7 @@ Legenda de evidência:
 
 | # | Item | Onde | Evidência | Issue |
 |---|---|---|---|---|
-| B2 | O `sandbox` ignora `--dry-run` (monta um comando próprio sem `--check --diff`; só avisa que a execução é real), mas o wizard oferece dry-run para o sandbox | `scripts/workstation.sh` (`run_sandbox`), `scripts/interactive.sh` | Confirmado (`scripts/workstation.sh sandbox --dry-run --print`) | #12 |
+| B2 | O `sandbox` ignora `--dry-run` (chama o `ansible_cmd` sem `--check --diff`; só avisa no stderr que a execução é real), mas o wizard oferece dry-run para o sandbox | `scripts/workstation.sh` (`run_sandbox`), `scripts/interactive.sh` | Confirmado (`scripts/workstation.sh sandbox --dry-run --print`) | #12 |
 | B5 | Nome do pacote pipx divergente: `python.yml` usa `python3-pipx` para Debian, `devtools/vars/Debian.yml` usa `pipx`. O `failed_when: false` esconde a falha | `python.yml`, `devtools/vars/Debian.yml` | Confirmado (divergência); pacote inexistente: Provável | #14 |
 | B6 | Tags `uv` e `pipx` não funcionam sozinhas, porque o include só tem a tag `python` | `roles/languages/tasks/` | Confirmado (teste de herança de tags) | #15 |
 | B7 | Tarefas "📌 STATUS" de node, rust e go não têm tag própria e não aparecem com `--tags node/rust/go` | `roles/languages/tasks/` | Confirmado | #15 |

@@ -7,7 +7,8 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# readlink -f: chamado por um symlink (ex.: ~/bin/ws), o script ainda acha o repositório e a lib.
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 # shellcheck source=scripts/lib/quote.sh
@@ -45,6 +46,7 @@ ip=""
 user=""
 jump_ip=""
 jump_user=""
+want_help=0
 extra_args=()
 has_extra=0
 # Nomes das opções passadas, para recusar as que não se aplicam ao comando.
@@ -74,19 +76,20 @@ Uso: $PROG [comando] [opções] [-- argumentos do ansible-playbook]
   ${GREEN}help-docs${RESET}        Exibe a documentação detalhada e exemplos (docs/USAGE.md).
 
   ${YELLOW}Opções:${RESET}
-    --profile NOME       local, remote, tunnel, sandbox: perfil em profiles/ (default: default)
+    --profile NOME       local, remote, tunnel, sandbox: perfil profiles/NOME.yml (default: default)
     --tags LISTA         local, remote, tunnel, sandbox: tags separadas por vírgula (default: all)
                          devtools, languages, python, node, rust, go, docker, zsh, editors, ui, dotfiles
     --dry-run            local, remote, tunnel: modo simulação (--check --diff); o sandbox ainda o ignora (#12)
     --distro NOME        sandbox, sandbox-shell, sandbox-clean: void, ubuntu, fedora, arch (default: void)
-    --ip HOST            remote, tunnel: um único host de destino (obrigatório)
+    --ip HOST            remote, tunnel: um único host de destino, hostname ou IPv4 (obrigatório)
     --user USUARIO       remote, tunnel: usuário SSH no destino (default: o usuário atual, whoami)
     --jump-ip HOST       tunnel: host do Bastion (obrigatório)
     --jump-user USUARIO  tunnel: usuário do Bastion (obrigatório)
     --print              Mostra os comandos sem executá-los.
     -- ARGS              local, remote, tunnel, sandbox: argumentos extras para o ansible-playbook (ex.: -- -vvv)
 
-  As opções aceitam "--opção valor" e "--opção=valor".
+  As opções aceitam "--opção valor" e "--opção=valor" (um valor que começa com "-" só na segunda forma).
+  Hosts e usuários aceitam letras, números e . _ -; para IPv6 ou outra porta, use um alias do ~/.ssh/config.
 
 EOF
 }
@@ -95,6 +98,8 @@ EOF
 
 set_option() {
     local name="$1" value="$2"
+    # Um valor vazio nunca é o que se quer: "--tags=" rodaria só as tarefas "always" e terminaria com sucesso.
+    [ -n "$value" ] || usage_error "a opção --$name exige um valor"
     case "$name" in
         profile)   profile="$value" ;;
         tags)      tags="$value" ;;
@@ -118,7 +123,8 @@ parse_args() {
                 break
                 ;;
             -h|--help)
-                command="help"
+                # Em qualquer posição: "--help local" e "local --help" mostram a ajuda.
+                want_help=1
                 ;;
             --dry-run)
                 dry_run=1
@@ -168,20 +174,16 @@ check_options() {
 }
 
 # Valida um host ou usuário e o atribui à variável indicada. Os espaços nas pontas são descartados (um espaço digitado
-# no wizard continua valendo). Só passam letras, números e . _ - (e : e [] em hosts, para IPv6): uma vírgula ou um
-# espaço viraria outro host no inventário "<ip>,", e aspas, $, ; ou % quebrariam o ProxyCommand, que o ssh executa
-# num shell local, ou virariam tokens do ssh. O primeiro caractere não pode ser "-", que viraria opção do ssh.
-# Uso: require_value <variável> host|user <valor> <mensagem> <uso>
+# no wizard continua valendo). Só passam letras, números e . _ -, sem "-" no início: uma vírgula ou um espaço viraria
+# outro host no inventário "<ip>,"; aspas, $, ; ou % quebrariam o ProxyCommand, que o ssh executa num shell local, ou
+# virariam tokens do ssh; um "-" no início viraria opção do ssh. IPv6 e host:porta também ficam de fora, porque o
+# "ssh -W %h:%p" e o "usuario@host" do ProxyCommand não os entendem: para eles, use um alias do ~/.ssh/config.
+# Uso: require_value <variável> <valor> <mensagem> <uso>
 require_value() {
-    local var="$1" kind="$2" value="$3" message="$4" usage="$5" pattern
+    local var="$1" value="$2" message="$3" usage="$4"
     value="${value#"${value%%[![:space:]]*}"}"
     value="${value%"${value##*[![:space:]]}"}"
-    case "$kind" in
-        host) pattern='^([A-Za-z0-9:][A-Za-z0-9._:-]*|\[[0-9A-Fa-f:.]+\])$' ;;
-        user) pattern='^[A-Za-z0-9_][A-Za-z0-9._-]*$' ;;
-    esac
-    [[ "$value" =~ $pattern ]] ||
-        usage_error "$message (letras, números e . _ -$([ "$kind" = host ] && echo ' :, ou [IPv6]')): $usage"
+    [[ "$value" =~ ^[A-Za-z0-9_][A-Za-z0-9._-]*$ ]] || usage_error "$message (letras, números e . _ -): $usage"
     printf -v "$var" '%s' "$value"
 }
 
@@ -192,7 +194,17 @@ require_ssh_user() {
         *" user "*) ;;
         *) user="$(whoami)" ;;
     esac
-    require_value user user "$user" "Defina um único usuário SSH" "$1"
+    require_value user "$user" "Defina um único usuário SSH" "$1"
+}
+
+# O perfil vira "-e profile=<nome>", que o Ansible lê como uma lista key=value separada por espaços: "default x=y"
+# definiria outra variável. Só passam nomes simples com um arquivo profiles/<nome>.yml.
+require_profile() {
+    local available
+    if [[ ! "$profile" =~ ^[A-Za-z0-9_][A-Za-z0-9._-]*$ ]] || [ ! -f "$REPO_DIR/profiles/${profile}.yml" ]; then
+        available="$(cd "$REPO_DIR/profiles" && for f in *.yml; do printf '%s ' "${f%.yml}"; done)"
+        usage_error "perfil '${profile}' não encontrado em profiles/ (disponíveis: ${available% })"
+    fi
 }
 
 # Os três comandos de sandbox só aceitam uma distro com Dockerfile: um --distro errado no sandbox-clean removeria um
@@ -219,48 +231,44 @@ msg() {
     [ "$print_only" -eq 1 ] || echo -e "$1"
 }
 
-mode_label() {
-    if [ "$dry_run" -eq 1 ]; then echo "[DRY RUN]"; else echo "[EXECUÇÃO]"; fi
-}
-
-# ansible-playbook com -K, tags, perfil, simulação e argumentos extras, sem o inventário. Resultado em ANSIBLE_CMD.
+# ansible-playbook com tags, perfil e argumentos extras, sem o inventário. Resultado em ANSIBLE_CMD.
+# Uso: ansible_cmd <pedir a senha do sudo (-K): 0|1> <simulação (--check --diff): 0|1>
 ansible_cmd() {
-    ANSIBLE_CMD=(ansible-playbook "$PLAYBOOK" -K --tags "$tags" -e "profile=$profile")
-    [ "$dry_run" -eq 0 ] || ANSIBLE_CMD+=(--check --diff)
+    local ask_become_pass="$1" check="$2"
+    ANSIBLE_CMD=(ansible-playbook "$PLAYBOOK")
+    [ "$ask_become_pass" -eq 0 ] || ANSIBLE_CMD+=(-K)
+    ANSIBLE_CMD+=(--tags "$tags" -e "profile=$profile")
+    [ "$check" -eq 0 ] || ANSIBLE_CMD+=(--check --diff)
     ANSIBLE_CMD+=(${extra_args[@]+"${extra_args[@]}"})
 }
 
 run_local() {
-    ansible_cmd
-    msg "${GREEN}>> Iniciando $(mode_label) LOCAL [Tags: ${tags}]...${RESET}"
+    ansible_cmd 1 "$dry_run"
+    msg "${GREEN}>> Iniciando ${MODE_LABEL} LOCAL [Tags: ${tags}]...${RESET}"
     run_cmd "${ANSIBLE_CMD[@]}" -i "localhost," -c local
 }
 
 run_remote() {
-    ansible_cmd
-    msg "${GREEN}>> Iniciando $(mode_label) REMOTE em ${ip} [Tags: ${tags}]...${RESET}"
+    ansible_cmd 1 "$dry_run"
+    msg "${GREEN}>> Iniciando ${MODE_LABEL} REMOTE em ${ip} [Tags: ${tags}]...${RESET}"
     run_cmd "${ANSIBLE_CMD[@]}" -i "${ip}," -u "$user"
 }
 
 run_tunnel() {
-    ansible_cmd
-    msg "${GREEN}>> Iniciando $(mode_label) TUNNEL via ${jump_ip} para ${ip}...${RESET}"
+    ansible_cmd 1 "$dry_run"
+    msg "${GREEN}>> Iniciando ${MODE_LABEL} TUNNEL via ${jump_ip} para ${ip}...${RESET}"
     run_cmd "${ANSIBLE_CMD[@]}" -i "${ip}," -u "$user" \
         "--ssh-common-args=-o ProxyCommand=\"ssh -W %h:%p -q ${jump_user}@${jump_ip}\""
 }
 
-sandbox_image() { echo "workstation-sandbox-image-${distro}"; }
-sandbox_container() { echo "workstation-sandbox-${distro}"; }
-
 run_sandbox() {
-    local image container
-    image="$(sandbox_image)"
-    container="$(sandbox_container)"
+    local image="$SANDBOX_IMAGE" container="$SANDBOX_CONTAINER"
 
+    # Sem -K (o sudo do usuário dev é NOPASSWD) e, por enquanto, sem --check --diff (#12). O aviso vai para o stderr e
+    # aparece também com --print.
+    ansible_cmd 0 0
+    [ "$dry_run" -eq 0 ] || echo "${YELLOW}Aviso: o sandbox ainda ignora --dry-run (#12); a execução é real.${RESET}" >&2
     msg "${GREEN}>> Preparando ambiente Sandbox Docker (Distro: ${distro})...${RESET}"
-    # O sandbox monta o próprio ansible-playbook: sem -K (o sudo do usuário dev é NOPASSWD) e, por enquanto, sem
-    # --check --diff (#12).
-    [ "$dry_run" -eq 0 ] || msg "${YELLOW}Aviso: o sandbox ainda ignora --dry-run (#12); a execução é real.${RESET}"
     msg "${GREEN}>> Construindo imagem ${image}...${RESET}"
     run_cmd docker build -t "$image" -f "${SANDBOX_DIR}/Dockerfile.${distro}" "${SANDBOX_DIR}/"
     # Recria o container a cada execução (#51).
@@ -268,8 +276,7 @@ run_sandbox() {
     run_cmd docker rm -f "$container" 2>/dev/null || true
     run_cmd docker run -d --name "$container" "$image"
     msg "${GREEN}>> Executando Ansible via Docker Connection no container ${container} [Tags: ${tags}]...${RESET}"
-    run_cmd ansible-playbook "$PLAYBOOK" --tags "$tags" -e "profile=$profile" \
-        ${extra_args[@]+"${extra_args[@]}"} -i "${container}," -c docker -u dev
+    run_cmd "${ANSIBLE_CMD[@]}" -i "${container}," -c docker -u dev
 
     msg ""
     msg "${GREEN}======================================================================${RESET}"
@@ -283,21 +290,29 @@ run_sandbox() {
 }
 
 run_sandbox_shell() {
-    local container
-    container="$(sandbox_container)"
+    local container="$SANDBOX_CONTAINER"
     msg "${GREEN}>> Entrando no container sandbox (${container})...${RESET}"
     run_cmd docker exec -it "$container" /bin/bash
 }
 
 run_sandbox_clean() {
-    local container
-    container="$(sandbox_container)"
+    local container="$SANDBOX_CONTAINER"
     msg "${GREEN}>> Parando e removendo container sandbox (${container})...${RESET}"
     run_cmd docker rm -f "$container" 2>/dev/null || true
 }
 
 main() {
     parse_args "$@"
+
+    if [ "$want_help" -eq 1 ]; then
+        show_help
+        return
+    fi
+
+    # Valores fixos depois da leitura dos argumentos.
+    if [ "$dry_run" -eq 1 ]; then MODE_LABEL="[DRY RUN]"; else MODE_LABEL="[EXECUÇÃO]"; fi
+    SANDBOX_IMAGE="workstation-sandbox-image-${distro}"
+    SANDBOX_CONTAINER="workstation-sandbox-${distro}"
 
     local remote_usage="$PROG remote --ip x.x.x.x [--user usuario]"
     local tunnel_usage="$PROG tunnel --ip x.x.x.x --jump-ip y.y.y.y --jump-user usuario [--user usuario]"
@@ -311,6 +326,7 @@ main() {
             WORKSTATION_PROG="$PROG" exec bash "$SCRIPT_DIR/interactive.sh"
             ;;
         help)
+            check_options "" 0
             show_help
             ;;
         help-docs)
@@ -320,24 +336,28 @@ main() {
             ;;
         local)
             check_options "$provision_opts" 1
+            require_profile
             run_local
             ;;
         remote)
             check_options "$provision_opts ip user" 1
-            require_value ip host "$ip" "Defina um único IP de destino" "$remote_usage"
+            require_profile
+            require_value ip "$ip" "Defina um único IP de destino" "$remote_usage"
             require_ssh_user "$remote_usage"
             run_remote
             ;;
         tunnel)
             check_options "$provision_opts ip user jump-ip jump-user" 1
-            require_value ip host "$ip" "Defina um único IP de destino" "$tunnel_usage"
-            require_value jump_ip host "$jump_ip" "Defina um único IP do Bastion" "$tunnel_usage"
-            require_value jump_user user "$jump_user" "Defina um único usuário do Bastion" "$tunnel_usage"
+            require_profile
+            require_value ip "$ip" "Defina um único IP de destino" "$tunnel_usage"
+            require_value jump_ip "$jump_ip" "Defina um único IP do Bastion" "$tunnel_usage"
+            require_value jump_user "$jump_user" "Defina um único usuário do Bastion" "$tunnel_usage"
             require_ssh_user "$tunnel_usage"
             run_tunnel
             ;;
         sandbox)
             check_options "$provision_opts distro" 1
+            require_profile
             require_distro
             run_sandbox
             ;;

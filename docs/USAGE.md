@@ -12,7 +12,7 @@ O script `scripts/workstation.sh` é a interface principal. Rode-o da raiz do re
 
 *   `./scripts/workstation.sh` (sem comando): Inicia o assistente TUI interativo para configurar e provisionar o ambiente passo a passo. Usa o `dialog`; sem ele, o `whiptail`; sem nenhum dos dois, um modo texto (`TUI_ENGINE=dialog|whiptail|cli` força um motor: se ele não existir ou falhar, o assistente sai com erro em vez de trocar de motor). Sem `TUI_ENGINE`, se a interface falhar (por exemplo, sem terminal), o assistente avisa e continua no próximo motor, no mesmo passo. No `dialog`, os botões são OK, Back e Cancel; nas perguntas de sim/não, Yes, Back, No e Cancel. No `whiptail`, que só tem dois botões, o segundo botão (**Voltar/Cancelar**) abre um menu para voltar à tela anterior, cancelar o assistente ou continuar nesta tela (ela reabre com os valores de quando foi aberta). No modo texto, nos menus, digite o número da opção (Enter mantém a opção atual). No passo de componentes, os números separados por espaço **invertem** a marcação dos itens indicados (vários já vêm marcados) e a lista aparece de novo com as marcas atualizadas; Enter sem nada confirma a seleção mostrada. Digite `b` para voltar e `c` para cancelar; Ctrl-D também cancela quando nada foi digitado (depois de um valor, ele vale como Enter). Sem terminal, as respostas podem vir pelo stdin; se acabarem antes do fim, o assistente sai com erro. Nas perguntas de sim/não (simulação e confirmação), só uma resposta que começa com `y` confirma; qualquer outra, inclusive Enter vazio, é "não".
 *   `./scripts/workstation.sh local`: Configura a máquina atual (localhost).
-*   `./scripts/workstation.sh remote --ip <IP> [--user <USER>]`: Configura uma máquina remota via SSH. O `--ip` é obrigatório e deve ser um único host. Hosts e usuários só aceitam letras, números e `.`, `_`, `-` (nos hosts, também `:` e IPv6 entre colchetes), sem começar com `-`. Sem `--user`, o usuário SSH é o usuário atual (`whoami`).
+*   `./scripts/workstation.sh remote --ip <IP> [--user <USER>]`: Configura uma máquina remota via SSH. O `--ip` é obrigatório e deve ser um único host. Hosts e usuários só aceitam letras, números e `.`, `_`, `-`, sem começar com `-`. IPv6 e outra porta SSH não são aceitos: para eles, crie um alias (`Host`, com `HostName` e `Port`) no `~/.ssh/config` e passe o nome do alias. Sem `--user`, o usuário SSH é o usuário atual (`whoami`).
 *   `./scripts/workstation.sh tunnel --ip <IP> --jump-ip <JUMP_IP> --jump-user <JUMP_USER> [--user <USER>]`: Configura uma máquina através de um Bastion Host. `--ip`, `--jump-ip` e `--jump-user` são obrigatórios, com as mesmas regras de caracteres do `remote`.
 *   `./scripts/workstation.sh sandbox [--distro void|ubuntu|fedora|arch]`: Cria um container Docker isolado, executa o Ansible e o mantém ativo para testes.
 *   `./scripts/workstation.sh sandbox-shell [--distro …]`: Abre o terminal interativo (`bash`) no container sandbox da distro. Como no `sandbox` e no `sandbox-clean`, a distro precisa ter um Dockerfile em `tests/sandbox/`.
@@ -31,11 +31,11 @@ As tarefas de desenvolvimento ainda usam o `make` (elas vão para um `justfile` 
 
 ### Opções
 
-As opções aceitam `--opção valor` e `--opção=valor`. Uma opção que não se aplica ao comando (por exemplo, `--ip` com `local`) é recusada com erro.
+As opções aceitam `--opção valor` e `--opção=valor`; um valor que começa com `-` só vale na segunda forma. Uma opção com valor vazio ou que não se aplica ao comando (por exemplo, `--ip` com `local`) é recusada com erro.
 
 *   `--tags`: Lista de tags separadas por vírgula para executar apenas partes específicas (`local`, `remote`, `tunnel`, `sandbox`).
     *   Exemplo: `./scripts/workstation.sh local --tags zsh,dotfiles` ou `./scripts/workstation.sh sandbox --distro ubuntu --tags node`
-*   `--profile`: Define qual perfil de variáveis carregar (padrão: `default`).
+*   `--profile`: Define qual perfil de variáveis carregar (padrão: `default`). Precisa existir um arquivo `profiles/<nome>.yml`.
     *   Exemplo: `./scripts/workstation.sh local --profile local`
 *   `--distro`: Escolhe a distribuição para o sandbox Docker (padrão: `void`, suporte: `void`, `ubuntu`, `fedora`, `arch`).
     *   Exemplo: `./scripts/workstation.sh sandbox --distro ubuntu`

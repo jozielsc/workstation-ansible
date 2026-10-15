@@ -856,13 +856,15 @@ main() {
 
                 local run_args=()
                 run_args+=("$target_mode")
-                run_args+=(--profile "$selected_profile")
-                run_args+=(--tags "$formatted_tags")
+                # Sempre --opção=valor: um valor digitado que começa com "-" chega à validação do script, em vez de ser
+                # lido como outra opção ("a opção --ip exige um valor").
+                run_args+=("--profile=$selected_profile")
+                run_args+=("--tags=$formatted_tags")
 
                 case "$target_mode" in
-                    sandbox) run_args+=(--distro "$distro") ;;
-                    remote)  run_args+=(--ip "$remote_ip" --user "$remote_user") ;;
-                    tunnel)  run_args+=(--ip "$remote_ip" --user "$remote_user" --jump-ip "$jump_ip" --jump-user "$jump_user") ;;
+                    sandbox) run_args+=("--distro=$distro") ;;
+                    remote)  run_args+=("--ip=$remote_ip" "--user=$remote_user") ;;
+                    tunnel)  run_args+=("--ip=$remote_ip" "--user=$remote_user" "--jump-ip=$jump_ip" "--jump-user=$jump_user") ;;
                 esac
 
                 [ "$dry_run" = "yes" ] && run_args+=(--dry-run)

@@ -870,12 +870,9 @@ main() {
                 [ "$dry_run" = "yes" ] && run_args+=(--dry-run)
 
                 # O comando mostrado pode ser copiado e colado: o caminho é o pelo qual o scripts/workstation.sh foi
-                # chamado (WORKSTATION_PROG, já entre aspas) ou, com o wizard chamado direto, o caminho absoluto.
-                local run_cmd="${WORKSTATION_PROG:-$(shell_quote "$REPO_DIR/scripts/workstation.sh")}"
-                local arg
-                for arg in "${run_args[@]}"; do
-                    run_cmd+=" $(shell_quote "$arg")"
-                done
+                # chamado (WORKSTATION_PROG) ou, com o wizard chamado direto, o caminho absoluto.
+                local run_cmd
+                shell_join run_cmd "${WORKSTATION_PROG:-$REPO_DIR/scripts/workstation.sh}" "${run_args[@]}"
 
                 local summary_text="Provisioning Configuration Summary:\n"
                 summary_text+="\n - Execution Target: ${target_mode}"

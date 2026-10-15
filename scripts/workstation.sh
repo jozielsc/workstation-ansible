@@ -7,8 +7,10 @@
 
 set -euo pipefail
 
-# readlink -f: chamado por um symlink (ex.: ~/bin/ws), o script ainda acha o repositório e a lib.
-SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+# readlink -f: chamado por um symlink (ex.: ~/bin/ws), o script ainda acha o repositório e a lib. Onde o readlink não
+# tem -f (macOS antes do 12.3), vale o caminho da chamada, que funciona sem symlink.
+SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || printf '%s' "${BASH_SOURCE[0]}")"
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 # shellcheck source=scripts/lib/quote.sh
@@ -19,11 +21,22 @@ export ANSIBLE_FORCE_COLOR=1
 export PYTHONUNBUFFERED=1
 # O script não muda de pasta, para que caminhos relativos depois de "--" (-e @vars.yml, --vault-password-file)
 # continuem relativos à pasta de quem chama. Por isso os caminhos do repositório são absolutos, e o ansible.cfg do
-# projeto vem do ANSIBLE_CONFIG (um ANSIBLE_CONFIG já definido continua valendo, como antes).
-export ANSIBLE_CONFIG="${ANSIBLE_CONFIG:-$REPO_DIR/ansible.cfg}"
+# projeto vai no próprio comando, como "env ANSIBLE_CONFIG=… ansible-playbook" (um ANSIBLE_CONFIG já definido continua
+# valendo, como antes): o comando mostrado pelo --print funciona colado em qualquer pasta.
+ANSIBLE_CONFIG_FILE="${ANSIBLE_CONFIG:-$REPO_DIR/ansible.cfg}"
+
+# Nomes simples (perfil, host, usuário do Bastion) e logins SSH, que também aceitam "@" (jdoe@corp.example, do SSSD).
+NAME_RE='^[A-Za-z0-9_][A-Za-z0-9._-]*$'
+LOGIN_RE='^[A-Za-z0-9_][A-Za-z0-9._@-]*$'
 
 # Comando mostrado nas mensagens e nas sugestões: o caminho pelo qual o script foi chamado, que funciona na pasta atual.
-PROG="$(shell_quote "$0")"
+# "bash workstation.sh", chamado dentro de scripts/, vira "./workstation.sh"; um nome achado no PATH fica como está.
+PROG_PATH="$0"
+case "$PROG_PATH" in
+    */*) ;;
+    *) [ ! -e "$PROG_PATH" ] || PROG_PATH="./$PROG_PATH" ;;
+esac
+shell_join PROG "$PROG_PATH"
 PLAYBOOK="$REPO_DIR/playbooks/site.yml"
 SANDBOX_DIR="$REPO_DIR/tests/sandbox"
 
@@ -82,14 +95,15 @@ Uso: $PROG [comando] [opções] [-- argumentos do ansible-playbook]
     --dry-run            local, remote, tunnel: modo simulação (--check --diff); o sandbox ainda o ignora (#12)
     --distro NOME        sandbox, sandbox-shell, sandbox-clean: void, ubuntu, fedora, arch (default: void)
     --ip HOST            remote, tunnel: um único host de destino, hostname ou IPv4 (obrigatório)
-    --user USUARIO       remote, tunnel: usuário SSH no destino (default: o usuário atual, whoami)
+    --user USUARIO       remote, tunnel: usuário SSH no destino (default: o usuário atual, whoami; aceita @)
     --jump-ip HOST       tunnel: host do Bastion (obrigatório)
     --jump-user USUARIO  tunnel: usuário do Bastion (obrigatório)
     --print              Mostra os comandos sem executá-los.
     -- ARGS              local, remote, tunnel, sandbox: argumentos extras para o ansible-playbook (ex.: -- -vvv)
 
   As opções aceitam "--opção valor" e "--opção=valor" (um valor que começa com "-" só na segunda forma).
-  Hosts e usuários aceitam letras, números e . _ -; para IPv6 ou outra porta, use um alias do ~/.ssh/config.
+  Hosts e usuários aceitam letras, números e . _ - (o --user também @); para IPv6 ou outra porta, use um alias
+  do ~/.ssh/config.
 
 EOF
 }
@@ -178,12 +192,16 @@ check_options() {
 # outro host no inventário "<ip>,"; aspas, $, ; ou % quebrariam o ProxyCommand, que o ssh executa num shell local, ou
 # virariam tokens do ssh; um "-" no início viraria opção do ssh. IPv6 e host:porta também ficam de fora, porque o
 # "ssh -W %h:%p" e o "usuario@host" do ProxyCommand não os entendem: para eles, use um alias do ~/.ssh/config.
-# Uso: require_value <variável> <valor> <mensagem> <uso>
+# O tipo "login" (--user) aceita também "@": ele só vira o -u do ansible-playbook e nunca entra no ProxyCommand.
+# Uso: require_value <variável> <valor> <name|login> <mensagem> <uso>
 require_value() {
-    local var="$1" value="$2" message="$3" usage="$4"
+    local var="$1" value="$2" kind="$3" message="$4" usage="$5" pattern="$NAME_RE" chars=". _ -"
+    if [ "$kind" = login ]; then
+        pattern="$LOGIN_RE" chars=". _ - @"
+    fi
     value="${value#"${value%%[![:space:]]*}"}"
     value="${value%"${value##*[![:space:]]}"}"
-    [[ "$value" =~ ^[A-Za-z0-9_][A-Za-z0-9._-]*$ ]] || usage_error "$message (letras, números e . _ -): $usage"
+    [[ "$value" =~ $pattern ]] || usage_error "$message (letras, números e $chars): $usage"
     printf -v "$var" '%s' "$value"
 }
 
@@ -194,14 +212,14 @@ require_ssh_user() {
         *" user "*) ;;
         *) user="$(whoami)" ;;
     esac
-    require_value user "$user" "Defina um único usuário SSH" "$1"
+    require_value user "$user" login "Defina um único usuário SSH" "$1"
 }
 
 # O perfil vira "-e profile=<nome>", que o Ansible lê como uma lista key=value separada por espaços: "default x=y"
 # definiria outra variável. Só passam nomes simples com um arquivo profiles/<nome>.yml.
 require_profile() {
     local available
-    if [[ ! "$profile" =~ ^[A-Za-z0-9_][A-Za-z0-9._-]*$ ]] || [ ! -f "$REPO_DIR/profiles/${profile}.yml" ]; then
+    if [[ ! "$profile" =~ $NAME_RE ]] || [ ! -f "$REPO_DIR/profiles/${profile}.yml" ]; then
         available="$(cd "$REPO_DIR/profiles" && for f in *.yml; do printf '%s ' "${f%.yml}"; done)"
         usage_error "perfil '${profile}' não encontrado em profiles/ (disponíveis: ${available% })"
     fi
@@ -218,10 +236,8 @@ require_distro() {
 
 # Mostra o comando (como o make fazia) e o executa; com --print, só mostra.
 run_cmd() {
-    local arg line=""
-    for arg in "$@"; do
-        line+="${line:+ }$(shell_quote "$arg")"
-    done
+    local line
+    shell_join line "$@"
     printf '%s\n' "$line"
     [ "$print_only" -eq 1 ] || "$@"
 }
@@ -231,11 +247,11 @@ msg() {
     [ "$print_only" -eq 1 ] || echo -e "$1"
 }
 
-# ansible-playbook com tags, perfil e argumentos extras, sem o inventário. Resultado em ANSIBLE_CMD.
+# ansible-playbook com o ansible.cfg, tags, perfil e argumentos extras, sem o inventário. Resultado em ANSIBLE_CMD.
 # Uso: ansible_cmd <pedir a senha do sudo (-K): 0|1> <simulação (--check --diff): 0|1>
 ansible_cmd() {
     local ask_become_pass="$1" check="$2"
-    ANSIBLE_CMD=(ansible-playbook "$PLAYBOOK")
+    ANSIBLE_CMD=(env "ANSIBLE_CONFIG=$ANSIBLE_CONFIG_FILE" ansible-playbook "$PLAYBOOK")
     [ "$ask_become_pass" -eq 0 ] || ANSIBLE_CMD+=(-K)
     ANSIBLE_CMD+=(--tags "$tags" -e "profile=$profile")
     [ "$check" -eq 0 ] || ANSIBLE_CMD+=(--check --diff)
@@ -304,6 +320,18 @@ run_sandbox_clean() {
 main() {
     parse_args "$@"
 
+    # Comando e opções são conferidos antes da ajuda: "bogus --help" e "local --ip x --help" saem com erro.
+    local provision_opts="profile tags dry-run print"
+    case "$command" in
+        ""|help|help-docs) check_options "" 0 ;;
+        local)             check_options "$provision_opts" 1 ;;
+        remote)            check_options "$provision_opts ip user" 1 ;;
+        tunnel)            check_options "$provision_opts ip user jump-ip jump-user" 1 ;;
+        sandbox)           check_options "$provision_opts distro" 1 ;;
+        sandbox-shell|sandbox-clean) check_options "distro print" 0 ;;
+        *)                 usage_error "comando desconhecido: $command" ;;
+    esac
+
     if [ "$want_help" -eq 1 ]; then
         show_help
         return
@@ -316,63 +344,50 @@ main() {
 
     local remote_usage="$PROG remote --ip x.x.x.x [--user usuario]"
     local tunnel_usage="$PROG tunnel --ip x.x.x.x --jump-ip y.y.y.y --jump-user usuario [--user usuario]"
-    local provision_opts="profile tags dry-run print"
 
     case "$command" in
         "")
-            check_options "" 0
             # O wizard exige bash >= 4.4 (docs/ARCHITECTURE.md#wizard-e-camada-de-interface). Ele mostra o comando
             # com o mesmo caminho pelo qual este script foi chamado.
-            WORKSTATION_PROG="$PROG" exec bash "$SCRIPT_DIR/interactive.sh"
+            WORKSTATION_PROG="$PROG_PATH" exec bash "$SCRIPT_DIR/interactive.sh"
             ;;
         help)
-            check_options "" 0
             show_help
             ;;
         help-docs)
-            check_options "" 0
             cat "$REPO_DIR/docs/USAGE.md"
             echo ''
             ;;
         local)
-            check_options "$provision_opts" 1
             require_profile
             run_local
             ;;
         remote)
-            check_options "$provision_opts ip user" 1
             require_profile
-            require_value ip "$ip" "Defina um único IP de destino" "$remote_usage"
+            require_value ip "$ip" name "Defina um único IP de destino" "$remote_usage"
             require_ssh_user "$remote_usage"
             run_remote
             ;;
         tunnel)
-            check_options "$provision_opts ip user jump-ip jump-user" 1
             require_profile
-            require_value ip "$ip" "Defina um único IP de destino" "$tunnel_usage"
-            require_value jump_ip "$jump_ip" "Defina um único IP do Bastion" "$tunnel_usage"
-            require_value jump_user "$jump_user" "Defina um único usuário do Bastion" "$tunnel_usage"
+            require_value ip "$ip" name "Defina um único IP de destino" "$tunnel_usage"
+            require_value jump_ip "$jump_ip" name "Defina um único IP do Bastion" "$tunnel_usage"
+            require_value jump_user "$jump_user" name "Defina um único usuário do Bastion" "$tunnel_usage"
             require_ssh_user "$tunnel_usage"
             run_tunnel
             ;;
         sandbox)
-            check_options "$provision_opts distro" 1
             require_profile
             require_distro
             run_sandbox
             ;;
         sandbox-shell)
-            check_options "distro print" 0
             require_distro
             run_sandbox_shell
             ;;
         sandbox-clean)
-            check_options "distro print" 0
             require_distro
             run_sandbox_clean
-            ;;
-        *)
-            usage_error "comando desconhecido: $command"
             ;;
     esac
 }

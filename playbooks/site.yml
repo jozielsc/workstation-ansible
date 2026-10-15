@@ -8,12 +8,31 @@
 
   vars:
     profile: default
+    # Mínimo do ansible-core: o callback_result_format do ansible.cfg surgiu no 2.13 (antes, a saída volta a ser JSON).
+    min_ansible_core_version: '2.13'
+    # Mínimos para alvos com dnf5 (Fedora ≥ 41), por ramo: o 2.14 não detecta o dnf5, e o módulo falha
+    # (load_config_from_file) até o 2.15.10 e do 2.16.0 ao 2.16.5. Qualquer 2.17+ funciona.
+    min_ansible_core_version_dnf5: '2.15.11'
+    min_ansible_core_version_dnf5_2_16: '2.16.6'
     # Famílias com arquivo vars/<os_family>.yml nas roles. Uma distro fora delas para o play logo no início.
     supported_os_families: ['Debian', 'Void', 'RedHat', 'Archlinux']
     # true força a execução numa distro fora da lista (no profiles/local.yml ou com -e allow_unsupported_distro=true).
     allow_unsupported_distro: false
 
   pre_tasks:
+    # Primeira tarefa: o assert roda no controlador, então para antes de qualquer contato com o host.
+    - name: Verificar a versão mínima do ansible-core
+      ansible.builtin.assert:
+        that: ansible_version.full is version(min_ansible_core_version, '>=')
+        quiet: true
+        # Abaixo do mínimo, a saída do Ansible é JSON: a mensagem evita aspas, que sairiam escapadas.
+        fail_msg: >-
+          Ansible {{ ansible_version.full }} é anterior ao mínimo (ansible-core {{ min_ansible_core_version }}). Atualize o
+          Ansible do controlador; o Ansible 2.10 do apt no Ubuntu 22.04 e no Debian 11, por exemplo, é antigo demais. Veja a
+          seção Collections Ansible necessárias no controlador do docs/ARCHITECTURE.md.
+      run_once: true
+      tags: ['always']
+
     - name: Carregar variáveis do perfil
       ansible.builtin.include_vars:
         file: "{{ playbook_dir }}/../profiles/{{ profile }}.yml"
@@ -64,6 +83,24 @@
               ⚠️ Distro não suportada: {{ _distro_label }}, forçada com allow_unsupported_distro. As roles usam listas
               mínimas de pacotes, o Docker e o Go não são instalados, e o resultado pode ficar parcial.
           when: allow_unsupported_distro | bool
+
+    # Com um ansible-core antigo, o Fedora ≥ 41 seria lido como dnf (ou o módulo dnf5 falharia), e cada tarefa de pacote
+    # falharia depois, sem uma mensagem clara. Usa os fatos mínimos, antes de qualquer tarefa com sudo. O pkg_mgr cobre os
+    # derivados do Fedora com outro nome, mas só quando o ansible-core já detecta o dnf5 (o 2.14 não detecta).
+    - name: Verificar o ansible-core para o dnf5 (Fedora ≥ 41)
+      ansible.builtin.assert:
+        that:
+          - ansible_version.full is version(min_ansible_core_version_dnf5, '>=')
+          - ansible_version.full is version('2.16', '<') or ansible_version.full is version(min_ansible_core_version_dnf5_2_16, '>=')
+        quiet: true
+        fail_msg: >-
+          O {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }} usa o dnf5, que exige no
+          controlador o ansible-core {{ min_ansible_core_version_dnf5 }}+, {{ min_ansible_core_version_dnf5_2_16 }}+ ou
+          qualquer 2.17+ (encontrado: {{ ansible_version.full }}). Veja a ressalva Fedora ≥ 41 em docs/ARCHITECTURE.md.
+      when: >-
+        ansible_facts['pkg_mgr'] == 'dnf5'
+        or (ansible_facts['distribution'] == 'Fedora' and ansible_facts['distribution_major_version'] | int >= 41)
+      tags: ['always']
 
     - name: Coletar os fatos do host
       ansible.builtin.setup:

@@ -67,7 +67,7 @@ Dev tools (ansible, ansible-lint, yamllint, shellcheck-py, molecule) come from t
 ## Architecture
 
 - `playbooks/site.yml` is the only playbook. Its `pre_tasks` (all tagged `always`):
-  1. assert ansible-core ≥ `min_ansible_core_version` (2.13, play `vars:`), on the controller before touching the host;
+  1. assert ansible-core ≥ `min_ansible_core_version` (2.13, play `vars:`), on the controller before touching the host (Fedora ≥ 41 targets also need `min_ansible_core_version_dnf5`, 2.15.13, checked after the minimal `setup`);
   2. load `profiles/{{ profile }}.yml`, then `profiles/local.yml` if present (gitignored; skipped via `when: … is file or … is link`, but an invalid file or broken symlink fails the play);
   3. gather facts (the play has `gather_facts: false`): first a minimal `setup` without become, then fail unless `ansible_facts['os_family']` is in `supported_os_families` (play `vars:`; the same four families as the `vars/<os_family>.yml` files, so a new family goes in both; `allow_unsupported_distro: true` via `local.yml` or `-e` skips it with a warning), then the full `setup` with become; on `dnf5` hosts (Fedora ≥ 41), ensure `python3-libdnf5` (installed if missing, a failed install only warns; a `--dry-run` without it stops with a message);
   4. compute `user_home` and `user_id` by running `echo $HOME && whoami` with `become: false`. The play runs with `become: true`, so **any task that touches the user's home must use `become: false` and `user_home`/`user_id`**, never `ansible_env.HOME` or `ansible_user`.

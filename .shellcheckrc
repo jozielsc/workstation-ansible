@@ -1,2 +1,2 @@
-# Config do shellcheck (`make lint` e CI).
+# Config do shellcheck (`just lint` e CI).
 # Toda exceção entra aqui comentada e com a Issue que trata dela.

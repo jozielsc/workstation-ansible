@@ -71,16 +71,18 @@ Quer testar o provisionamento antes de aplicar em sua máquina pessoal? Use o Sa
 
 #### Lint e testes (desenvolvimento)
 
-As ferramentas de desenvolvimento (`ansible`, `ansible-lint`, `yamllint`, `shellcheck`, `molecule`) são gerenciadas pelo [uv](https://docs.astral.sh/uv/) via `pyproject.toml`. Estas tarefas ainda usam o `make` (elas vão para um `justfile` na issue #68):
+As ferramentas de desenvolvimento (`ansible`, `ansible-lint`, `yamllint`, `shellcheck`, `molecule`) são gerenciadas pelo [uv](https://docs.astral.sh/uv/) via `pyproject.toml`, inclusive o [just](https://github.com/casey/just), que roda as receitas do `justfile`:
 
 ```bash
-uv sync      # cria o .venv com as ferramentas
-make lint    # syntax-check, ansible-lint, yamllint e shellcheck
-make test    # uv run molecule test (o cenário ainda está na issue #34)
-make check   # lint + test
+uv sync                        # cria o .venv com as ferramentas
+uv run just                    # lista as receitas
+uv run just lint               # syntax-check, ansible-lint, yamllint e shellcheck
+uv run just test               # uv run molecule test (o cenário ainda está na issue #34)
+uv run just check              # lint + test
+uv run just sandbox ubuntu rust  # ./scripts/workstation.sh sandbox --distro ubuntu --tags rust
 ```
 
-O CI (GitHub Actions) roda o mesmo `make lint` em todo PR e em push na `main`. O Molecule é um teste **adicional**: não substitui o Sandbox acima.
+O CI (GitHub Actions) roda o mesmo `just lint` em todo PR e em push na `main`. O Molecule é um teste **adicional**: não substitui o Sandbox acima.
 
 ---
 
@@ -190,16 +192,18 @@ Want to test provisioning safely before applying to your personal machine? Use t
 
 #### Lint and tests (development)
 
-Development tools (`ansible`, `ansible-lint`, `yamllint`, `shellcheck`, `molecule`) are managed by [uv](https://docs.astral.sh/uv/) through `pyproject.toml`. These tasks still use `make` (they move to a `justfile` in issue #68):
+Development tools (`ansible`, `ansible-lint`, `yamllint`, `shellcheck`, `molecule`) are managed by [uv](https://docs.astral.sh/uv/) through `pyproject.toml`, including [just](https://github.com/casey/just), which runs the `justfile` recipes:
 
 ```bash
-uv sync      # creates .venv with the tools
-make lint    # syntax-check, ansible-lint, yamllint and shellcheck
-make test    # uv run molecule test (the scenario is still tracked in issue #34)
-make check   # lint + test
+uv sync                        # creates .venv with the tools
+uv run just                    # lists the recipes
+uv run just lint               # syntax-check, ansible-lint, yamllint and shellcheck
+uv run just test               # uv run molecule test (the scenario is still tracked in issue #34)
+uv run just check              # lint + test
+uv run just sandbox ubuntu rust  # ./scripts/workstation.sh sandbox --distro ubuntu --tags rust
 ```
 
-CI (GitHub Actions) runs the same `make lint` on every PR and on pushes to `main`. Molecule is an **additional** test: it does not replace the Sandbox above.
+CI (GitHub Actions) runs the same `just lint` on every PR and on pushes to `main`. Molecule is an **additional** test: it does not replace the Sandbox above.
 
 ---
 
@@ -258,13 +262,13 @@ Run specific components using `--tags`:
 
 ```plaintext
 workstation-ansible/
-├── Makefile              # Development tasks: lint, test, check (moving to a justfile: #68)
+├── justfile              # Development tasks: lint, test, check, sandbox (uv run just)
 ├── scripts/
 │   ├── workstation.sh    # Provisioning entry point (local, remote, tunnel, sandbox, wizard)
 │   ├── interactive.sh    # Interactive TUI wizard
 │   └── lib/quote.sh      # Shell quoting shared by both scripts
 ├── pyproject.toml        # uv dev environment (ansible, linters, molecule) + uv.lock
-├── .github/workflows/    # CI: make lint on PRs and pushes to main
+├── .github/workflows/    # CI: just lint on PRs and pushes to main
 ├── README.md             # Documentation (Bilingual)
 ├── profiles/             # Configuration profiles (default.yml, local.sample.yml)
 ├── playbooks/

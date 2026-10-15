@@ -7,7 +7,7 @@ Ambiente de referência da análise: ansible-core 2.20.0, community.general 11.4
 O backlog oficial são as Issues do GitHub, no Project #6 (veja [WORKFLOW.md](WORKFLOW.md)). Cada item rastreado leva o número da sua Issue (`#<n>`). O épico de suporte a RedHat/Arch é a Issue #6 (não confundir com o Project #6).
 
 Legenda de evidência:
-- **Confirmado**: verificado por `make -n` (antes da #67) ou pelo `--print` do `scripts/workstation.sh`, `--syntax-check`/`--list-tasks`, teste isolado ou leitura sem ambiguidade do código.
+- **Confirmado**: verificado pelo `--print` do `scripts/workstation.sh` (ou, antes da #67, pela simulação do antigo executor de tarefas), `--syntax-check`/`--list-tasks`, teste isolado ou leitura sem ambiguidade do código.
 - **Provável**: deduzido do código e da documentação dos módulos, sem execução real.
 - **A verificar**: hipótese que precisa ser reproduzida no sandbox.
 
@@ -58,8 +58,8 @@ Legenda de evidência:
 
 ## Ferramentas e qualidade
 
-- Não há como instalar as collections pelo projeto: o `make deps` referenciava um `requirements.yml` que não existe e foi removido na #67, sem substituto. (#20)
+- Não há como instalar as collections pelo projeto: o antigo comando `deps` referenciava um `requirements.yml` que não existe e foi removido na #67, sem substituto. (#20)
 - As collections não são declaradas em lugar nenhum, e o `community.general` é dependência implícita no Void e no Arch. Detalhes em [ARCHITECTURE.md](ARCHITECTURE.md#collections-ansible-necessárias-no-controlador). (#20)
-- O CI só roda o `make lint`. Não há CI do provisionamento, testes de idempotência (rodar duas vezes e conferir `changed=0`) nem verificação depois do provisionamento. (#29)
+- O CI só roda o `just lint`. Não há CI do provisionamento, testes de idempotência (rodar duas vezes e conferir `changed=0`) nem verificação depois do provisionamento. (#29)
 - O sandbox não tem init, então os caminhos de serviço (systemd e runit) não são testados, e as distros só rodam manualmente. (#29)
 - Não há checagem de distro suportada no início do play. Uma distro desconhecida cai nos fallbacks mínimos sem aviso. (#10)

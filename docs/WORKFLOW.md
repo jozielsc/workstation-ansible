@@ -6,7 +6,7 @@ Regras para qualquer pessoa ou agente que analise, modifique ou evolua este proj
 
 - **O backlog único é o GitHub Project "workstation-ansible"** (#6 de `jozielsc`, https://github.com/users/jozielsc/projects/6). Ele é alimentado pelas Issues de `jozielsc/workstation-ansible`. Trabalho identificado vira Issue no board, não fica só em documento, comentário ou conversa.
 - **O conhecimento do projeto fica em `docs/`.** O `CLAUDE.md` contém só o essencial e estável e aponta para `docs/`.
-- **Analisar não autoriza alterar código.** Durante uma análise, só é permitido documentar e criar ou atualizar Issues. Código de produção (playbooks, roles, Makefile, scripts, perfis) só muda quando a implementação é pedida explicitamente.
+- **Analisar não autoriza alterar código.** Durante uma análise, só é permitido documentar e criar ou atualizar Issues. Código de produção (playbooks, roles, justfile, scripts, perfis) só muda quando a implementação é pedida explicitamente.
 - **Divergência com o legado.** Quando o estado atual do repositório diverge de uma regra deste documento, código novo ou alterado segue a regra. Não saia corrigindo todo o legado sem uma Issue para isso.
 
 ## Código ↔ documentação ↔ Issues
@@ -185,14 +185,14 @@ Não pule etapas e não abra branch sem uma Issue por trás.
 
 ## Definição de pronto
 
-- `make lint` (`ansible-playbook --syntax-check`, `ansible-lint`, `yamllint` e `shellcheck`, via uv) passa. É a mesma checagem do CI.
-- `make test` (`uv run molecule test`) passa, quando o cenário Molecule existir (#34). Ele complementa o sandbox, não o substitui.
-- As tags afetadas foram executadas no sandbox, em `void` e `ubuntu` (`./scripts/workstation.sh sandbox --distro <d> --tags <tags>`), sem falhas, e também em `fedora` e `arch` quando a mudança toca caminhos de RedHat ou Arch (pacotes em `vars/RedHat.yml`/`vars/Archlinux.yml`, ramos por `os_family`). Mudanças que alteram estado devem mostrar `changed=0` numa segunda execução (idempotência). Como o `sandbox` recria o container a cada chamada (#51), a segunda execução é o `ansible-playbook` que `./scripts/workstation.sh sandbox --distro <d> --tags <tags> --print` mostra, rodado de novo contra o container que ficou de pé.
+- `uv run just lint` (`ansible-playbook --syntax-check`, `ansible-lint`, `yamllint` e `shellcheck`, via uv) passa. É a mesma checagem do CI.
+- `uv run just test` (`uv run molecule test`) passa, quando o cenário Molecule existir (#34). Ele complementa o sandbox, não o substitui.
+- As tags afetadas foram executadas no sandbox, em `void` e `ubuntu` (`./scripts/workstation.sh sandbox --distro <d> --tags <tags>` ou `uv run just sandbox <d> <tags>`), sem falhas, e também em `fedora` e `arch` quando a mudança toca caminhos de RedHat ou Arch (pacotes em `vars/RedHat.yml`/`vars/Archlinux.yml`, ramos por `os_family`). Mudanças que alteram estado devem mostrar `changed=0` numa segunda execução (idempotência). Como o `sandbox` recria o container a cada chamada (#51), a segunda execução é o `ansible-playbook` que `./scripts/workstation.sh sandbox --distro <d> --tags <tags> --print` mostra, rodado de novo contra o container que ficou de pé, com o mesmo Ansible da primeira: se a primeira foi pelo `uv run just sandbox`, que usa o Ansible do `.venv`, rode a segunda com `uv run <comando>`; se foi pelo script direto, que usa o do sistema, rode o comando como ele aparece. Com versões diferentes de ansible-core ou das collections (#38), o `changed=0` não prova a idempotência.
 - Quando a mudança é específica de algo que o sandbox não cobre (RHEL/Rocky com EPEL, caminhos de serviço, máquina real sem as dependências que a imagem já traz), a limitação está registrada no PR.
 - A documentação afetada foi atualizada no mesmo PR: `docs/`, e também `README.md` e `USAGE.md` quando o comportamento visível muda. A lista de tags está sincronizada nos lugares listados no `CLAUDE.md`.
 - Nenhum documento descreve comportamento obsoleto. O item correspondente do `TECH_DEBT.md` foi removido, e a matriz e as seções do `ARCHITECTURE.md` refletem o novo estado.
 - Achados novos e descobertas sobre o sistema feitos durante o trabalho estão documentados em `docs/`, ou registrados como Issue quando são trabalho a fazer.
-- CI verde no PR (`gh pr checks <PR> --watch`). Hoje o CI roda o `make lint` (`.github/workflows/ci.yml`).
+- CI verde no PR (`gh pr checks <PR> --watch`). Hoje o CI roda o `uv run --locked just lint` (`.github/workflows/ci.yml`).
 
 ## Fluxo de uma análise ampla
 

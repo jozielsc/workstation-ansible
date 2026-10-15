@@ -1,5 +1,5 @@
 ---
-# Config do yamllint, usada pelo `make lint` (yamllint direto) e também pelo
+# Config do yamllint, usada pelo `just lint` (yamllint direto) e também pelo
 # ansible-lint (regra `yaml`). Os ajustes abaixo repetem o default do
 # ansible-lint; os de `comments`, `comments-indentation`, `braces` e
 # `octal-values` são exigidos por ele, que avisa se a config for incompatível.

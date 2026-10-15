@@ -21,13 +21,14 @@ O script `scripts/workstation.sh` é a interface principal. Rode-o da raiz do re
 
 Não há comando para instalar as collections do Ansible (#20). Veja como obtê-las em [ARCHITECTURE.md](ARCHITECTURE.md#collections-ansible-necessárias-no-controlador).
 
-As tarefas de desenvolvimento ainda usam o `make` (elas vão para um `justfile` na #68):
+As tarefas de desenvolvimento ficam no `justfile` e rodam com o [just](https://github.com/casey/just), que vem do ambiente de desenvolvimento do uv. `uv run just` lista as receitas:
 
-*   `make lint`: Executa, em sequência, o `--syntax-check` do playbook, o `ansible-lint`, o `yamllint` e o `shellcheck` dos scripts. São as mesmas checagens do CI que roda nos PRs.
-*   `make test`: Executa o cenário Molecule (`uv run molecule test`). Enquanto o cenário não existir (#34), para com uma mensagem.
-*   `make check`: Executa `lint` e, se ele passar, `test`.
+*   `uv run just lint`: Executa, em sequência, o `--syntax-check` do playbook, o `ansible-lint`, o `yamllint` e o `shellcheck` dos scripts. São as mesmas checagens do CI que roda nos PRs.
+*   `uv run just test`: Executa o cenário Molecule (`uv run molecule test`). Enquanto o cenário não existir (#34), para com uma mensagem.
+*   `uv run just check`: Executa `lint` e, se ele passar, `test`.
+*   `uv run just sandbox [distro] [tags] [argumentos]`: Atalho para `./scripts/workstation.sh sandbox --distro <distro> --tags <tags>` (padrão: `void` e `all`); os argumentos extras vão para o `ansible-playbook`. Para passar argumentos extras, informe antes a distro e as tags, mesmo que sejam as padrão: `uv run just sandbox ubuntu rust -vv` ou `uv run just sandbox void all -vv`. Em `uv run just sandbox ubuntu -vv`, o `-vv` seria lido como as tags, e a receita sai com erro. Como no script, caminhos relativos nos argumentos extras (`-e @vars.yml`) valem a partir da pasta de onde você chamou.
 
-`lint`, `test` e `check` usam o ambiente de desenvolvimento do [uv](https://docs.astral.sh/uv/) (`pyproject.toml`). Rode `uv sync` uma vez antes. O Molecule é um teste adicional: não substitui o sandbox.
+As receitas usam o ambiente de desenvolvimento do [uv](https://docs.astral.sh/uv/) (`pyproject.toml`). Rode `uv sync` uma vez antes. Com o `.venv` ativado, basta `just <receita>`. Quem só provisiona não precisa do uv nem do just. O Molecule é um teste adicional: não substitui o sandbox.
 
 ### Opções
 

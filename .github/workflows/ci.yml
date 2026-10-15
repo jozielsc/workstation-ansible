@@ -1,6 +1,6 @@
 ---
-# Lint em PRs e pushes na main. Roda o mesmo `make lint` do ambiente local,
-# com as versões travadas no uv.lock. Actions pinadas por SHA (a tag fica no
+# Lint em PRs e pushes na main. Roda o mesmo `just lint` do ambiente local,
+# com as versões travadas no uv.lock (o just também vem do grupo dev do uv). Actions pinadas por SHA (a tag fica no
 # comentário).
 name: CI
 
@@ -44,5 +44,5 @@ jobs:
       - name: Instalar as dependências de desenvolvimento
         run: uv sync --locked
 
-      - name: make lint
-        run: make lint
+      - name: just lint
+        run: uv run --locked just lint

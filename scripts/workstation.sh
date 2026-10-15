@@ -205,7 +205,7 @@ require_value() {
     printf -v "$var" '%s' "$value"
 }
 
-# Sem --user, o usuário SSH é o usuário atual (#35: o Makefile usava o $USER do ambiente). Um --user vazio é recusado,
+# Sem --user, o usuário SSH é o usuário atual (#35: antes, ele vinha do $USER do ambiente). Um --user vazio é recusado,
 # em vez de cair no default.
 require_ssh_user() {
     case "$used_opts" in
@@ -234,7 +234,7 @@ require_distro() {
 
 # --- Execução ---
 
-# Mostra o comando (como o make fazia) e o executa; com --print, só mostra.
+# Mostra o comando e o executa; com --print, só mostra.
 run_cmd() {
     local line
     shell_join line "$@"

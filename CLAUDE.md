@@ -4,12 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Ansible project that provisions a Linux developer workstation (Debian/Ubuntu, Void, RedHat/Fedora, Arch). There is no build step; `scripts/workstation.sh` is the entry point and wraps `ansible-playbook playbooks/site.yml`. The `Makefile` only keeps the dev tasks (`lint`, `test`, `check`) until #68 moves them to a `justfile`. Task names, comments, docs and user-facing messages are written in Portuguese — keep that convention.
+Ansible project that provisions a Linux developer workstation (Debian/Ubuntu, Void, RedHat/Fedora, Arch). There is no build step; `scripts/workstation.sh` is the entry point and wraps `ansible-playbook playbooks/site.yml`. Dev tasks (`lint`, `test`, `check`, a `sandbox` shortcut) live in the `justfile` and run with `uv run just <recipe>`; provisioning needs neither uv nor just. Task names, comments, docs and user-facing messages are written in Portuguese — keep that convention.
 
 ## Workflow rules
 
 Full rules, board field IDs and `gh` recipes are in `docs/WORKFLOW.md`. Essentials:
-- Analysis never authorizes changing production code (playbooks, roles, Makefile, scripts, profiles); only documentation and GitHub Issues. Implement only when explicitly asked. Where legacy code diverges from a rule, new or changed code follows the rule; don't fix the legacy without an issue.
+- Analysis never authorizes changing production code (playbooks, roles, justfile, scripts, profiles); only documentation and GitHub Issues. Implement only when explicitly asked. Where legacy code diverges from a rule, new or changed code follows the rule; don't fix the legacy without an issue.
 - Keep **code ↔ `docs/` ↔ GitHub Issues** consistent at all times: code is the current implementation, `docs/` is the current knowledge (what/how/why), Issues are the remaining actionable work. Don't duplicate between them: Issues reference doc sections for technical context instead of copying it.
 - Record architectural discoveries, constraints, legacy behavior and design decisions in the right file under `docs/` (update before creating new docs). A change that alters documented behavior updates the docs in the same PR; never leave docs describing obsolete behavior, and substantial work isn't done until its knowledge is documented. Keep this file concise.
 - Before implementing an issue, read it and the relevant docs and check that both still match the code.
@@ -40,9 +40,11 @@ $W tunnel --ip ... --user ... --jump-ip ... --jump-user ...
 $W local -- -vvv             # args after -- are appended to ansible-playbook
 $W <command> ... --print     # print the exact commands without running them
 $W help                      # commands and options
-make lint                    # syntax-check + ansible-lint + yamllint + shellcheck (via uv; moves to just in #68)
-make test                    # uv run molecule test (scenario pending: #34)
-make check                   # lint + test
+uv run just                  # list the dev recipes (just comes from the uv dev group)
+uv run just lint             # syntax-check + ansible-lint + yamllint + shellcheck (via uv)
+uv run just test             # uv run molecule test (scenario pending: #34)
+uv run just check            # lint, then test
+uv run just sandbox ubuntu rust -vv  # shortcut for workstation.sh sandbox --distro ubuntu --tags rust -- -vv
 
 # Static checks that never touch a host
 ansible-playbook playbooks/site.yml --syntax-check -i localhost,
@@ -58,9 +60,9 @@ Testing is done in disposable Docker containers, never on the host:
 ./scripts/workstation.sh sandbox-clean --distro void
 ```
 
-`sandbox` builds `tests/sandbox/Dockerfile.<distro>`, recreates the container, and runs the playbook against it with `-c docker -u dev` (passwordless sudo, no `-K`). It builds its own `ansible-playbook` command, so `--dry-run` does not apply to it (it only warns, #12). The containers have no init system (runit/systemd not PID 1), so service-enablement paths are skipped there and are never exercised by the sandbox. Dockerfiles exist for `void`, `ubuntu`, `fedora` and `arch`. CI (`.github/workflows/ci.yml`) only runs `make lint` on PRs and pushes to `main`; the sandbox has no CI yet (#29).
+`sandbox` builds `tests/sandbox/Dockerfile.<distro>`, recreates the container, and runs the playbook against it with `-c docker -u dev` (passwordless sudo, no `-K`). It builds its own `ansible-playbook` command, so `--dry-run` does not apply to it (it only warns, #12). The containers have no init system (runit/systemd not PID 1), so service-enablement paths are skipped there and are never exercised by the sandbox. Dockerfiles exist for `void`, `ubuntu`, `fedora` and `arch`. CI (`.github/workflows/ci.yml`) only runs `uv run --locked just lint` on PRs and pushes to `main`; the sandbox has no CI yet (#29).
 
-Dev tools (ansible, ansible-lint, yamllint, shellcheck-py, molecule) come from the uv `dev` group in `pyproject.toml` (`uv sync`); run them via `uv run` / `make lint|test|check` (a `justfile` replaces the `Makefile` in #68). Molecule is an additional test layer: it does **not** replace the sandbox matrix (#29) or the lint CI unless the maintainer says so.
+Dev tools (ansible, ansible-lint, yamllint, shellcheck-py, molecule) come from the uv `dev` group in `pyproject.toml` (`uv sync`); run them via `uv run` / `uv run just lint|test|check`. The `justfile` only holds dev tasks; recipes run with `bash -euo pipefail` in the repo root, and `sandbox` just forwards to `scripts/workstation.sh` (no docker/ansible logic of its own). Molecule is an additional test layer: it does **not** replace the sandbox matrix (#29) or the lint CI unless the maintainer says so.
 
 ## Architecture
 

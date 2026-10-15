@@ -7,6 +7,9 @@
 
 set -euo pipefail
 
+# Com CDPATH exportado, o "cd" abaixo imprimiria a pasta, e o caminho calculado ficaria com duas linhas.
+unset CDPATH
+
 # readlink -f: chamado por um symlink (ex.: ~/bin/ws), o script ainda acha o repositório e a lib. Onde o readlink não
 # tem -f (macOS antes do 12.3), vale o caminho da chamada, que funciona sem symlink.
 SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || printf '%s' "${BASH_SOURCE[0]}")"
@@ -34,6 +37,8 @@ LOGIN_RE='^[A-Za-z0-9_][A-Za-z0-9._@-]*$'
 # muda o texto exibido, nunca o que é executado. "bash workstation.sh", chamado na pasta do arquivo, vira
 # "./workstation.sh"; um nome achado no PATH fica como está.
 PROG_PATH="${WORKSTATION_PROG:-$0}"
+# Lida, a variável sai do ambiente: não passa ao ansible-playbook e ao docker, e o wizard a recebe explicitamente.
+unset WORKSTATION_PROG
 case "$PROG_PATH" in
     */*) ;;
     *) [ ! -e "$PROG_PATH" ] || PROG_PATH="./$PROG_PATH" ;;

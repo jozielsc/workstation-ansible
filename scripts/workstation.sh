@@ -30,8 +30,10 @@ NAME_RE='^[A-Za-z0-9_][A-Za-z0-9._-]*$'
 LOGIN_RE='^[A-Za-z0-9_][A-Za-z0-9._@-]*$'
 
 # Comando mostrado nas mensagens e nas sugestões: o caminho pelo qual o script foi chamado, que funciona na pasta atual.
-# "bash workstation.sh", chamado dentro de scripts/, vira "./workstation.sh"; um nome achado no PATH fica como está.
-PROG_PATH="$0"
+# O atalho da raiz (./workstation.sh) e este script, ao abrir o wizard, informam esse caminho em WORKSTATION_PROG, que só
+# muda o texto exibido, nunca o que é executado. "bash workstation.sh", chamado na pasta do arquivo, vira
+# "./workstation.sh"; um nome achado no PATH fica como está.
+PROG_PATH="${WORKSTATION_PROG:-$0}"
 case "$PROG_PATH" in
     */*) ;;
     *) [ ! -e "$PROG_PATH" ] || PROG_PATH="./$PROG_PATH" ;;

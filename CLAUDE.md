@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Ansible project that provisions a Linux developer workstation (Debian/Ubuntu, Void, RedHat/Fedora, Arch). There is no build step; `scripts/workstation.sh` is the entry point and wraps `ansible-playbook playbooks/site.yml`. Dev tasks (`lint`, `test`, `check`, a `sandbox` shortcut) live in the `justfile` and run with `uv run just <recipe>`; provisioning needs neither uv nor just. Task names, comments, docs and user-facing messages are written in Portuguese — keep that convention.
+Ansible project that provisions a Linux developer workstation (Debian/Ubuntu, Void, RedHat/Fedora, Arch). There is no build step; `scripts/workstation.sh` is the entry point and wraps `ansible-playbook playbooks/site.yml`; `./workstation.sh` at the root is a thin wrapper that `exec`s it (passing its own path in `WORKSTATION_PROG` so messages show `./workstation.sh`). Dev tasks (`lint`, `test`, `check`, a `sandbox` shortcut) live in the `justfile` and run with `uv run just <recipe>`; provisioning needs neither uv nor just. Task names, comments, docs and user-facing messages are written in Portuguese — keep that convention.
 
 ## Workflow rules
 

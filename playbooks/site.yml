@@ -10,9 +10,10 @@
     profile: default
     # Mínimo do ansible-core: o callback_result_format do ansible.cfg surgiu no 2.13 (antes, a saída volta a ser JSON).
     min_ansible_core_version: '2.13'
-    # Mínimo para alvos com dnf5 (Fedora ≥ 41): antes, o Ansible não detecta o dnf5 (2.14) ou o módulo falha (2.15.0).
-    # O 2.15.13 é a versão mais antiga confirmada; o patch exato em que o 2.15 passa a funcionar não foi apurado.
-    min_ansible_core_version_dnf5: '2.15.13'
+    # Mínimos para alvos com dnf5 (Fedora ≥ 41), por ramo: o 2.14 não detecta o dnf5, e o módulo falha
+    # (load_config_from_file) até o 2.15.10 e do 2.16.0 ao 2.16.5. Qualquer 2.17+ funciona.
+    min_ansible_core_version_dnf5: '2.15.11'
+    min_ansible_core_version_dnf5_2_16: '2.16.6'
     # Famílias com arquivo vars/<os_family>.yml nas roles. Uma distro fora delas para o play logo no início.
     supported_os_families: ['Debian', 'Void', 'RedHat', 'Archlinux']
     # true força a execução numa distro fora da lista (no profiles/local.yml ou com -e allow_unsupported_distro=true).
@@ -84,18 +85,21 @@
           when: allow_unsupported_distro | bool
 
     # Com um ansible-core antigo, o Fedora ≥ 41 seria lido como dnf (ou o módulo dnf5 falharia), e cada tarefa de pacote
-    # falharia depois, sem uma mensagem clara. Usa os fatos mínimos, antes de qualquer tarefa com sudo.
+    # falharia depois, sem uma mensagem clara. Usa os fatos mínimos, antes de qualquer tarefa com sudo. O pkg_mgr cobre os
+    # derivados do Fedora com outro nome, mas só quando o ansible-core já detecta o dnf5 (o 2.14 não detecta).
     - name: Verificar o ansible-core para o dnf5 (Fedora ≥ 41)
       ansible.builtin.assert:
-        that: ansible_version.full is version(min_ansible_core_version_dnf5, '>=')
+        that:
+          - ansible_version.full is version(min_ansible_core_version_dnf5, '>=')
+          - ansible_version.full is version('2.16', '<') or ansible_version.full is version(min_ansible_core_version_dnf5_2_16, '>=')
         quiet: true
         fail_msg: >-
-          O {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }} usa o dnf5, que exige
-          ansible-core {{ min_ansible_core_version_dnf5 }} ou mais novo no controlador (encontrado:
-          {{ ansible_version.full }}). Veja a ressalva Fedora ≥ 41 em docs/ARCHITECTURE.md.
-      when:
-        - ansible_facts['distribution'] == 'Fedora'
-        - ansible_facts['distribution_major_version'] | int >= 41
+          O {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }} usa o dnf5, que exige no
+          controlador o ansible-core {{ min_ansible_core_version_dnf5 }}+, {{ min_ansible_core_version_dnf5_2_16 }}+ ou
+          qualquer 2.17+ (encontrado: {{ ansible_version.full }}). Veja a ressalva Fedora ≥ 41 em docs/ARCHITECTURE.md.
+      when: >-
+        ansible_facts['pkg_mgr'] == 'dnf5'
+        or (ansible_facts['distribution'] == 'Fedora' and ansible_facts['distribution_major_version'] | int >= 41)
       tags: ['always']
 
     - name: Coletar os fatos do host

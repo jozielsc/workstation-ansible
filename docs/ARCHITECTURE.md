@@ -61,14 +61,17 @@ O wizard exige bash ≥ 4.4: ele roda com `set -u`, e expandir um array vazio (`
 
 ## Playbook `site.yml`
 
-Um único play, `hosts: all`, `become: true`, `gather_facts: true`.
+Um único play, `hosts: all`, `become: true`, `gather_facts: false`: os fatos são coletados nos `pre_tasks` (passos 3 e 5), primeiro só os da distro, sem sudo, depois todos, com sudo, como faria o `gather_facts`. Assim, as roles recebem os mesmos fatos de antes.
 
 `pre_tasks`, todos com tag `always`, então rodam com qualquer `--tags`:
 
 1. `include_vars {{ playbook_dir }}/../profiles/{{ profile }}.yml`: falha se o perfil não existir.
 2. `include_vars {{ playbook_dir }}/../profiles/local.yml`, só quando o arquivo existe (`when: … is file or … is link`, avaliado no controller): overrides pessoais, fora do Git. Um `local.yml` que existe mas é inválido (YAML quebrado, conteúdo que não é dicionário, symlink quebrado) faz o play falhar logo no início.
-3. `shell: echo $HOME && whoami` com `become: false`, registrado como `real_user_info`. Roda também em check mode.
-4. `set_fact user_home` / `user_id`.
+3. `setup` com `gather_subset: ['!all']` e `become: false`: só os fatos mínimos (`distribution`, `os_family`…), sem sudo, para que a checagem seguinte apareça mesmo num host sem `sudo` (por exemplo, Alpine com `doas`). Precisa de `python3` no host: sem ele, o play falha aqui com `No python interpreter found`, antes da mensagem.
+4. Um `block` que só roda quando `ansible_facts['os_family']` não está em `supported_os_families` (`Debian`, `Void`, `RedHat`, `Archlinux`, definida em `vars:` do play) e define o rótulo da distro uma vez. Numa distro fora da lista (Alpine, openSUSE, Gentoo…), um `fail` para o play aqui, antes de qualquer tarefa com sudo (a senha do `-K` ainda é pedida no início), com uma mensagem que mostra a distro detectada, as famílias suportadas e como forçar. Sem essa checagem, os `include_vars` das roles falhariam em silêncio e só os fallbacks mínimos seriam instalados. Para forçar a execução mesmo assim, defina `allow_unsupported_distro: true` (padrão `false`) no `profiles/local.yml`, o único caminho que também funciona pelo wizard, ou com `-e allow_unsupported_distro=true` (no `workstation.sh`, depois de `--`: `./workstation.sh local -- -e allow_unsupported_distro=true`); o `fail` é pulado e um `debug` com `⚠️` avisa que o resultado pode ficar parcial: as roles usam os fallbacks mínimos, e o Docker e o Go não têm ramo para a família, então não são instalados. A checagem fica depois dos perfis justamente para aceitar o override do `local.yml`. Ela é por família: derivados como Linux Mint, Pop!_OS ou Kali passam (`os_family: Debian`), mas o repositório do Docker ainda quebra neles (#22).
+5. `setup` completo, com sudo (o `become: true` do play).
+6. `shell: echo $HOME && whoami` com `become: false`, registrado como `real_user_info`. Roda também em check mode.
+7. `set_fact user_home` / `user_id`.
 
 `user_home` e `user_id` são o contrato entre o play e as roles: como o play roda como root, qualquer tarefa que escreve no home do usuário usa `become: false` e esses fatos.
 
@@ -95,11 +98,11 @@ Há três fontes de variáveis, todas carregadas com `include_vars`. Entre chama
 Consequências:
 
 - Listas base (`devtools_packages`, `editors_packages`, `ui_packages`) vêm sempre do arquivo da distro. Um perfil que as define não tem efeito quando o arquivo da distro existe. A forma suportada de personalizar é `*_extra_packages`.
-- O fallback `set_fact … when: X_packages is not defined` só entra quando não existe arquivo de vars para a distro (o `include_vars` tem `failed_when: false`).
+- O fallback `set_fact … when: X_packages is not defined` só entra quando não existe arquivo de vars para a distro (o `include_vars` tem `failed_when: false`). Como uma família fora de `supported_os_families` para o play nos `pre_tasks`, na prática ele só é alcançado com `allow_unsupported_distro: true`.
 - Dicionários são **substituídos, não mesclados** (`hash_behaviour` padrão). Definir `devtools_features: {lazygit: false}` em `local.yml` remove a chave `tpm`, que então assume o `default()` da tarefa.
 - Os defaults de features divergem: `devtools_features.*` e `ui_features.*` usam `default(false)`, e `languages_features.*` usa `default(true)`.
 
-`os_family` usado nos nomes de arquivo: `Debian`, `Void`, `RedHat`, `Archlinux`.
+`os_family` usado nos nomes de arquivo: `Debian`, `Void`, `RedHat`, `Archlinux`. São as mesmas famílias de `supported_os_families` no `site.yml`; uma família nova precisa entrar nos dois lugares.
 
 ## Semântica de tags
 
@@ -117,7 +120,7 @@ Comportamento verificado com ansible-core 2.20:
 
 ```
 include_vars <os_family>.yml (failed_when: false)
-set_fact <role>_packages (fallback mínimo, se indefinido)
+set_fact <role>_packages (fallback mínimo, se indefinido; só com allow_unsupported_distro)
 set_fact _<role>_target_packages = base + *_extra_packages (+ user_extra_packages em devtools)
 debug  banner "📌 STATUS" com contagem e lista
 block:  package: name=<lista inteira>          # uma transação
@@ -217,7 +220,7 @@ O callback de saída (`ansible.builtin.default`) não depende de collection.
 
 ## Matriz de suporte por plataforma
 
-Estado do código na v1.2.1 (2026-10). Atualize esta tabela quando a cobertura mudar.
+Estado do código na v1.2.1 (2026-10). Atualize esta tabela quando a cobertura mudar. Uma distro de outra família para o play no início (passo 4 dos `pre_tasks` em [Playbook `site.yml`](#playbook-siteyml)), a menos que `allow_unsupported_distro` seja `true`.
 
 | Componente | Debian/Ubuntu | Void | RedHat/Fedora | Arch |
 |---|---|---|---|---|

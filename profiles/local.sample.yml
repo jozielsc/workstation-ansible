@@ -2,6 +2,10 @@
 # Copie este arquivo para 'profiles/local.yml' para personalizar sua instalação.
 # O arquivo 'profiles/local.yml' é ignorado pelo Git.
 
+# --- Distro fora das famílias suportadas (Debian, Void, RedHat, Archlinux) ---
+# true roda mesmo assim, com um aviso; o resultado pode ficar parcial.
+# allow_unsupported_distro: true
+
 # --- Pacotes Extras de Desenvolvimento ---
 devtools_extra_packages:
   - fastfetch

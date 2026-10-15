@@ -62,4 +62,3 @@ Legenda de evidência:
 - As collections não são declaradas em lugar nenhum, e o `community.general` é dependência implícita no Void e no Arch. Detalhes em [ARCHITECTURE.md](ARCHITECTURE.md#collections-ansible-necessárias-no-controlador). (#20)
 - O CI só roda o `just lint`. Não há CI do provisionamento, testes de idempotência (rodar duas vezes e conferir `changed=0`) nem verificação depois do provisionamento. (#29)
 - O sandbox não tem init, então os caminhos de serviço (systemd e runit) não são testados, e as distros só rodam manualmente. (#29)
-- Não há checagem de distro suportada no início do play. Uma distro desconhecida cai nos fallbacks mínimos sem aviso. (#10)

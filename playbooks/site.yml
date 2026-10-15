@@ -69,6 +69,37 @@
       ansible.builtin.setup:
       tags: ['always']
 
+    # No dnf5 (Fedora ≥ 41), o módulo package precisa do python3-libdnf5 no alvo. O ansible-core ≥ 2.19 o instala
+    # sozinho na primeira tarefa de pacote, mas não em check mode, e versões anteriores falham. Antes das roles, para
+    # que nenhuma tarefa de pacote dependa da versão do controlador.
+    - name: Garantir o python3-libdnf5 (dnf5)
+      when: ansible_facts['pkg_mgr'] == 'dnf5'
+      tags: ['always']
+      block:
+        # O mesmo teste do módulo dnf5: importar o libdnf5 no python do sistema (sem ele, rc 1, ImportError).
+        - name: Verificar se o python3-libdnf5 está instalado
+          ansible.builtin.command: /usr/bin/python3 -c 'import libdnf5'
+          register: _libdnf5_query
+          changed_when: false
+          failed_when: _libdnf5_query.rc not in [0, 1]
+          check_mode: false
+
+        # Em check mode o host não muda, então o pacote não é instalado, e toda tarefa de pacote falharia.
+        - name: Parar o dry-run sem o python3-libdnf5
+          ansible.builtin.fail:
+            msg: >-
+              O dry-run no {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }} precisa do
+              python3-libdnf5, que o módulo de pacotes do dnf5 usa. Rode uma vez sem --dry-run (o play o instala) ou
+              instale-o com: sudo dnf install python3-libdnf5
+          when:
+            - ansible_check_mode
+            - _libdnf5_query.rc != 0
+
+        - name: Instalar o python3-libdnf5
+          ansible.builtin.command: dnf install -y python3-libdnf5
+          changed_when: true
+          when: _libdnf5_query.rc != 0
+
     - name: Determinar diretório home e user do usuário real (sem sudo)
       become: false
       ansible.builtin.shell: "echo $HOME && whoami"

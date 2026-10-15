@@ -40,31 +40,30 @@
 
     # Depois dos perfis, para que o override também possa vir do local.yml. Sem esta checagem, numa distro desconhecida
     # os include_vars das roles falham em silêncio e só os fallbacks mínimos são instalados.
-    - name: Verificar se a distro é suportada
+    - name: Tratar uma distro não suportada
       vars:
-        _distro_supported: "{{ ansible_facts['os_family'] in supported_os_families }}"
         _distro_label: >-
           {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}
           (os_family {{ ansible_facts['os_family'] }})
+      when: ansible_facts['os_family'] not in supported_os_families
       tags: ['always']
       block:
+        # O local.yml vem primeiro na mensagem: é o único caminho que também funciona pelo wizard.
         - name: Parar numa distro não suportada
-          ansible.builtin.assert:
-            that: _distro_supported | bool
-            quiet: true
-            fail_msg: >-
+          ansible.builtin.fail:
+            msg: >-
               Distro não suportada: {{ _distro_label }}. Famílias suportadas: {{ supported_os_families | join(', ') }}.
               Para forçar mesmo assim, com um resultado possivelmente parcial, defina allow_unsupported_distro: true no
               profiles/local.yml ou passe -e allow_unsupported_distro=true ao ansible-playbook (no workstation.sh,
-              depois de --: ./workstation.sh <comando> -- -e allow_unsupported_distro=true).
+              depois de --).
           when: not allow_unsupported_distro | bool
 
         - name: Avisar que a distro não suportada foi forçada
           ansible.builtin.debug:
             msg: >-
               ⚠️ Distro não suportada: {{ _distro_label }}, forçada com allow_unsupported_distro. As roles usam listas
-              mínimas de pacotes, e o resultado pode ficar parcial.
-          when: allow_unsupported_distro | bool and not _distro_supported | bool
+              mínimas de pacotes, o Docker e o Go não são instalados, e o resultado pode ficar parcial.
+          when: allow_unsupported_distro | bool
 
     - name: Coletar os fatos do host
       ansible.builtin.setup:

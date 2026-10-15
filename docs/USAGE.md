@@ -42,7 +42,7 @@ As opções aceitam `--opção valor` e `--opção=valor`; um valor que começa 
     *   Exemplo: `./scripts/workstation.sh local --profile local`
 *   `--distro`: Escolhe a distribuição para o sandbox Docker (padrão: `void`, suporte: `void`, `ubuntu`, `fedora`, `arch`).
     *   Exemplo: `./scripts/workstation.sh sandbox --distro ubuntu`
-*   `--dry-run`: Executa em modo de simulação (Check Mode), mostrando o que seria alterado sem aplicar nada. O `sandbox` ainda o ignora e avisa que a execução é real (#12).
+*   `--dry-run`: Executa em modo de simulação (Check Mode), mostrando o que seria alterado sem aplicar nada. O `sandbox` ainda o ignora e avisa que a execução é real (#12). No Fedora ≥ 41 sem o pacote `python3-libdnf5`, o dry-run para logo no início, porque a simulação não instala nada e as tarefas de pacote precisam dele: rode uma vez sem `--dry-run` (o provisionamento o instala) ou instale-o com `sudo dnf install python3-libdnf5`.
 *   `--print`: Mostra os comandos (`ansible-playbook`, `docker`) sem executá-los. O `ansible-playbook` aparece como `env ANSIBLE_CONFIG=… ansible-playbook …`, então pode ser colado e executado em qualquer pasta.
 *   `-- <argumentos>`: Tudo depois de `--` vai para o `ansible-playbook`. Exemplo: `./scripts/workstation.sh local -- -vvv`.
 

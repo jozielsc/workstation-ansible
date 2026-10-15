@@ -69,6 +69,66 @@
       ansible.builtin.setup:
       tags: ['always']
 
+    # No dnf5 (Fedora ≥ 41), o módulo package precisa do python3-libdnf5 no alvo. O ansible-core ≥ 2.19 o instala
+    # sozinho na primeira tarefa de pacote, mas não em check mode, e versões anteriores falham. Antes das roles, para
+    # que nenhuma tarefa de pacote dependa da versão do controlador.
+    - name: Garantir o python3-libdnf5 (dnf5)
+      vars:
+        # Presente quando algum dos interpretadores importa o libdnf5.
+        _libdnf5_missing: >-
+          {{ _libdnf5_query.results | selectattr('rc', 'defined') | selectattr('rc', 'equalto', 0) | list | length == 0 }}
+      when: ansible_facts['pkg_mgr'] == 'dnf5'
+      tags: ['always']
+      block:
+        # Os mesmos interpretadores que o módulo dnf5 usa: primeiro o do Ansible, depois o python do sistema.
+        - name: Verificar se o python3-libdnf5 está instalado
+          ansible.builtin.command:
+            argv: ["{{ item }}", "-c", "import libdnf5"]
+          loop: "{{ [ansible_facts['python']['executable'], '/usr/bin/python3'] | unique }}"
+          register: _libdnf5_query
+          changed_when: false
+          failed_when: false
+          check_mode: false
+
+        # Em check mode o host não muda, então o pacote não é instalado, e toda tarefa de pacote falharia.
+        - name: Parar o dry-run sem o python3-libdnf5
+          ansible.builtin.fail:
+            msg: >-
+              O dry-run no {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }} precisa do
+              python3-libdnf5, que o módulo de pacotes do dnf5 usa. Rode uma vez sem --dry-run (o play o instala) ou
+              instale-o com: sudo dnf install python3-libdnf5
+          when:
+            - ansible_check_mode
+            - _libdnf5_missing | bool
+
+        # Uma falha (sem rede, proxy, repositório quebrado) só avisa: as roles seguem com o padrão resiliente delas, como
+        # antes desta tarefa existir. Com o pacote já instalado (o import falhou por outro motivo), o dnf5 diz "Nothing
+        # to do." (LC_ALL=C fixa o idioma), e a tarefa não conta como mudança.
+        - name: Instalar o python3-libdnf5
+          ansible.builtin.command:
+            argv: [dnf5, install, -y, python3-libdnf5]
+          environment:
+            LC_ALL: C
+          register: _libdnf5_install
+          changed_when: _libdnf5_install.rc == 0 and 'Nothing to do' not in _libdnf5_install.stdout
+          failed_when: false
+          when: _libdnf5_missing | bool
+
+        # Sem stderr (o dnf5 nem chegou a rodar), o erro fica no msg do resultado.
+        - name: Avisar que o python3-libdnf5 não foi instalado
+          vars:
+            _libdnf5_error: >-
+              {{ (_libdnf5_install.stderr_lines | default([]) | select | last)
+              | default(_libdnf5_install.msg | default('sem mensagem de erro', true), true) | trim }}
+          ansible.builtin.debug:
+            msg: >-
+              ⚠️ Não foi possível instalar o python3-libdnf5 (dnf5 install, rc {{ _libdnf5_install.rc }}):
+              {{ _libdnf5_error }}.
+              As tarefas de pacote podem falhar; o ansible-core ≥ 2.19 ainda tenta instalá-lo na primeira delas.
+          when:
+            - _libdnf5_missing | bool
+            - _libdnf5_install.rc != 0
+
     - name: Determinar diretório home e user do usuário real (sem sudo)
       become: false
       ansible.builtin.shell: "echo $HOME && whoami"

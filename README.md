@@ -115,6 +115,8 @@ O CI (GitHub Actions) roda o mesmo `just lint` em todo PR e em push na `main`. O
      ./scripts/workstation.sh tunnel --ip 10.0.0.5 --user dev --jump-ip 200.200.200.200 --jump-user admin
      ```
 
+   Na raiz do repositório, `./workstation.sh` é um atalho para `./scripts/workstation.sh`, com os mesmos comandos e opções (por exemplo, `./workstation.sh local`).
+
 ### ⚡ Execução Granular por Tags
 
 Você pode executar partes específicas da instalação utilizando `--tags`:
@@ -236,6 +238,8 @@ CI (GitHub Actions) runs the same `just lint` on every PR and on pushes to `main
      ./scripts/workstation.sh tunnel --ip 10.0.0.5 --user dev --jump-ip 200.200.200.200 --jump-user admin
      ```
 
+   At the repository root, `./workstation.sh` is a shortcut for `./scripts/workstation.sh`, with the same commands and options (for example, `./workstation.sh local`).
+
 ### ⚡ Granular Tag Execution
 
 Run specific components using `--tags`:
@@ -263,6 +267,7 @@ Run specific components using `--tags`:
 ```plaintext
 workstation-ansible/
 ├── justfile              # Development tasks: lint, test, check, sandbox (uv run just)
+├── workstation.sh        # Shortcut at the root: forwards to scripts/workstation.sh
 ├── scripts/
 │   ├── workstation.sh    # Provisioning entry point (local, remote, tunnel, sandbox, wizard)
 │   ├── interactive.sh    # Interactive TUI wizard

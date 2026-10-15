@@ -14,6 +14,8 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # --- Root Dir Resolution ---
+# Com CDPATH exportado, o "cd" abaixo imprimiria a pasta, e o caminho calculado ficaria com duas linhas.
+unset CDPATH
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
@@ -869,8 +871,9 @@ main() {
 
                 [ "$dry_run" = "yes" ] && run_args+=(--dry-run)
 
-                # O comando mostrado pode ser copiado e colado: o caminho é o pelo qual o scripts/workstation.sh foi
-                # chamado (WORKSTATION_PROG) ou, com o wizard chamado direto, o caminho absoluto.
+                # O comando mostrado pode ser copiado e colado: o caminho é o pelo qual o usuário chamou o
+                # scripts/workstation.sh ou o atalho ./workstation.sh da raiz (WORKSTATION_PROG, que o
+                # scripts/workstation.sh repassa) ou, com o wizard chamado direto, o caminho absoluto.
                 local run_cmd
                 shell_join run_cmd "${WORKSTATION_PROG:-$REPO_DIR/scripts/workstation.sh}" "${run_args[@]}"
 

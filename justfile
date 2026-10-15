@@ -56,7 +56,8 @@ check: lint test
 # e tags vão na forma "--opção valor", em que o script recusa um valor que começa com "-": "just sandbox ubuntu -vv",
 # sem as tags, sai com erro em vez de rodar com "--tags=-vv" (só as tarefas "always"). Os argumentos extras vão depois
 # de um "--"; um "--" digitado logo depois das tags ("just sandbox void go -- -vv") não é repetido, e qualquer outro
-# vai como está para o ansible-playbook. [no-cd]: a receita roda na pasta de quem chama, como o script, para que
+# vai como está para o ansible-playbook. Por isso o --dry-run do script não passa por aqui: para simular, use
+# "scripts/workstation.sh sandbox --dry-run". [no-cd]: a receita roda na pasta de quem chama, como o script, para que
 # caminhos relativos nos argumentos extras (-e @vars.yml) valham a partir dela; o script vai pelo caminho absoluto.
 # Com "uv run", o ansible-playbook do script é o do .venv. A segunda execução no mesmo container, para conferir a
 # idempotência, depende da #51.

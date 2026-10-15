@@ -99,7 +99,7 @@ Uso: $PROG [comando] [opções] [-- argumentos do ansible-playbook]
     --profile NOME       local, remote, tunnel, sandbox: perfil profiles/NOME.yml (default: default)
     --tags LISTA         local, remote, tunnel, sandbox: tags separadas por vírgula (default: all)
                          devtools, languages, python, node, rust, go, docker, zsh, editors, ui, dotfiles
-    --dry-run            local, remote, tunnel: modo simulação (--check --diff); o sandbox ainda o ignora (#12)
+    --dry-run            local, remote, tunnel, sandbox: modo simulação (--check --diff)
     --distro NOME        sandbox, sandbox-shell, sandbox-clean: void, ubuntu, fedora, arch (default: void)
     --ip HOST            remote, tunnel: um único host de destino, hostname ou IPv4 (obrigatório)
     --user USUARIO       remote, tunnel: usuário SSH no destino (default: o usuário atual, whoami; aceita @)
@@ -287,10 +287,9 @@ run_tunnel() {
 run_sandbox() {
     local image="$SANDBOX_IMAGE" container="$SANDBOX_CONTAINER"
 
-    # Sem -K (o sudo do usuário dev é NOPASSWD) e, por enquanto, sem --check --diff (#12). O aviso vai para o stderr e
-    # aparece também com --print.
-    ansible_cmd 0 0
-    [ "$dry_run" -eq 0 ] || echo "${YELLOW}Aviso: o sandbox ainda ignora --dry-run (#12); a execução é real.${RESET}" >&2
+    # Sem -K: o sudo do usuário dev é NOPASSWD. Com --dry-run, o playbook roda em --check --diff sobre o container
+    # recém-criado.
+    ansible_cmd 0 "$dry_run"
     msg "${GREEN}>> Preparando ambiente Sandbox Docker (Distro: ${distro})...${RESET}"
     msg "${GREEN}>> Construindo imagem ${image}...${RESET}"
     run_cmd docker build -t "$image" -f "${SANDBOX_DIR}/Dockerfile.${distro}" "${SANDBOX_DIR}/"
@@ -298,13 +297,18 @@ run_sandbox() {
     msg "${GREEN}>> Garantindo que o container ${container} esteja rodando...${RESET}"
     run_cmd docker rm -f "$container" 2>/dev/null || true
     run_cmd docker run -d --name "$container" "$image"
-    msg "${GREEN}>> Executando Ansible via Docker Connection no container ${container} [Tags: ${tags}]...${RESET}"
+    msg "${GREEN}>> Iniciando ${MODE_LABEL} SANDBOX no container ${container} via Docker Connection [Tags: ${tags}]...${RESET}"
     run_cmd "${ANSIBLE_CMD[@]}" -i "${container}," -c docker -u dev
 
     msg ""
     msg "${GREEN}======================================================================${RESET}"
-    msg "${GREEN} SUCCESS: Provisionamento Sandbox concluído!${RESET}"
-    msg "${YELLOW} Para entrar no container sandbox e testar a instalação:${RESET}"
+    if [ "$dry_run" -eq 1 ]; then
+        msg "${GREEN} SUCCESS: Simulação no Sandbox concluída (--dry-run): nada foi aplicado no container.${RESET}"
+        msg "${YELLOW} Para entrar no container sandbox (sem o provisionamento):${RESET}"
+    else
+        msg "${GREEN} SUCCESS: Provisionamento Sandbox concluído!${RESET}"
+        msg "${YELLOW} Para entrar no container sandbox e testar a instalação:${RESET}"
+    fi
     msg "   ${GREEN}${PROG} sandbox-shell --distro ${distro}${RESET}"
     msg "   ou: ${GREEN}docker exec -it ${container} /bin/bash${RESET}"
     msg "${YELLOW} Para remover o container sandbox:${RESET}"

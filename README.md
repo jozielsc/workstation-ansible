@@ -15,7 +15,7 @@ Este projeto é uma solução completa de *Infrastructure as Code* (IaC) para pr
 
 ### 🚀 Funcionalidades
 
-- **Multiplataforma Resiliente:** Suporte nativo para **Debian/Ubuntu**, **Void Linux**, **RedHat/Fedora** e **Arch Linux**.
+- **Multiplataforma Resiliente:** Suporte nativo para **Debian/Ubuntu**, **Void Linux**, **RedHat/Fedora** e **Arch Linux**. Em outra distro, o provisionamento para logo no início com uma mensagem clara (veja o [manual](docs/USAGE.md#requisitos) para forçar).
 - **Sandbox Testing Pipeline (NOVO):** Teste todo o provisionamento em containers isolados via Docker (`Void Linux glibc` default, `Ubuntu`, `Fedora` ou `Arch`) sem alterar sua máquina local!
 - **Gerenciamento Inteligente de Pacotes:** Separação de pacotes por família de SO (`Debian.yml`, `Void.yml`, `RedHat.yml`, `Archlinux.yml`) com mecanismo de instalação em lote e *fallback* tolerante a falhas por pacote.
 - **Detecção de Init:** Suporte para `systemd` e `runit`.
@@ -145,7 +145,7 @@ This project is a complete Infrastructure as Code (IaC) solution for developer e
 
 ### 🚀 Features
 
-- **Resilient Multiplatform:** Native support for **Debian/Ubuntu**, **Void Linux**, **RedHat/Fedora**, and **Arch Linux**.
+- **Resilient Multiplatform:** Native support for **Debian/Ubuntu**, **Void Linux**, **RedHat/Fedora**, and **Arch Linux**. On any other distro, provisioning stops right at the start with a clear message (see the [manual](docs/USAGE.md#requisitos) to force it).
 - **Sandbox Testing Pipeline (NEW):** Dry-run and test provisioning in isolated Docker containers (`Void Linux glibc` default, `Ubuntu`, `Fedora` or `Arch`) without touching your local system!
 - **Smart Package Management:** Distro-specific package name mapping (`Debian.yml`, `Void.yml`, `RedHat.yml`, `Archlinux.yml`) with batch installation and fault-tolerant per-package fallback.
 - **Init System Detection:** Works with `systemd` and `runit`.

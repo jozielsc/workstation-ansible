@@ -67,8 +67,9 @@ Um único play, `hosts: all`, `become: true`, `gather_facts: true`.
 
 1. `include_vars {{ playbook_dir }}/../profiles/{{ profile }}.yml`: falha se o perfil não existir.
 2. `include_vars {{ playbook_dir }}/../profiles/local.yml`, só quando o arquivo existe (`when: … is file or … is link`, avaliado no controller): overrides pessoais, fora do Git. Um `local.yml` que existe mas é inválido (YAML quebrado, conteúdo que não é dicionário, symlink quebrado) faz o play falhar logo no início.
-3. `shell: echo $HOME && whoami` com `become: false`, registrado como `real_user_info`. Roda também em check mode.
-4. `set_fact user_home` / `user_id`.
+3. `assert` de que `ansible_facts['os_family']` está em `supported_os_families` (`Debian`, `Void`, `RedHat`, `Archlinux`, definida em `vars:` do play): numa distro fora da lista (Alpine, openSUSE, Gentoo…), o play para aqui, antes de qualquer tarefa no host, com uma mensagem que mostra a distro detectada e as famílias suportadas. Sem essa checagem, os `include_vars` das roles falhariam em silêncio e só os fallbacks mínimos seriam instalados. Para forçar a execução mesmo assim, defina `allow_unsupported_distro: true` (padrão `false`), com `-e allow_unsupported_distro=true` (por exemplo, `./workstation.sh local -- -e allow_unsupported_distro=true`) ou no `profiles/local.yml`; o `assert` é pulado e um `debug` com `⚠️` avisa que o resultado pode ficar parcial. A checagem fica depois dos perfis justamente para aceitar o override do `local.yml`.
+4. `shell: echo $HOME && whoami` com `become: false`, registrado como `real_user_info`. Roda também em check mode.
+5. `set_fact user_home` / `user_id`.
 
 `user_home` e `user_id` são o contrato entre o play e as roles: como o play roda como root, qualquer tarefa que escreve no home do usuário usa `become: false` e esses fatos.
 
@@ -99,7 +100,7 @@ Consequências:
 - Dicionários são **substituídos, não mesclados** (`hash_behaviour` padrão). Definir `devtools_features: {lazygit: false}` em `local.yml` remove a chave `tpm`, que então assume o `default()` da tarefa.
 - Os defaults de features divergem: `devtools_features.*` e `ui_features.*` usam `default(false)`, e `languages_features.*` usa `default(true)`.
 
-`os_family` usado nos nomes de arquivo: `Debian`, `Void`, `RedHat`, `Archlinux`.
+`os_family` usado nos nomes de arquivo: `Debian`, `Void`, `RedHat`, `Archlinux`. São as mesmas famílias de `supported_os_families` no `site.yml`; uma família nova precisa entrar nos dois lugares.
 
 ## Semântica de tags
 
@@ -217,7 +218,7 @@ O callback de saída (`ansible.builtin.default`) não depende de collection.
 
 ## Matriz de suporte por plataforma
 
-Estado do código na v1.2.1 (2026-10). Atualize esta tabela quando a cobertura mudar.
+Estado do código na v1.2.1 (2026-10). Atualize esta tabela quando a cobertura mudar. Uma distro de outra família para o play no início (passo 3 dos `pre_tasks` em [Playbook `site.yml`](#playbook-siteyml)), a menos que `allow_unsupported_distro` seja `true`.
 
 | Componente | Debian/Ubuntu | Void | RedHat/Fedora | Arch |
 |---|---|---|---|---|

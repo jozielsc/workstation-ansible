@@ -6,6 +6,8 @@ Este projeto visa automatizar a configuração do seu ambiente de desenvolviment
 
 Na máquina que executa o Ansible: `git`, `bash` e o Ansible. A versão mínima, as collections necessárias e as ressalvas por distro (Ubuntu 22.04, Debian 11, RHEL) estão em [ARCHITECTURE.md](ARCHITECTURE.md#collections-ansible-necessárias-no-controlador).
 
+Na máquina provisionada: uma distro das famílias Debian/Ubuntu, Void, RedHat/Fedora ou Arch. Em outra distro (Alpine, openSUSE…), o provisionamento para logo no início com uma mensagem que mostra a distro detectada. Para forçar mesmo assim, sabendo que só uma parte será instalada, passe `-- -e allow_unsupported_distro=true` (por exemplo, `./scripts/workstation.sh local -- -e allow_unsupported_distro=true`) ou defina `allow_unsupported_distro: true` no `profiles/local.yml`.
+
 ## Comandos Principais (`scripts/workstation.sh`)
 
 O script `scripts/workstation.sh` é a interface principal. Rode-o da raiz do repositório (`./scripts/workstation.sh …`) ou de qualquer pasta, pelo caminho; ele funciona a partir do bash ou do zsh. Caminhos relativos depois de `--` valem a partir da pasta de onde você chamou o script. `./scripts/workstation.sh help` lista os comandos e as opções. Na raiz, `./workstation.sh` é um atalho para ele, com os mesmos comandos e opções (por exemplo, `./workstation.sh local`); as mensagens e o wizard passam a mostrar o atalho.

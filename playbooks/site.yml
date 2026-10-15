@@ -6,6 +6,10 @@
 
   vars:
     profile: default
+    # Famílias com arquivo vars/<os_family>.yml nas roles. Uma distro fora delas para o play logo no início.
+    supported_os_families: ['Debian', 'Void', 'RedHat', 'Archlinux']
+    # true força a execução numa distro fora da lista (-e allow_unsupported_distro=true ou no profiles/local.yml).
+    allow_unsupported_distro: false
 
   pre_tasks:
     - name: Carregar variáveis do perfil
@@ -22,6 +26,31 @@
       # include_vars lê o arquivo. Se existir mas for inválido (ou for um
       # symlink quebrado), o play falha.
       when: _local_profile_file is file or _local_profile_file is link
+      tags: ['always']
+
+    # Depois dos perfis, para que o override também possa vir do local.yml, e antes de qualquer tarefa no host. Sem
+    # esta checagem, numa distro desconhecida os include_vars das roles falham em silêncio e só os fallbacks mínimos
+    # são instalados.
+    - name: Verificar se a distro é suportada
+      ansible.builtin.assert:
+        that: ansible_facts['os_family'] in supported_os_families
+        quiet: true
+        fail_msg: >-
+          Distro não suportada: {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}
+          (os_family {{ ansible_facts['os_family'] }}). Famílias suportadas: {{ supported_os_families | join(', ') }}.
+          Para forçar mesmo assim, com um resultado possivelmente parcial, passe -e allow_unsupported_distro=true.
+      when: not allow_unsupported_distro | bool
+      tags: ['always']
+
+    - name: Avisar que a distro não suportada foi forçada
+      ansible.builtin.debug:
+        msg: >-
+          ⚠️ Distro não suportada: {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}
+          (os_family {{ ansible_facts['os_family'] }}), forçada com allow_unsupported_distro. As roles usam listas
+          mínimas de pacotes, e o resultado pode ficar parcial.
+      when:
+        - allow_unsupported_distro | bool
+        - ansible_facts['os_family'] not in supported_os_families
       tags: ['always']
 
     - name: Determinar diretório home e user do usuário real (sem sudo)

@@ -1,7 +1,8 @@
 # Tarefas de desenvolvimento: lint, testes e o sandbox para conferir uma mudança. O provisionamento fica em
 # scripts/workstation.sh ("./scripts/workstation.sh help").
 # O just vem do grupo dev do uv: rode "uv run just <receita>" (ou "just <receita>" com o .venv ativado).
-# "uv run just" sozinho lista as receitas. As receitas rodam na pasta deste arquivo, de qualquer subpasta.
+# "uv run just" sozinho lista as receitas. Chamadas de qualquer subpasta, as receitas rodam na pasta deste arquivo,
+# exceto o sandbox, que roda na pasta de quem chama.
 
 # Uma falha interrompe a receita, inclusive no meio de um pipe.
 set shell := ["bash", "-euo", "pipefail", "-c"]
@@ -14,7 +15,8 @@ export PYTHONUNBUFFERED := "1"
 # silêncio.
 uv_run := "uv run --locked"
 
-[doc("Lista as receitas.")]
+# Primeira receita, a que roda sem nome; fica fora da própria listagem.
+[private]
 default:
     @{{ quote(just_executable()) }} --list --justfile {{ quote(justfile()) }}
 
@@ -53,14 +55,17 @@ check: lint test
 # parâmetros chegam ao script como argumentos posicionais ("$@"), sem passar pela interpolação do just no shell. Distro
 # e tags vão na forma "--opção valor", em que o script recusa um valor que começa com "-": "just sandbox ubuntu -vv",
 # sem as tags, sai com erro em vez de rodar com "--tags=-vv" (só as tarefas "always"). Os argumentos extras vão depois
-# de um "--"; um "--" digitado ("just sandbox void go -- -vv") não é repetido. Com
-# "uv run", o ansible-playbook do script é o do .venv. A segunda execução no mesmo container, para conferir a
+# de um "--"; um "--" digitado logo depois das tags ("just sandbox void go -- -vv") não é repetido, e qualquer outro
+# vai como está para o ansible-playbook. [no-cd]: a receita roda na pasta de quem chama, como o script, para que
+# caminhos relativos nos argumentos extras (-e @vars.yml) valham a partir dela; o script vai pelo caminho absoluto.
+# Com "uv run", o ansible-playbook do script é o do .venv. A segunda execução no mesmo container, para conferir a
 # idempotência, depende da #51.
 [doc("Provisiona um container sandbox; distro e tags vêm antes dos argumentos extras do ansible-playbook. Ex.: just sandbox ubuntu rust -vv")]
+[no-cd]
 [positional-arguments]
 sandbox distro="void" tags="all" *ansible_args:
     @distro="$1" tags="$2"; shift 2; [ "${1-}" != -- ] || shift; \
-        ./scripts/workstation.sh sandbox --distro "$distro" --tags "$tags" ${1+--} "$@"
+        {{ quote(justfile_directory() / "scripts/workstation.sh") }} sandbox --distro "$distro" --tags "$tags" ${1+--} "$@"
 
 _require-uv:
     @command -v uv >/dev/null 2>&1 || { \

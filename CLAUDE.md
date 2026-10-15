@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Ansible project that provisions a Linux developer workstation (Debian/Ubuntu, Void, RedHat/Fedora, Arch). There is no build step; the `Makefile` is the entry point and wraps `ansible-playbook playbooks/site.yml`. Task names, comments, docs and user-facing messages are written in Portuguese — keep that convention.
+Ansible project that provisions a Linux developer workstation (Debian/Ubuntu, Void, RedHat/Fedora, Arch). There is no build step; `scripts/workstation.sh` is the entry point and wraps `ansible-playbook playbooks/site.yml`. The `Makefile` only keeps the dev tasks (`lint`, `test`, `check`) until #68 moves them to a `justfile`. Task names, comments, docs and user-facing messages are written in Portuguese — keep that convention.
 
 ## Workflow rules
 
@@ -24,23 +24,25 @@ Deeper references:
 - `docs/WORKFLOW.md` — analysis, documentation, issue and git workflow.
 - `docs/ARCHITECTURE.md` — execution flow, variable precedence, tag semantics, per-role behavior, external integrations, platform support matrix.
 - `docs/TECH_DEBT.md` — dated technical baseline: known bugs, duplications, risks. Check it before "fixing" something, and update it when an item is resolved.
-- `docs/USAGE.md` — end-user manual (also shown by `make help-docs` and the wizard).
+- `docs/USAGE.md` — end-user manual (also shown by `scripts/workstation.sh help-docs` and the wizard).
 
 ## Commands
 
 ```bash
-make                      # interactive TUI wizard (scripts/interactive.sh -> builds and runs a make command)
-make local                # provision localhost (asks for sudo password via -K)
-make local TAGS=zsh,node  # run only selected roles/subtasks
-make local DRY=1          # --check --diff
-make local PROFILE=local  # load profiles/local.yml as the main profile
-make remote IP=x.x.x.x USER=root
-make tunnel IP=... USER=... JUMP_IP=... JUMP_USER=...
-make lint                 # syntax-check + ansible-lint + yamllint + shellcheck (via uv)
-make test                 # uv run molecule test (scenario pending: #34)
-make check                # lint + test
-ARGS="-vvv" make local    # extra args are appended to ansible-playbook
-make -n <target> ...      # print the exact ansible-playbook command without running it
+W=./scripts/workstation.sh   # shorthand used below; the script runs from any directory
+$W                           # interactive TUI wizard (scripts/interactive.sh -> builds and runs a workstation.sh command)
+$W local                     # provision localhost (asks for sudo password via -K)
+$W local --tags zsh,node     # run only selected roles/subtasks
+$W local --dry-run           # --check --diff
+$W local --profile local     # load profiles/local.yml as the main profile
+$W remote --ip x.x.x.x --user root      # --user defaults to whoami
+$W tunnel --ip ... --user ... --jump-ip ... --jump-user ...
+$W local -- -vvv             # args after -- are appended to ansible-playbook
+$W <command> ... --print     # print the exact commands without running them
+$W help                      # commands and options
+make lint                    # syntax-check + ansible-lint + yamllint + shellcheck (via uv; moves to just in #68)
+make test                    # uv run molecule test (scenario pending: #34)
+make check                   # lint + test
 
 # Static checks that never touch a host
 ansible-playbook playbooks/site.yml --syntax-check -i localhost,
@@ -50,22 +52,22 @@ ansible-playbook playbooks/site.yml --list-tasks --tags rust -i localhost,
 Testing is done in disposable Docker containers, never on the host:
 
 ```bash
-make sandbox                         # Void Linux glibc (default)
-make sandbox DISTRO=ubuntu TAGS=rust # test a single tag on Ubuntu
-make sandbox-shell DISTRO=void       # inspect the container afterwards
-make sandbox-clean DISTRO=void
+./scripts/workstation.sh sandbox                              # Void Linux glibc (default)
+./scripts/workstation.sh sandbox --distro ubuntu --tags rust  # test a single tag on Ubuntu
+./scripts/workstation.sh sandbox-shell --distro void          # inspect the container afterwards
+./scripts/workstation.sh sandbox-clean --distro void
 ```
 
-`make sandbox` builds `tests/sandbox/Dockerfile.$(DISTRO)`, starts a container, and runs the playbook against it with `-c docker -u dev` (passwordless sudo, no `-K`). It builds its own `ansible-playbook` command, so `ANS_FLAGS` (including `DRY`) do not apply to it. The containers have no init system (runit/systemd not PID 1), so service-enablement paths are skipped there and are never exercised by the sandbox. Dockerfiles exist for `void`, `ubuntu`, `fedora` and `arch`. CI (`.github/workflows/ci.yml`) only runs `make lint` on PRs and pushes to `main`; the sandbox has no CI yet (#29).
+`sandbox` builds `tests/sandbox/Dockerfile.<distro>`, recreates the container, and runs the playbook against it with `-c docker -u dev` (passwordless sudo, no `-K`). It builds its own `ansible-playbook` command, so `--dry-run` does not apply to it (it only warns, #12). The containers have no init system (runit/systemd not PID 1), so service-enablement paths are skipped there and are never exercised by the sandbox. Dockerfiles exist for `void`, `ubuntu`, `fedora` and `arch`. CI (`.github/workflows/ci.yml`) only runs `make lint` on PRs and pushes to `main`; the sandbox has no CI yet (#29).
 
-Dev tools (ansible, ansible-lint, yamllint, shellcheck-py, molecule) come from the uv `dev` group in `pyproject.toml` (`uv sync`); run them via `uv run` / `make lint|test|check`. Molecule is an additional test layer: it does **not** replace the sandbox matrix (#29) or the lint CI unless the maintainer says so.
+Dev tools (ansible, ansible-lint, yamllint, shellcheck-py, molecule) come from the uv `dev` group in `pyproject.toml` (`uv sync`); run them via `uv run` / `make lint|test|check` (a `justfile` replaces the `Makefile` in #68). Molecule is an additional test layer: it does **not** replace the sandbox matrix (#29) or the lint CI unless the maintainer says so.
 
 ## Architecture
 
 - `playbooks/site.yml` is the only playbook. Its `pre_tasks` (all tagged `always`):
   1. load `profiles/{{ profile }}.yml`, then `profiles/local.yml` if present (gitignored; skipped via `when: … is file or … is link`, but an invalid file or broken symlink fails the play);
   2. compute `user_home` and `user_id` by running `echo $HOME && whoami` with `become: false`. The play runs with `become: true`, so **any task that touches the user's home must use `become: false` and `user_home`/`user_id`**, never `ansible_env.HOME` or `ansible_user`.
-- Roles run in order: `devtools`, `languages`, `docker`, `zsh`, `ui`, `editors`, `dotfiles`. The `ui` role carries the `never` tag, so it only runs when `TAGS=ui` (or another of its tags) is passed explicitly.
+- Roles run in order: `devtools`, `languages`, `docker`, `zsh`, `ui`, `editors`, `dotfiles`. The `ui` role carries the `never` tag, so it only runs when `--tags ui` (or another of its tags) is passed explicitly.
 - **Per-distro package lists**: roles that install packages (`devtools`, `editors`, `ui`) do `include_vars: "{{ ansible_facts['os_family'] }}.yml"` from their `vars/` dir (`Debian`, `Void`, `RedHat`, `Archlinux`), with a hardcoded fallback list if the file is missing. Package names differ between distros, so adding a package usually means editing all four files.
 - **Variable precedence**: the role-level `include_vars` runs after the profile's, so the distro file wins. A profile can't replace `devtools_packages`/`editors_packages`/`ui_packages`; it can only add via `*_extra_packages`. Dict variables (`*_features`) are replaced, not merged (default `hash_behaviour`), so a profile that sets one key of a features dict drops the others.
 - **Resilient install pattern**: the base list is merged with `*_extra_packages` from the profile, then installed in a `block` as one batch; on failure the `rescue` installs packages one by one with `failed_when: false` and reports the missing ones. Reuse this pattern for new package-installing roles rather than letting one unavailable package abort the run.
@@ -74,5 +76,6 @@ Dev tools (ansible, ansible-lint, yamllint, shellcheck-py, molecule) come from t
 - Distro branching beyond package names uses `ansible_facts['os_family']` or `ansible_facts['distribution'] == "Void"` (e.g. `roles/docker/tasks/{debian,void}.yml`). On Void, Ansible reports `service_mgr` as `service`; services are enabled by symlinking `/etc/sv/<name>` into `/var/service`.
 - External installers are idempotent and tolerate network failures: rustup uses `creates:`/`stat` and falls back to the distro package; the lazygit binary compares `lazygit --version` with the latest release, downloads only when it is missing or older, turns a network/rate-limit/5xx failure into a warning and fails the play on any other error (no distro fallback).
 - `dotfiles` clones `dotfiles_repos` (default: `jozielsc/dotfiles` into `~/.dotfiles`) and stows each top-level directory with `--no-folding`. It deliberately does **not** use `stow --adopt` (that would overwrite tracked dotfiles with whatever is in `$HOME`); conflicts are reported and skipped instead of failing the play. Because it runs last, anything earlier roles write into `$HOME` (e.g. shell rc files) can turn into stow conflicts.
-- **The tag list exists in several places**: `site.yml`, the Makefile `help` target, the wizard's `available_tags` in `scripts/interactive.sh`, `README.md` (PT and EN sections), and `docs/USAGE.md`. When you add or rename a tag or a make variable, update all of them.
-- `scripts/interactive.sh` is a dialog/whiptail/plain-CLI wizard (behind an engine-agnostic `ui_*` layer) that only assembles `make` arguments (mode, profile, tags, dry-run) and runs `make`. It has no provisioning logic of its own.
+- **The tag list exists in several places**: `site.yml`, the `help` of `scripts/workstation.sh`, the wizard's `available_tags` in `scripts/interactive.sh`, `README.md` (PT and EN sections), and `docs/USAGE.md`. When you add or rename a tag or a `scripts/workstation.sh` option, update all of them.
+- `scripts/interactive.sh` is a dialog/whiptail/plain-CLI wizard (behind an engine-agnostic `ui_*` layer) that only assembles `scripts/workstation.sh` arguments (mode, profile, tags, dry-run, target) and runs the script. It has no provisioning logic of its own.
+- `scripts/workstation.sh` has one function per command (`run_local`, `run_remote`, …) and only validates options and builds the `ansible-playbook`/`docker` commands. It is a bash script (shebang), so it works when called from bash or zsh; the wizard requires bash ≥ 4.4.

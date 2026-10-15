@@ -17,6 +17,9 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
+# shellcheck source=scripts/lib/quote.sh
+source "$SCRIPT_DIR/lib/quote.sh"
+
 show_banner() {
     # Sem TERM, o clear falha; com set -e, isso derrubaria o wizard no modo cli.
     clear 2>/dev/null || true
@@ -851,18 +854,25 @@ main() {
                     formatted_tags=$(IFS=","; echo "${selected_tags_array[*]}")
                 fi
 
-                local make_args=()
-                make_args+=("$target_mode")
-                make_args+=("PROFILE=$selected_profile")
-                make_args+=("TAGS=$formatted_tags")
+                local run_args=()
+                run_args+=("$target_mode")
+                # Sempre --opção=valor: um valor digitado que começa com "-" chega à validação do script, em vez de ser
+                # lido como outra opção ("a opção --ip exige um valor").
+                run_args+=("--profile=$selected_profile")
+                run_args+=("--tags=$formatted_tags")
 
                 case "$target_mode" in
-                    sandbox) make_args+=("DISTRO=$distro") ;;
-                    remote)  make_args+=("IP=$remote_ip" "USER=$remote_user") ;;
-                    tunnel)  make_args+=("IP=$remote_ip" "USER=$remote_user" "JUMP_IP=$jump_ip" "JUMP_USER=$jump_user") ;;
+                    sandbox) run_args+=("--distro=$distro") ;;
+                    remote)  run_args+=("--ip=$remote_ip" "--user=$remote_user") ;;
+                    tunnel)  run_args+=("--ip=$remote_ip" "--user=$remote_user" "--jump-ip=$jump_ip" "--jump-user=$jump_user") ;;
                 esac
 
-                [ "$dry_run" = "yes" ] && make_args+=("DRY=1")
+                [ "$dry_run" = "yes" ] && run_args+=(--dry-run)
+
+                # O comando mostrado pode ser copiado e colado: o caminho é o pelo qual o scripts/workstation.sh foi
+                # chamado (WORKSTATION_PROG) ou, com o wizard chamado direto, o caminho absoluto.
+                local run_cmd
+                shell_join run_cmd "${WORKSTATION_PROG:-$REPO_DIR/scripts/workstation.sh}" "${run_args[@]}"
 
                 local summary_text="Provisioning Configuration Summary:\n"
                 summary_text+="\n - Execution Target: ${target_mode}"
@@ -872,15 +882,14 @@ main() {
                 summary_text+="\n - Profile: ${selected_profile}"
                 summary_text+="\n - Selected Tags: ${formatted_tags}"
                 summary_text+="\n - Simulation Mode: $([ "$dry_run" = "yes" ] && echo "Yes (Dry Run)" || echo "No (Real execution)")"
-                summary_text+="\n\nCommand to execute:\n make ${make_args[*]}"
+                summary_text+="\n\nCommand to execute:\n ${run_cmd}"
 
                 ui_yesno 1 "Confirmation" "$summary_text\n\nDo you want to proceed with provisioning now?"
                 case "$UI_ACTION" in
                     ok)
                         show_banner
-                        echo -e "${GREEN}${BOLD}>> Executing: make ${make_args[*]}${NC}\n"
-                        cd "$REPO_DIR"
-                        make "${make_args[@]}"
+                        echo -e "${GREEN}${BOLD}>> Executing: ${run_cmd}${NC}\n"
+                        bash "$REPO_DIR/scripts/workstation.sh" "${run_args[@]}"
                         break
                         ;;
                     back)

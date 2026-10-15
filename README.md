@@ -36,15 +36,14 @@ Este projeto é uma solução completa de *Infrastructure as Code* (IaC) para pr
 Na máquina onde você executará o Ansible, é necessário apenas:
 - **Git**
 - **Ansible**: versão mínima, collections e ressalvas por distro (Ubuntu 22.04, Debian 11, RHEL) em [ARCHITECTURE.md](docs/ARCHITECTURE.md#collections-ansible-necessárias-no-controlador)
-- **Make**
 - *(Opcional)* **Docker** (para uso do Pipeline de Testes Sandbox)
 
 #### Instalação das dependências:
 
-- **Ubuntu/Debian:** `sudo apt update && sudo apt install -y ansible make git`
-- **Void Linux:** `sudo xbps-install -S ansible make git`
-- **Fedora/RHEL:** `sudo dnf install -y ansible make git`
-- **Arch Linux:** `sudo pacman -S --needed ansible make git`
+- **Ubuntu/Debian:** `sudo apt update && sudo apt install -y ansible git`
+- **Void Linux:** `sudo xbps-install -S ansible git`
+- **Fedora/RHEL:** `sudo dnf install -y ansible git`
+- **Arch Linux:** `sudo pacman -S --needed ansible git`
 
 ### 🧪 Pipeline de Testes Sandbox (Docker)
 
@@ -52,27 +51,27 @@ Quer testar o provisionamento antes de aplicar em sua máquina pessoal? Use o Sa
 
 1. **Rodar Sandbox em Void Linux (Padrão):**
    ```bash
-   make sandbox
+   ./scripts/workstation.sh sandbox
    ```
 
 2. **Rodar Sandbox em Ubuntu (ou `fedora`, `arch`):**
    ```bash
-   make sandbox DISTRO=ubuntu
+   ./scripts/workstation.sh sandbox --distro ubuntu
    ```
 
 3. **Acessar o terminal interativo do container mantido UP:**
    ```bash
-   make sandbox-shell
+   ./scripts/workstation.sh sandbox-shell
    ```
 
 4. **Remover o container ao concluir:**
    ```bash
-   make sandbox-clean
+   ./scripts/workstation.sh sandbox-clean
    ```
 
 #### Lint e testes (desenvolvimento)
 
-As ferramentas de desenvolvimento (`ansible`, `ansible-lint`, `yamllint`, `shellcheck`, `molecule`) são gerenciadas pelo [uv](https://docs.astral.sh/uv/) via `pyproject.toml`:
+As ferramentas de desenvolvimento (`ansible`, `ansible-lint`, `yamllint`, `shellcheck`, `molecule`) são gerenciadas pelo [uv](https://docs.astral.sh/uv/) via `pyproject.toml`. Estas tarefas ainda usam o `make` (elas vão para um `justfile` na issue #68):
 
 ```bash
 uv sync      # cria o .venv com as ferramentas
@@ -97,43 +96,42 @@ O CI (GitHub Actions) roda o mesmo `make lint` em todo PR e em push na `main`. O
 
    - **Modo Interativo (Recomendado / Padrão):**
      ```bash
-     make
-     # ou: make interactive
+     ./scripts/workstation.sh
      ```
      *Abre o assistente TUI interativo para selecionar modo (Local, Sandbox, Remoto, Tunnel), perfil, tags e simulação (Dry-Run).*
 
    - **Modo Local Direct (Localhost):**
      ```bash
-     make local
+     ./scripts/workstation.sh local
      ```
    - **Modo Remoto (SSH):**
      ```bash
-     make remote IP=192.168.1.50 USER=root
+     ./scripts/workstation.sh remote --ip 192.168.1.50 --user root
      ```
    - **Modo Tunnel (Jump Box):**
      ```bash
-     make tunnel IP=10.0.0.5 USER=dev JUMP_IP=200.200.200.200 JUMP_USER=admin
+     ./scripts/workstation.sh tunnel --ip 10.0.0.5 --user dev --jump-ip 200.200.200.200 --jump-user admin
      ```
 
 ### ⚡ Execução Granular por Tags
 
-Você pode executar partes específicas da instalação utilizando `TAGS`:
+Você pode executar partes específicas da instalação utilizando `--tags`:
 
 | Tag | Descrição | Exemplo de Uso |
 | --- | --------- | -------------- |
-| `devtools` | Ferramentas CLI base (git, tmux, fzf, stow, btop, etc.) | `make local TAGS=devtools` |
-| `languages` | Instala todas as linguagens de programação | `make local TAGS=languages` |
-| `python` | Instala apenas UV e Pipx | `make local TAGS=python` |
-| `node` | Instala apenas Node.js/NPM | `make local TAGS=node` |
-| `rust` | Instala apenas Rustup e Rust toolchain | `make local TAGS=rust` |
-| `go` / `golang` | Instala apenas a linguagem Go | `make local TAGS=go` |
-| `docker` | Configura Engine Docker, usuário e serviço | `make local TAGS=docker` |
-| `zsh` | Configura Zsh, Oh-My-Zsh, P10k e plugins | `make local TAGS=zsh` |
-| `editors` | Instala Neovim, lldb e suporte a clipboard | `make local TAGS=editors` |
-| `ui` *(Opt-in)* | Instala ambiente Sway WM, Waybar e fontes (Ignorado por padrão) | `make local TAGS=ui` |
-| `dotfiles` | Clona e aplica links simbólicos via GNU Stow | `make local TAGS=dotfiles` |
+| `devtools` | Ferramentas CLI base (git, tmux, fzf, stow, btop, etc.) | `./scripts/workstation.sh local --tags devtools` |
+| `languages` | Instala todas as linguagens de programação | `./scripts/workstation.sh local --tags languages` |
+| `python` | Instala apenas UV e Pipx | `./scripts/workstation.sh local --tags python` |
+| `node` | Instala apenas Node.js/NPM | `./scripts/workstation.sh local --tags node` |
+| `rust` | Instala apenas Rustup e Rust toolchain | `./scripts/workstation.sh local --tags rust` |
+| `go` / `golang` | Instala apenas a linguagem Go | `./scripts/workstation.sh local --tags go` |
+| `docker` | Configura Engine Docker, usuário e serviço | `./scripts/workstation.sh local --tags docker` |
+| `zsh` | Configura Zsh, Oh-My-Zsh, P10k e plugins | `./scripts/workstation.sh local --tags zsh` |
+| `editors` | Instala Neovim, lldb e suporte a clipboard | `./scripts/workstation.sh local --tags editors` |
+| `ui` *(Opt-in)* | Instala ambiente Sway WM, Waybar e fontes (Ignorado por padrão) | `./scripts/workstation.sh local --tags ui` |
+| `dotfiles` | Clona e aplica links simbólicos via GNU Stow | `./scripts/workstation.sh local --tags dotfiles` |
 
-> ⚠️ **Nota:** A tag `ui` (interface gráfica Sway/Waybar) é estritamente **opcional (opt-in)** e ignorada por padrão para evitar modificações indesejadas em servidores ou outros ambientes. Para instalá-la, execute: `make local TAGS=ui` ou `make sandbox TAGS=ui`.
+> ⚠️ **Nota:** A tag `ui` (interface gráfica Sway/Waybar) é estritamente **opcional (opt-in)** e ignorada por padrão para evitar modificações indesejadas em servidores ou outros ambientes. Para instalá-la, execute: `./scripts/workstation.sh local --tags ui` ou `./scripts/workstation.sh sandbox --tags ui`.
 
 ---
 
@@ -164,7 +162,6 @@ This project is a complete Infrastructure as Code (IaC) solution for developer e
 On the machine running Ansible:
 - **Git**
 - **Ansible**: minimum version, collections and per-distro caveats (Ubuntu 22.04, Debian 11, RHEL) in [ARCHITECTURE.md](docs/ARCHITECTURE.md#collections-ansible-necessárias-no-controlador)
-- **Make**
 - *(Optional)* **Docker** (for Sandbox Testing Pipeline)
 
 ### 🧪 Sandbox Testing Pipeline (Docker)
@@ -173,27 +170,27 @@ Want to test provisioning safely before applying to your personal machine? Use t
 
 1. **Run Sandbox in Void Linux (Default):**
    ```bash
-   make sandbox
+   ./scripts/workstation.sh sandbox
    ```
 
 2. **Run Sandbox in Ubuntu (or `fedora`, `arch`):**
    ```bash
-   make sandbox DISTRO=ubuntu
+   ./scripts/workstation.sh sandbox --distro ubuntu
    ```
 
 3. **Access the interactive container terminal (kept UP):**
    ```bash
-   make sandbox-shell
+   ./scripts/workstation.sh sandbox-shell
    ```
 
 4. **Clean up when finished:**
    ```bash
-   make sandbox-clean
+   ./scripts/workstation.sh sandbox-clean
    ```
 
 #### Lint and tests (development)
 
-Development tools (`ansible`, `ansible-lint`, `yamllint`, `shellcheck`, `molecule`) are managed by [uv](https://docs.astral.sh/uv/) through `pyproject.toml`:
+Development tools (`ansible`, `ansible-lint`, `yamllint`, `shellcheck`, `molecule`) are managed by [uv](https://docs.astral.sh/uv/) through `pyproject.toml`. These tasks still use `make` (they move to a `justfile` in issue #68):
 
 ```bash
 uv sync      # creates .venv with the tools
@@ -218,43 +215,42 @@ CI (GitHub Actions) runs the same `make lint` on every PR and on pushes to `main
 
    - **Interactive Wizard (Recommended / Default):**
      ```bash
-     make
-     # or: make interactive
+     ./scripts/workstation.sh
      ```
      *Launches an interactive TUI wizard to select target (Local, Sandbox, Remote, Tunnel), profile, tags, and Dry-Run mode.*
 
    - **Local Machine Direct (Localhost):**
      ```bash
-     make local
+     ./scripts/workstation.sh local
      ```
    - **Remote Machine (SSH):**
      ```bash
-     make remote IP=192.168.1.50 USER=root
+     ./scripts/workstation.sh remote --ip 192.168.1.50 --user root
      ```
    - **Tunnel Mode (Jump Box):**
      ```bash
-     make tunnel IP=10.0.0.5 USER=dev JUMP_IP=200.200.200.200 JUMP_USER=admin
+     ./scripts/workstation.sh tunnel --ip 10.0.0.5 --user dev --jump-ip 200.200.200.200 --jump-user admin
      ```
 
 ### ⚡ Granular Tag Execution
 
-Run specific components using `TAGS`:
+Run specific components using `--tags`:
 
 | Tag | Description | Example Usage |
 | --- | ----------- | ------------- |
-| `devtools` | Base CLI tools (git, tmux, fzf, stow, btop, etc.) | `make local TAGS=devtools` |
-| `languages` | Installs all programming languages | `make local TAGS=languages` |
-| `python` | Installs UV and Pipx only | `make local TAGS=python` |
-| `node` | Installs Node.js/NPM only | `make local TAGS=node` |
-| `rust` | Installs Rustup and Rust toolchain only | `make local TAGS=rust` |
-| `go` / `golang` | Installs Go language compiler only | `make local TAGS=go` |
-| `docker` | Configures Docker Engine, user groups, and service | `make local TAGS=docker` |
-| `zsh` | Configures Zsh, Oh-My-Zsh, P10k, and plugins | `make local TAGS=zsh` |
-| `editors` | Installs Neovim, lldb, and clipboard tools | `make local TAGS=editors` |
-| `ui` *(Opt-in)* | Installs Sway WM, Waybar, and fonts (Skipped by default) | `make local TAGS=ui` |
-| `dotfiles` | Clones and links dotfiles via GNU Stow | `make local TAGS=dotfiles` |
+| `devtools` | Base CLI tools (git, tmux, fzf, stow, btop, etc.) | `./scripts/workstation.sh local --tags devtools` |
+| `languages` | Installs all programming languages | `./scripts/workstation.sh local --tags languages` |
+| `python` | Installs UV and Pipx only | `./scripts/workstation.sh local --tags python` |
+| `node` | Installs Node.js/NPM only | `./scripts/workstation.sh local --tags node` |
+| `rust` | Installs Rustup and Rust toolchain only | `./scripts/workstation.sh local --tags rust` |
+| `go` / `golang` | Installs Go language compiler only | `./scripts/workstation.sh local --tags go` |
+| `docker` | Configures Docker Engine, user groups, and service | `./scripts/workstation.sh local --tags docker` |
+| `zsh` | Configures Zsh, Oh-My-Zsh, P10k, and plugins | `./scripts/workstation.sh local --tags zsh` |
+| `editors` | Installs Neovim, lldb, and clipboard tools | `./scripts/workstation.sh local --tags editors` |
+| `ui` *(Opt-in)* | Installs Sway WM, Waybar, and fonts (Skipped by default) | `./scripts/workstation.sh local --tags ui` |
+| `dotfiles` | Clones and links dotfiles via GNU Stow | `./scripts/workstation.sh local --tags dotfiles` |
 
-> ⚠️ **Note:** The `ui` tag (graphical desktop environment Sway/Waybar) is strictly **opt-in** and skipped by default to prevent unintended changes on server or other desktop environments. To install it, run: `make local TAGS=ui` or `make sandbox TAGS=ui`.
+> ⚠️ **Note:** The `ui` tag (graphical desktop environment Sway/Waybar) is strictly **opt-in** and skipped by default to prevent unintended changes on server or other desktop environments. To install it, run: `./scripts/workstation.sh local --tags ui` or `./scripts/workstation.sh sandbox --tags ui`.
 
 ---
 
@@ -262,7 +258,11 @@ Run specific components using `TAGS`:
 
 ```plaintext
 workstation-ansible/
-├── Makefile              # Task runner CLI helper (includes sandbox, lint and test targets)
+├── Makefile              # Development tasks: lint, test, check (moving to a justfile: #68)
+├── scripts/
+│   ├── workstation.sh    # Provisioning entry point (local, remote, tunnel, sandbox, wizard)
+│   ├── interactive.sh    # Interactive TUI wizard
+│   └── lib/quote.sh      # Shell quoting shared by both scripts
 ├── pyproject.toml        # uv dev environment (ansible, linters, molecule) + uv.lock
 ├── .github/workflows/    # CI: make lint on PRs and pushes to main
 ├── README.md             # Documentation (Bilingual)

@@ -1,8 +1,17 @@
 ---
-- name: Instala Docker (Genérico)
+- name: Instalar Docker (Void)
   ansible.builtin.package:
     name: docker
     state: present
+    # Explícito: os plugins, a seguir, são instalados sem sincronizar o índice de novo.
+    update_cache: true
+
+# Cada plugin numa transação própria (void_plugin.yml): um indisponível só avisa, sem impedir o Docker nem o outro.
+- name: Instalar os plugins buildx e compose (Void)
+  ansible.builtin.include_tasks: void_plugin.yml
+  loop: [docker-buildx, docker-compose]
+  loop_control:
+    loop_var: docker_void_plugin
 
 - name: Verificar se o service dir runit do docker existe (/etc/sv/docker)
   ansible.builtin.stat:

@@ -836,6 +836,15 @@ main() {
 
                 screen_nav || continue
                 selected_tags_array=("${UI_LIST[@]}")
+                # Sem nenhum componente, o --tags ficaria vazio: reabre o passo (com a lista vazia) em vez de seguir. Sem
+                # terminal na entrada (respostas pelo stdin), o aviso seria apagado pela tela seguinte e as próximas
+                # respostas cairiam neste passo: o assistente para com o erro.
+                if [ "${#selected_tags_array[@]}" -eq 0 ]; then
+                    [ -t 0 ] || ui_fatal "Nenhum componente selecionado: as respostas pelo stdin precisam marcar ao menos um."
+                    ui_warn "Nenhum componente selecionado: marque ao menos um para continuar, ou cancele o assistente."
+                    ui_pause
+                    continue
+                fi
                 ;;
 
             dry_run)
@@ -848,13 +857,12 @@ main() {
                 ;;
 
             confirm)
+                # O passo tags garante ao menos um componente; a checagem aqui protege contra uma mudança futura no fluxo,
+                # que levaria um --tags vazio ao scripts/workstation.sh depois da confirmação. O IFS="," fica num subshell:
+                # um "local IFS" valeria para o resto de main, inclusive depois de Back.
+                [ "${#selected_tags_array[@]}" -gt 0 ] || ui_fatal "Erro interno: nenhum componente selecionado na confirmação."
                 local formatted_tags
-                if [ "${#selected_tags_array[@]}" -eq 0 ]; then
-                    formatted_tags="all"
-                else
-                    # O IFS="," fica num subshell: um "local IFS" valeria para o resto de main, inclusive depois de Back.
-                    formatted_tags=$(IFS=","; echo "${selected_tags_array[*]}")
-                fi
+                formatted_tags=$(IFS=","; echo "${selected_tags_array[*]}")
 
                 local run_args=()
                 run_args+=("$target_mode")

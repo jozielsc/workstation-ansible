@@ -301,12 +301,23 @@ run_sandbox() {
         # Docker: só mostra os comandos.
         msg "${GREEN}>> Reaproveitando o container ${container} (sem build nem recriação)...${RESET}"
         if [ "$print_only" -eq 0 ]; then
-            local state
-            state=$(docker inspect -f '{{.State.Running}}' "$container" 2>/dev/null) || {
-                echo "Erro: o container ${container} não existe; rode \"${PROG} sandbox --distro ${distro}\" sem --reuse antes." >&2
+            # "docker container inspect" só procura containers. Um erro do Docker (daemon parado, sem permissão no
+            # socket) não é "container ausente": rodar sem --reuse apagaria o sandbox que se queria reaproveitar.
+            local status
+            if ! status=$(docker container inspect -f '{{.State.Status}}' "$container" 2>&1); then
+                case "$status" in
+                    *"No such container"*)
+                        echo "Erro: o container ${container} não existe; rode o mesmo comando sem --reuse antes." >&2 ;;
+                    *)
+                        echo "Erro ao consultar o container ${container} no Docker: ${status}" >&2 ;;
+                esac
                 exit 1
-            }
-            [ "$state" = true ] || run_cmd docker start "$container"
+            fi
+            case "$status" in
+                running) ;;
+                paused) run_cmd docker unpause "$container" ;;
+                *) run_cmd docker start "$container" ;;
+            esac
         fi
     else
         msg "${GREEN}>> Preparando ambiente Sandbox Docker (Distro: ${distro})...${RESET}"
@@ -324,7 +335,11 @@ run_sandbox() {
     msg "${GREEN}======================================================================${RESET}"
     if [ "$dry_run" -eq 1 ]; then
         msg "${GREEN} SUCCESS: Simulação no Sandbox concluída (--dry-run): nada foi aplicado no container.${RESET}"
-        msg "${YELLOW} Para entrar no container sandbox (sem o provisionamento):${RESET}"
+        if [ "$reuse" -eq 1 ]; then
+            msg "${YELLOW} Para entrar no container sandbox (com o provisionamento anterior):${RESET}"
+        else
+            msg "${YELLOW} Para entrar no container sandbox (sem o provisionamento):${RESET}"
+        fi
     else
         msg "${GREEN} SUCCESS: Provisionamento Sandbox concluído!${RESET}"
         msg "${YELLOW} Para entrar no container sandbox e testar a instalação:${RESET}"

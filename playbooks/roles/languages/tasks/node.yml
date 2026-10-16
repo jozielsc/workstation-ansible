@@ -21,7 +21,7 @@
 
     - name: Informar que o Node.js existente foi mantido
       ansible.builtin.debug:
-        msg: "ℹ️ Node.js {{ _languages_node_query.stdout | trim }} já disponível: o pacote nodejs da distro não é instalado."
+        msg: "ℹ️ Node.js {{ _languages_node_query.stdout | trim }} já disponível: a instalação do pacote nodejs é pulada."
       when: _languages_node_query.rc == 0
 
     - name: Instalar Node.js (Sistema)
@@ -64,3 +64,24 @@
                   or ['erro desconhecido']) | last }}
           ansible.builtin.debug:
             msg: "⚠️ npm não instalado no {{ ansible_facts['distribution'] }}: {{ _languages_npm_error }}"
+
+    # Um node quebrado que vem antes no PATH (um shim sem versão em /usr/local/bin, por exemplo) continua sendo o
+    # escolhido mesmo depois de instalar o pacote: a conferência final só avisa.
+    - name: Conferir o Node.js depois da instalação
+      ansible.builtin.command:
+        argv: [node, --version]
+      register: _languages_node_check
+      changed_when: false
+      failed_when: false
+      when: not ansible_check_mode
+
+    - name: Avisar que o node do PATH não funciona
+      vars:
+        _languages_node_check_stderr: "{{ _languages_node_check.stderr_lines | default([], true) | map('trim') | select | list }}"
+        _languages_node_check_error: >-
+          {{ (_languages_node_check_stderr or [_languages_node_check.msg | default('erro desconhecido', true)]) | last }}
+      ansible.builtin.debug:
+        msg: "⚠️ O node do PATH não funciona depois da instalação: {{ _languages_node_check_error }}"
+      when:
+        - not ansible_check_mode
+        - _languages_node_check.rc != 0

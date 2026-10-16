@@ -93,7 +93,6 @@ tag_names_list() {
 tag_aliases_list() {
     local i alias aliases=""
     for i in "${!TAG_NAMES[@]}"; do
-        # shellcheck disable=SC2086 # os apelidos de cada tag vêm separados por espaço e precisam ser divididos
         for alias in ${TAG_ALIASES[i]}; do
             aliases+="${alias} (${TAG_NAMES[i]}), "
         done

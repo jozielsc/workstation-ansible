@@ -12,6 +12,8 @@ load_tags() {
     local name desc aliases
     TAG_NAMES=() TAG_DESCS=() TAG_ALIASES=()
     while IFS='|' read -r name desc aliases || [ -n "$name" ]; do
+        # Um arquivo salvo com CRLF deixaria o \r no último campo ("packages\r"), e o apelido nunca casaria.
+        aliases="${aliases%$'\r'}"
         # Linhas vazias (inclusive só com espaços) e comentários ficam de fora, como no tests/check_tags.py.
         [ -n "${name//[[:space:]]/}" ] || continue
         case "$name" in "#"*) continue ;; esac

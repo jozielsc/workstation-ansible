@@ -5,7 +5,8 @@ Falha (código 1) quando:
   "never") ou de um include de playbooks/roles/languages/tasks/main.yml, ou quando uma role ou um include não tem
   linha correspondente; assim, um apelido na tag errada também falha;
 - alguma tag não aparece, como `tag`, nas seções de tags do README.md (PT e EN) e do docs/USAGE.md, ou algum apelido
-  não aparece na seção de tags do docs/USAGE.md.
+  não aparece na seção de tags do docs/USAGE.md;
+- a seleção padrão do wizard (selected_tags_array em scripts/interactive.sh) cita uma tag que não está no arquivo.
 
 Roda no "just lint": uv run --locked python tests/check_tags.py
 """
@@ -64,6 +65,13 @@ def playbook_groups():
     return [g for g in groups if g]
 
 
+def wizard_defaults():
+    """Os nomes da seleção que o wizard traz marcada (local selected_tags_array=(...) em scripts/interactive.sh)."""
+    text = (REPO / "scripts/interactive.sh").read_text(encoding="utf-8")
+    match = re.search(r"local selected_tags_array=\(([^)]*)\)", text)
+    return None if match is None else re.findall(r'"([^"]+)"', match.group(1))
+
+
 def section(path, title):
     text = (REPO / path).read_text(encoding="utf-8")
     start = text.find(title + "\n")
@@ -106,6 +114,12 @@ def main():
         required = names + (aliases if with_aliases else [])
         if absent := [t for t in required if f"`{t}`" not in body]:
             errors.append(f"{path} ({title}): sem menção: {', '.join(absent)}")
+
+    defaults = wizard_defaults()
+    if defaults is None:
+        errors.append("scripts/interactive.sh: não achei a seleção padrão (local selected_tags_array=(...))")
+    elif unknown := [t for t in defaults if t not in names]:
+        errors.append(f"scripts/interactive.sh: a seleção padrão do wizard cita tags fora de scripts/lib/tags: {', '.join(unknown)}")
 
     for error in errors:
         print(f"Erro: {error}", file=sys.stderr)

@@ -2,7 +2,9 @@
 # Formato: tag|descrição (mostrada no wizard)|apelidos separados por espaço (também aceitos no --tags).
 # O "just lint" (tests/check_tags.py) confere esta lista com as tags de role do playbooks/site.yml e dos includes de
 # playbooks/roles/languages/tasks/main.yml, e confere que cada tag aparece no README.md (PT e EN) e no docs/USAGE.md.
-# uv e pipx não entram: hoje não rodam sozinhas (#15).
+# uv e pipx não entram: hoje não rodam sozinhas (#15). Os apelidos também precisam aparecer na seção de tags do
+# docs/USAGE.md. A seleção que o wizard traz marcada fica em scripts/interactive.sh (selected_tags_array): uma tag nova
+# aparece desmarcada lá até entrar nessa lista.
 devtools|Base CLI tools (git, tmux, fzf, stow, btop)|packages
 languages|All programming languages (Python, Node, Rust, Go)|
 python|Python toolchain (UV + Pipx)|

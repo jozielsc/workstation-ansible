@@ -12,7 +12,9 @@ load_tags() {
     local name desc aliases
     TAG_NAMES=() TAG_DESCS=() TAG_ALIASES=()
     while IFS='|' read -r name desc aliases || [ -n "$name" ]; do
-        case "$name" in ""|"#"*) continue ;; esac
+        # Linhas vazias (inclusive só com espaços) e comentários ficam de fora, como no tests/check_tags.py.
+        [ -n "${name//[[:space:]]/}" ] || continue
+        case "$name" in "#"*) continue ;; esac
         TAG_NAMES+=("$name")
         TAG_DESCS+=("$desc")
         TAG_ALIASES+=("$aliases")

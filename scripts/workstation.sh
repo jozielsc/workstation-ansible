@@ -89,10 +89,15 @@ tag_names_list() {
     printf '%s' "${names%, }"
 }
 
+# Cada apelido com a tag a que pertence: "packages (devtools), golang (go)".
 tag_aliases_list() {
-    local aliases
-    # shellcheck disable=SC2048,SC2086 # os apelidos de cada tag vêm separados por espaço e precisam ser divididos
-    aliases="$(printf '%s, ' ${TAG_ALIASES[*]})"
+    local i alias aliases=""
+    for i in "${!TAG_NAMES[@]}"; do
+        # shellcheck disable=SC2086 # os apelidos de cada tag vêm separados por espaço e precisam ser divididos
+        for alias in ${TAG_ALIASES[i]}; do
+            aliases+="${alias} (${TAG_NAMES[i]}), "
+        done
+    done
     printf '%s' "${aliases%, }"
 }
 
@@ -249,25 +254,36 @@ require_ssh_user() {
     require_value user "$user" login "Defina um único usuário SSH" "$1"
 }
 
-# O perfil vira "-e profile=<nome>", que o Ansible lê como uma lista key=value separada por espaços: "default x=y"
-# definiria outra variável. Só passam nomes simples com um arquivo profiles/<nome>.yml.
-# Uma tag com erro de digitação ou separada por espaço rodaria só as tarefas "always" e terminaria com sucesso: o
-# --tags só aceita as tags de scripts/lib/tags (ou "all"), separadas por vírgula.
+# Uma tag com erro de digitação, ou tags separadas só por espaço, rodariam só as tarefas "always" e terminariam com
+# sucesso: o --tags só aceita as tags de scripts/lib/tags, seus apelidos e "all", separados por vírgula. Os espaços em
+# volta de cada item são tirados (como o Ansible faz), e o ansible-playbook recebe a lista normalizada ("zsh,node").
 require_tags() {
-    local item
+    local item normalized=""
     local -a items
+    # Uma quebra de linha passaria pela validação: o read abaixo só lê a primeira linha.
+    if [[ "$tags" == *[$'\n\r\t']* ]]; then
+        usage_error "--tags tem quebra de linha ou tabulação; separe as tags por vírgula (ex.: --tags zsh,node)"
+    fi
+    # O read descarta um último item vazio ("zsh,"): esse caso é conferido antes.
     case "$tags" in
-        ,*|*,|*,,*) usage_error "--tags '${tags}' tem um item vazio; separe as tags por vírgula, sem espaço" ;;
+        *,) usage_error "--tags '${tags}' termina com vírgula" ;;
     esac
     IFS=',' read -r -a items <<< "$tags"
     for item in "${items[@]}"; do
+        item="${item#"${item%%[![:space:]]*}"}"
+        item="${item%"${item##*[![:space:]]}"}"
+        [ -n "$item" ] || usage_error "--tags '${tags}' tem um item vazio; separe as tags por vírgula"
         if [[ "$item" =~ [[:space:]] ]]; then
-            usage_error "--tags '${tags}' tem espaço; separe as tags por vírgula, sem espaço (ex.: --tags zsh,node)"
+            usage_error "--tags '${tags}' tem tags separadas por espaço; separe-as por vírgula (ex.: --tags zsh,node)"
         fi
         tag_known "$item" || usage_error "tag desconhecida no --tags: '${item}' (disponíveis: all, $(tag_names_list); apelidos: $(tag_aliases_list))"
+        normalized+="${normalized:+,}${item}"
     done
+    tags="$normalized"
 }
 
+# O perfil vira "-e profile=<nome>", que o Ansible lê como uma lista key=value separada por espaços: "default x=y"
+# definiria outra variável. Só passam nomes simples com um arquivo profiles/<nome>.yml.
 require_profile() {
     local available
     if [[ ! "$profile" =~ $NAME_RE ]] || [ ! -f "$REPO_DIR/profiles/${profile}.yml" ]; then

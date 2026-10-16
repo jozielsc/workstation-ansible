@@ -110,3 +110,5 @@ Use tags para agilizar a execução quando quiser alterar apenas um componente:
 *   `editors`: Neovim, lldb e ferramentas de clipboard.
 *   `ui` *(Opt-in especial)*: Interface gráfica Sway, Waybar e fontes. *(Ignorado por padrão)*.
 *   `dotfiles`: Gerenciamento de arquivos de configuração via GNU Stow.
+
+Apelidos aceitos no `--tags`: `packages` (devtools), `golang` (go), `shell` (zsh), `nvim` (editors), `visuals` (ui) e `stow` (dotfiles). Os espaços depois da vírgula são aceitos (`--tags "zsh, node"`); uma tag desconhecida, um item vazio ou tags separadas só por espaço saem com erro.

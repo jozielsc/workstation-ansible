@@ -4,10 +4,46 @@
     msg: "🟢 LANG: Instalando Node.js e NPM do sistema..."
   when: languages_features.node | default(true)
 
-- name: Instalar Node.js e NPM (Sistema)
-  ansible.builtin.package:
-    name:
-      - nodejs
-    state: present
-  tags: [node]
+- name: Instalar Node.js e npm
   when: languages_features.node | default(true)
+  tags: [node]
+  block:
+    - name: Instalar Node.js (Sistema)
+      ansible.builtin.package:
+        name: nodejs
+        state: present
+
+    # O npm é um pacote separado no Debian/Ubuntu e no Arch, mas vem com o nodejs no Void e no Fedora, e o nodejs do
+    # NodeSource também o traz (e declara conflito com o pacote npm da distro). Por isso o pacote só é instalado quando
+    # o comando ainda não existe.
+    - name: Verificar se o npm já está disponível
+      ansible.builtin.command:
+        argv: [sh, -c, command -v npm]
+      register: _languages_npm_query
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    # Uma falha (pacote indisponível, conflito, sem rede) só avisa, como no padrão de instalação resiliente: o nodejs já
+    # está instalado e o play segue.
+    - name: Instalar o npm
+      when: _languages_npm_query.rc != 0
+      block:
+        - name: Instalar o npm (Sistema)
+          ansible.builtin.package:
+            name: npm
+            state: present
+      rescue:
+        # O erro real fica no stderr (apt, pacman, xbps), em failures (dnf), no module_stderr (o módulo quebrou) ou no
+        # msg, que nos outros casos é genérico. O aviso mostra a última linha do primeiro que tiver conteúdo.
+        - name: Avisar que o npm não foi instalado
+          vars:
+            _languages_npm_stderr: "{{ ansible_failed_result.stderr_lines | default([], true) | map('trim') | select | list }}"
+            _languages_npm_failures: "{{ ansible_failed_result.failures | default([], true) | map('string') | map('trim') | select | list }}"
+            _languages_npm_module: "{{ (ansible_failed_result.module_stderr | default('', true) | string).splitlines() | map('trim') | select | list }}"
+            _languages_npm_msg: "{{ (ansible_failed_result.msg | default('', true) | string).splitlines() | map('trim') | select | list }}"
+            _languages_npm_error: >-
+              {{ (_languages_npm_stderr or _languages_npm_failures or _languages_npm_module or _languages_npm_msg
+                  or ['erro desconhecido']) | last }}
+          ansible.builtin.debug:
+            msg: "⚠️ npm não instalado no {{ ansible_facts['distribution'] }}: {{ _languages_npm_error }}"

@@ -15,6 +15,7 @@ scripts/workstation.sh local | remote | tunnel
 
 scripts/workstation.sh sandbox
   └─ docker build tests/sandbox/Dockerfile.<distro> → docker rm -f (container anterior) → docker run (tail -f)
+     (com --reuse: nada disso; usa o container que já existe, com docker start se estiver parado, e sai com erro se não existir)
   └─ ansible-playbook … -i "<container>," -c docker -u dev   (sem -K; com --dry-run, --check --diff)
 ```
 

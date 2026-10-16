@@ -61,6 +61,7 @@ profile="default"
 tags="all"
 dry_run=0
 print_only=0
+reuse=0
 distro="void"
 ip=""
 user=""
@@ -100,6 +101,7 @@ Uso: $PROG [comando] [opções] [-- argumentos do ansible-playbook]
     --tags LISTA         local, remote, tunnel, sandbox: tags separadas por vírgula (default: all)
                          devtools, languages, python, node, rust, go, docker, zsh, editors, ui, dotfiles
     --dry-run            local, remote, tunnel, sandbox: modo simulação (--check --diff)
+    --reuse              sandbox: roda no container que já existe, sem build nem recriação (2ª execução)
     --distro NOME        sandbox, sandbox-shell, sandbox-clean: void, ubuntu, fedora, arch (default: void)
     --ip HOST            remote, tunnel: um único host de destino, hostname ou IPv4 (obrigatório)
     --user USUARIO       remote, tunnel: usuário SSH no destino (default: o usuário atual, whoami; aceita @)
@@ -155,7 +157,11 @@ parse_args() {
                 print_only=1
                 used_opts+="print "
                 ;;
-            --dry-run=*|--print=*)
+            --reuse)
+                reuse=1
+                used_opts+="reuse "
+                ;;
+            --dry-run=*|--print=*|--reuse=*)
                 usage_error "a opção ${1%%=*} não aceita valor"
                 ;;
             --*=*)
@@ -287,16 +293,30 @@ run_tunnel() {
 run_sandbox() {
     local image="$SANDBOX_IMAGE" container="$SANDBOX_CONTAINER"
 
-    # Sem -K: o sudo do usuário dev é NOPASSWD. Com --dry-run, o playbook roda em --check --diff sobre o container
-    # recém-criado.
+    # Sem -K: o sudo do usuário dev é NOPASSWD. Com --dry-run, o playbook roda em --check --diff sobre o container.
     ansible_cmd 0 "$dry_run"
-    msg "${GREEN}>> Preparando ambiente Sandbox Docker (Distro: ${distro})...${RESET}"
-    msg "${GREEN}>> Construindo imagem ${image}...${RESET}"
-    run_cmd docker build -t "$image" -f "${SANDBOX_DIR}/Dockerfile.${distro}" "${SANDBOX_DIR}/"
-    # Recria o container a cada execução (#51).
-    msg "${GREEN}>> Garantindo que o container ${container} esteja rodando...${RESET}"
-    run_cmd docker rm -f "$container" 2>/dev/null || true
-    run_cmd docker run -d --name "$container" "$image"
+    if [ "$reuse" -eq 1 ]; then
+        # --reuse: roda no container que já existe (por exemplo, a segunda execução para conferir a idempotência). Sem
+        # build nem recriação, então uma imagem reconstruída não chega a este container. Com --print, não consulta o
+        # Docker: só mostra os comandos.
+        msg "${GREEN}>> Reaproveitando o container ${container} (sem build nem recriação)...${RESET}"
+        if [ "$print_only" -eq 0 ]; then
+            local state
+            state=$(docker inspect -f '{{.State.Running}}' "$container" 2>/dev/null) || {
+                echo "Erro: o container ${container} não existe; rode \"${PROG} sandbox --distro ${distro}\" sem --reuse antes." >&2
+                exit 1
+            }
+            [ "$state" = true ] || run_cmd docker start "$container"
+        fi
+    else
+        msg "${GREEN}>> Preparando ambiente Sandbox Docker (Distro: ${distro})...${RESET}"
+        msg "${GREEN}>> Construindo imagem ${image}...${RESET}"
+        run_cmd docker build -t "$image" -f "${SANDBOX_DIR}/Dockerfile.${distro}" "${SANDBOX_DIR}/"
+        # Recria o container a cada execução; o --reuse roda de novo no mesmo container.
+        msg "${GREEN}>> Recriando o container ${container}...${RESET}"
+        run_cmd docker rm -f "$container" 2>/dev/null || true
+        run_cmd docker run -d --name "$container" "$image"
+    fi
     msg "${GREEN}>> Iniciando ${MODE_LABEL} SANDBOX no container ${container} via Docker Connection [Tags: ${tags}]...${RESET}"
     run_cmd "${ANSIBLE_CMD[@]}" -i "${container}," -c docker -u dev
 
@@ -338,7 +358,7 @@ main() {
         local)             check_options "$provision_opts" 1 ;;
         remote)            check_options "$provision_opts ip user" 1 ;;
         tunnel)            check_options "$provision_opts ip user jump-ip jump-user" 1 ;;
-        sandbox)           check_options "$provision_opts distro" 1 ;;
+        sandbox)           check_options "$provision_opts distro reuse" 1 ;;
         sandbox-shell|sandbox-clean) check_options "distro print" 0 ;;
         *)                 usage_error "comando desconhecido: $command" ;;
     esac

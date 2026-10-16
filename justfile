@@ -60,7 +60,7 @@ check: lint test
 # "scripts/workstation.sh sandbox --dry-run". [no-cd]: a receita roda na pasta de quem chama, como o script, para que
 # caminhos relativos nos argumentos extras (-e @vars.yml) valham a partir dela; o script vai pelo caminho absoluto.
 # Com "uv run", o ansible-playbook do script é o do .venv. A segunda execução no mesmo container, para conferir a
-# idempotência, depende da #51.
+# idempotência, é "uv run scripts/workstation.sh sandbox … --reuse": a receita também não repassa o --reuse.
 [doc("Provisiona um container sandbox; distro e tags vêm antes dos argumentos extras do ansible-playbook. Ex.: just sandbox ubuntu rust -vv")]
 [no-cd]
 [positional-arguments]

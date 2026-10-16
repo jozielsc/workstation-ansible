@@ -8,10 +8,22 @@
   when: languages_features.node | default(true)
   tags: [node]
   block:
+    # Um Node.js já instalado por outro pacote (nodejs-lts-* no Arch, que conflita com o nodejs) faria a instalação do
+    # pacote nodejs falhar e parar o play: com o comando node presente, ela é pulada. Sem Node.js, uma falha na
+    # instalação é real e continua parando o play.
+    - name: Verificar se o Node.js já está disponível
+      ansible.builtin.command:
+        argv: [sh, -c, command -v node]
+      register: _languages_node_query
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
     - name: Instalar Node.js (Sistema)
       ansible.builtin.package:
         name: nodejs
         state: present
+      when: _languages_node_query.rc != 0
 
     # O npm é um pacote separado no Debian/Ubuntu e no Arch, mas vem com o nodejs no Void e no Fedora, e o nodejs do
     # NodeSource também o traz (e declara conflito com o pacote npm da distro). Por isso o pacote só é instalado quando

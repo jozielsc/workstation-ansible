@@ -34,14 +34,16 @@
             name: npm
             state: present
       rescue:
-        # O erro real fica no stderr (pacman, xbps), em failures (dnf) ou no msg (apt); o msg dos outros é genérico. O
-        # aviso mostra a última linha do primeiro que tiver conteúdo.
+        # O erro real fica no stderr (apt, pacman, xbps), em failures (dnf), no module_stderr (o módulo quebrou) ou no
+        # msg, que nos outros casos é genérico. O aviso mostra a última linha do primeiro que tiver conteúdo.
         - name: Avisar que o npm não foi instalado
           vars:
-            _languages_npm_stderr: "{{ (ansible_failed_result.stderr | default('') | string).splitlines() | map('trim') | select | list }}"
-            _languages_npm_failures: "{{ ansible_failed_result.failures | default([]) | map('string') | map('trim') | select | list }}"
-            _languages_npm_msg: "{{ (ansible_failed_result.msg | default('') | string).splitlines() | map('trim') | select | list }}"
+            _languages_npm_stderr: "{{ ansible_failed_result.stderr_lines | default([], true) | map('trim') | select | list }}"
+            _languages_npm_failures: "{{ ansible_failed_result.failures | default([], true) | map('string') | map('trim') | select | list }}"
+            _languages_npm_module: "{{ (ansible_failed_result.module_stderr | default('', true) | string).splitlines() | map('trim') | select | list }}"
+            _languages_npm_msg: "{{ (ansible_failed_result.msg | default('', true) | string).splitlines() | map('trim') | select | list }}"
             _languages_npm_error: >-
-              {{ (_languages_npm_stderr or _languages_npm_failures or _languages_npm_msg or ['erro desconhecido']) | last }}
+              {{ (_languages_npm_stderr or _languages_npm_failures or _languages_npm_module or _languages_npm_msg
+                  or ['erro desconhecido']) | last }}
           ansible.builtin.debug:
             msg: "⚠️ npm não instalado no {{ ansible_facts['distribution'] }}: {{ _languages_npm_error }}"

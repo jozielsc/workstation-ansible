@@ -1,4 +1,9 @@
 ---
+# A URL do repositório, num lugar só: chave GPG, linha do apt e mensagem do check mode.
+- name: Definir a URL do repositório do Docker
+  ansible.builtin.set_fact:
+    _docker_apt_repo_url: "https://download.docker.com/linux/{{ ansible_facts['distribution'] | lower }}"
+
 - name: Instalar dependências do repositório Docker
   ansible.builtin.apt:
     name:
@@ -15,7 +20,7 @@
 
 - name: Baixar chave GPG do Docker
   ansible.builtin.get_url:
-    url: https://download.docker.com/linux/{{ ansible_facts['distribution'] | lower }}/gpg
+    url: "{{ _docker_apt_repo_url }}/gpg"
     dest: /etc/apt/keyrings/docker.asc
     mode: "0644"
 
@@ -24,11 +29,31 @@
     repo: >-
       deb [arch={{ docker_apt_arch[ansible_facts['architecture']] }}
       signed-by=/etc/apt/keyrings/docker.asc]
-      https://download.docker.com/linux/{{ ansible_facts['distribution'] | lower }}
+      {{ _docker_apt_repo_url }}
       {{ ansible_facts['distribution_release'] }} stable
     filename: docker
     state: present
     update_cache: true
+  register: docker_apt_repo
+
+# O docker-ce instalado (pelo dpkg, não pelo /usr/bin/dockerd, que o docker.io da distro também traz). Roda também em
+# check mode, sem alterar nada.
+- name: Verificar se o docker-ce está instalado
+  ansible.builtin.command:
+    argv: [dpkg-query, -W, '-f=${Status}', docker-ce]
+  register: _docker_ce_query
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# Em check mode, um repositório que mudaria só foi simulado, e o índice do apt pode não ter o docker-ce: sem o pacote
+# instalado, a instalação é pulada e só informada. Com ele instalado, o check segue (o apt conhece o pacote instalado),
+# mesmo que o repositório "mude" por estar em outro formato (o .sources do guia atual do Docker, outro signed-by).
+- name: Informar que o Docker seria instalado (check mode)
+  ansible.builtin.debug:
+    msg: Docker seria instalado do repositório oficial ({{ _docker_apt_repo_url }}).
+  changed_when: true
+  when: ansible_check_mode and (docker_apt_repo | default({})) is changed and 'install ok installed' not in _docker_ce_query.stdout
 
 - name: Instalar Docker
   ansible.builtin.apt:
@@ -39,3 +64,4 @@
       - docker-buildx-plugin
       - docker-compose-plugin
     state: present
+  when: not (ansible_check_mode and (docker_apt_repo | default({})) is changed and 'install ok installed' not in _docker_ce_query.stdout)

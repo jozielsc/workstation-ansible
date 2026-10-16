@@ -18,6 +18,9 @@ REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 # shellcheck source=scripts/lib/quote.sh
 source "$SCRIPT_DIR/lib/quote.sh"
+# shellcheck source=scripts/lib/tags.sh
+source "$SCRIPT_DIR/lib/tags.sh"
+load_tags "$SCRIPT_DIR/lib/tags"
 
 # Cores e saída do Ansible em tempo real, inclusive quando a saída não é um terminal.
 export ANSIBLE_FORCE_COLOR=1
@@ -79,7 +82,28 @@ usage_error() {
     exit 2
 }
 
+# As tags e os apelidos de scripts/lib/tags, cada lista como "a, b, c" (usadas no help e nas mensagens de erro).
+tag_names_list() {
+    local names
+    names="$(printf '%s, ' "${TAG_NAMES[@]}")"
+    printf '%s' "${names%, }"
+}
+
+# Cada apelido com a tag a que pertence: "packages (devtools), golang (go)".
+tag_aliases_list() {
+    local i alias aliases=""
+    for i in "${!TAG_NAMES[@]}"; do
+        for alias in ${TAG_ALIASES[i]}; do
+            aliases+="${alias} (${TAG_NAMES[i]}), "
+        done
+    done
+    printf '%s' "${aliases%, }"
+}
+
 show_help() {
+    local tag_names tag_aliases
+    tag_names="$(tag_names_list)"
+    tag_aliases="$(tag_aliases_list)"
     cat <<EOF
 
 ${YELLOW}Workstation Ansible${RESET}
@@ -99,7 +123,8 @@ Uso: $PROG [comando] [opções] [-- argumentos do ansible-playbook]
   ${YELLOW}Opções:${RESET}
     --profile NOME       local, remote, tunnel, sandbox: perfil profiles/NOME.yml (default: default)
     --tags LISTA         local, remote, tunnel, sandbox: tags separadas por vírgula (default: all)
-                         devtools, languages, python, node, rust, go, docker, zsh, editors, ui, dotfiles
+                         ${tag_names}
+                         apelidos: ${tag_aliases}
     --dry-run            local, remote, tunnel, sandbox: modo simulação (--check --diff)
     --reuse              sandbox: roda no container que já existe, sem build nem recriação (2ª execução)
     --distro NOME        sandbox, sandbox-shell, sandbox-clean: void, ubuntu, fedora, arch (default: void)
@@ -226,6 +251,34 @@ require_ssh_user() {
         *) user="$(whoami)" ;;
     esac
     require_value user "$user" login "Defina um único usuário SSH" "$1"
+}
+
+# Uma tag com erro de digitação, ou tags separadas só por espaço, rodariam só as tarefas "always" e terminariam com
+# sucesso: o --tags só aceita as tags de scripts/lib/tags, seus apelidos e "all", separados por vírgula. Os espaços em
+# volta de cada item são tirados (como o Ansible faz), e o ansible-playbook recebe a lista normalizada ("zsh,node").
+require_tags() {
+    local item normalized=""
+    local -a items
+    # Uma quebra de linha passaria pela validação: o read abaixo só lê a primeira linha.
+    if [[ "$tags" == *[$'\n\r\t']* ]]; then
+        usage_error "--tags tem quebra de linha ou tabulação; separe as tags por vírgula (ex.: --tags zsh,node)"
+    fi
+    # O read descarta um último item vazio ("zsh,"): esse caso é conferido antes.
+    case "$tags" in
+        *,) usage_error "--tags '${tags}' termina com vírgula" ;;
+    esac
+    IFS=',' read -r -a items <<< "$tags"
+    for item in "${items[@]}"; do
+        item="${item#"${item%%[![:space:]]*}"}"
+        item="${item%"${item##*[![:space:]]}"}"
+        [ -n "$item" ] || usage_error "--tags '${tags}' tem um item vazio; separe as tags por vírgula"
+        if [[ "$item" =~ [[:space:]] ]]; then
+            usage_error "--tags '${tags}' tem tags separadas por espaço; separe-as por vírgula (ex.: --tags zsh,node)"
+        fi
+        tag_known "$item" || usage_error "tag desconhecida no --tags: '${item}' (disponíveis: all, $(tag_names_list); apelidos: $(tag_aliases_list))"
+        normalized+="${normalized:+,}${item}"
+    done
+    tags="$normalized"
 }
 
 # O perfil vira "-e profile=<nome>", que o Ansible lê como uma lista key=value separada por espaços: "default x=y"
@@ -406,16 +459,19 @@ main() {
             ;;
         local)
             require_profile
+            require_tags
             run_local
             ;;
         remote)
             require_profile
+            require_tags
             require_value ip "$ip" name "Defina um único IP de destino" "$remote_usage"
             require_ssh_user "$remote_usage"
             run_remote
             ;;
         tunnel)
             require_profile
+            require_tags
             require_value ip "$ip" name "Defina um único IP de destino" "$tunnel_usage"
             require_value jump_ip "$jump_ip" name "Defina um único IP do Bastion" "$tunnel_usage"
             require_value jump_user "$jump_user" name "Defina um único usuário do Bastion" "$tunnel_usage"
@@ -424,6 +480,7 @@ main() {
             ;;
         sandbox)
             require_profile
+            require_tags
             require_distro
             run_sandbox
             ;;

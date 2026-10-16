@@ -25,7 +25,7 @@ Não há comando para instalar as collections do Ansible (#20). Veja como obtê-
 
 As tarefas de desenvolvimento ficam no `justfile` e rodam com o [just](https://github.com/casey/just), que vem do ambiente de desenvolvimento do uv. `uv run just` lista as receitas:
 
-*   `uv run just lint`: Executa, em sequência, o `--syntax-check` do playbook, o `ansible-lint`, o `yamllint` e o `shellcheck` dos scripts. São as mesmas checagens do CI que roda nos PRs.
+*   `uv run just lint`: Executa, em sequência, o `--syntax-check` do playbook, o `ansible-lint`, o `yamllint`, o `shellcheck` dos scripts e a conferência da lista de tags (`tests/check_tags.py`). São as mesmas checagens do CI que roda nos PRs.
 *   `uv run just test`: Executa o cenário Molecule (`uv run molecule test`). Enquanto o cenário não existir (#34), para com uma mensagem.
 *   `uv run just check`: Executa `lint` e, se ele passar, `test`.
 *   `uv run just sandbox [distro] [tags] [argumentos]`: Atalho para `./scripts/workstation.sh sandbox --distro <distro> --tags <tags>` (padrão: `void` e `all`); os argumentos extras vão para o `ansible-playbook`. Para passar argumentos extras, informe antes a distro e as tags, mesmo que sejam as padrão: `uv run just sandbox ubuntu rust -vv` ou `uv run just sandbox void all -vv`. Em `uv run just sandbox ubuntu -vv`, o `-vv` seria lido como as tags, e a receita sai com erro. Como no script, caminhos relativos nos argumentos extras (`-e @vars.yml`) valem a partir da pasta de onde você chamou.
@@ -36,7 +36,7 @@ As receitas usam o ambiente de desenvolvimento do [uv](https://docs.astral.sh/uv
 
 As opções aceitam `--opção valor` e `--opção=valor`; um valor que começa com `-` só vale na segunda forma. Uma opção com valor vazio ou que não se aplica ao comando (por exemplo, `--ip` com `local`) é recusada com erro.
 
-*   `--tags`: Lista de tags separadas por vírgula para executar apenas partes específicas (`local`, `remote`, `tunnel`, `sandbox`).
+*   `--tags`: Lista de tags separadas por vírgula para executar apenas partes específicas (`local`, `remote`, `tunnel`, `sandbox`). Só aceita as tags listadas em [Tags Disponíveis](#tags-disponíveis), seus apelidos (por exemplo, `golang`) e `all`: uma tag desconhecida, um item vazio (`zsh,,node`) ou tags separadas por espaço saem com erro, com a lista das disponíveis.
     *   Exemplo: `./scripts/workstation.sh local --tags zsh,dotfiles` ou `./scripts/workstation.sh sandbox --distro ubuntu --tags node`
 *   `--profile`: Define qual perfil de variáveis carregar (padrão: `default`). Precisa existir um arquivo `profiles/<nome>.yml`.
     *   Exemplo: `./scripts/workstation.sh local --profile local`
@@ -110,3 +110,5 @@ Use tags para agilizar a execução quando quiser alterar apenas um componente:
 *   `editors`: Neovim, lldb e ferramentas de clipboard.
 *   `ui` *(Opt-in especial)*: Interface gráfica Sway, Waybar e fontes. *(Ignorado por padrão)*.
 *   `dotfiles`: Gerenciamento de arquivos de configuração via GNU Stow.
+
+Apelidos aceitos no `--tags`: `packages` (devtools), `golang` (go), `shell` (zsh), `nvim` (editors), `visuals` (ui) e `stow` (dotfiles). Os espaços depois da vírgula são aceitos (`--tags "zsh, node"`); uma tag desconhecida, um item vazio ou tags separadas só por espaço saem com erro. As tags especiais do Ansible (`tagged`, `untagged`, `always`, `never`) não são aceitas no `--tags`; se precisar delas, passe-as ao `ansible-playbook` depois de `--` (por exemplo, `-- --tags tagged`), sem validação.

@@ -38,7 +38,6 @@ Legenda de evidência:
 - O bloco de instalação resiliente e o banner de status estão copiados em `devtools`, `editors` e `ui` (cerca de 45 linhas cada). (#24)
 - O carregamento de vars por distro e o fallback estão repetidos nas mesmas três roles. (#24)
 - `languages_features.<x> | default(true)` está repetido em cada tarefa, em vez de ficar no include. (#15)
-- A lista de tags existe em 6 lugares: `site.yml`, `help` do `scripts/workstation.sh`, wizard, README (PT e EN), `USAGE.md`, e também no `CLAUDE.md`. (#25)
 - As listas de pacotes são 4 distros × 3 roles mantidas à mão, sem uma tabela única de nomes canônicos. (#21)
 
 ## Reprodutibilidade e cadeia de suprimentos

@@ -81,7 +81,7 @@ As ferramentas de desenvolvimento (`ansible`, `ansible-lint`, `yamllint`, `shell
 ```bash
 uv sync                        # cria o .venv com as ferramentas
 uv run just                    # lista as receitas
-uv run just lint               # syntax-check, ansible-lint, yamllint e shellcheck
+uv run just lint               # syntax-check, ansible-lint, yamllint, shellcheck e lista de tags
 uv run just test               # uv run molecule test (o cenário ainda está na issue #34)
 uv run just check              # lint + test
 uv run just sandbox ubuntu rust  # ./scripts/workstation.sh sandbox --distro ubuntu --tags rust
@@ -209,7 +209,7 @@ Development tools (`ansible`, `ansible-lint`, `yamllint`, `shellcheck`, `molecul
 ```bash
 uv sync                        # creates .venv with the tools
 uv run just                    # lists the recipes
-uv run just lint               # syntax-check, ansible-lint, yamllint and shellcheck
+uv run just lint               # syntax-check, ansible-lint, yamllint, shellcheck and tag list check
 uv run just test               # uv run molecule test (the scenario is still tracked in issue #34)
 uv run just check              # lint + test
 uv run just sandbox ubuntu rust  # ./scripts/workstation.sh sandbox --distro ubuntu --tags rust

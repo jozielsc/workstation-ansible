@@ -6,7 +6,6 @@ devtools_packages:
   - direnv
   - lsd
   - python3-pip
-  - pipx
   - unzip
   - curl
   - wget

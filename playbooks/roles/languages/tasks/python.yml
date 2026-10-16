@@ -17,11 +17,22 @@
 
 - name: Garantir que pipx está instalado (via sistema)
   ansible.builtin.package:
-    name: "{{ 'python3-pipx' if ansible_facts['os_family'] in ['Debian', 'Void'] else 'pipx' }}"
+    name: "{{ languages_pipx_package[ansible_facts['os_family']] }}"
     state: present
-  failed_when: false
   tags: [python, pipx]
-  when: languages_features.python | default(true)
+  when:
+    - languages_features.python | default(true)
+    - ansible_facts['os_family'] in languages_pipx_package
+
+- name: Avisar que o pipx não tem pacote mapeado nesta distro
+  ansible.builtin.debug:
+    msg: >-
+      ⚠️ pipx não instalado: a família '{{ ansible_facts['os_family'] }}'
+      ({{ ansible_facts['distribution'] }}) não tem pacote em languages_pipx_package.
+  tags: [python, pipx]
+  when:
+    - languages_features.python | default(true)
+    - ansible_facts['os_family'] not in languages_pipx_package
 
 - name: Garantir PATH do pipx
   ansible.builtin.command: python3 -m pipx ensurepath

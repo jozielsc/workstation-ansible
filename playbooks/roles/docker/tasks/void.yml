@@ -4,8 +4,9 @@
     name: docker
     state: present
 
-# Os plugins buildx e compose vêm em pacotes próprios (em /usr/libexec/docker/cli-plugins/ no Void). Ficam numa
-# transação separada: um plugin indisponível (outra arquitetura, mirror desatualizado) só avisa, sem impedir o Docker.
+# Os plugins buildx e compose vêm em pacotes próprios (em /usr/libexec/docker/cli-plugins/ no Void), do mesmo
+# repositório e do mesmo build, então na prática faltam juntos: ficam numa transação só, separada da do Docker. Um
+# plugin indisponível (outra arquitetura, mirror desatualizado) só avisa, sem impedir o Docker.
 - name: Instalar os plugins buildx e compose (Void)
   block:
     - name: Instalar docker-buildx e docker-compose
@@ -14,19 +15,61 @@
           - docker-buildx
           - docker-compose
         state: present
+        # O índice acabou de ser sincronizado pela instalação do Docker.
+        update_cache: false
   rescue:
-    # O erro real fica no stderr (xbps), em failures, no module_stderr (o módulo quebrou) ou no msg; o aviso mostra a
-    # última linha do primeiro que tiver conteúdo.
+    # O erro real fica no stderr (xbps), no module_stderr (o módulo quebrou) ou no msg; o aviso mostra a última linha
+    # do primeiro que tiver conteúdo.
     - name: Avisar que os plugins do Docker não foram instalados
       vars:
         _docker_plugins_stderr: "{{ ansible_failed_result.stderr_lines | default([], true) | map('trim') | select | list }}"
-        _docker_plugins_failures: "{{ ansible_failed_result.failures | default([], true) | map('string') | map('trim') | select | list }}"
         _docker_plugins_module: "{{ (ansible_failed_result.module_stderr | default('', true) | string).splitlines() | map('trim') | select | list }}"
         _docker_plugins_msg: "{{ (ansible_failed_result.msg | default('', true) | string).splitlines() | map('trim') | select | list }}"
         _docker_plugins_error: >-
-          {{ (_docker_plugins_stderr or _docker_plugins_failures or _docker_plugins_module or _docker_plugins_msg
-              or ['erro desconhecido']) | last }}
+          {{ (_docker_plugins_stderr or _docker_plugins_module or _docker_plugins_msg or ['erro desconhecido']) | last }}
       ansible.builtin.debug:
         msg: >-
-          ⚠️ docker-buildx/docker-compose não instalados: {{ _docker_plugins_error }}. O Docker foi instalado, mas
-          'docker buildx' e 'docker compose' não vão funcionar.
+          ⚠️ docker-buildx/docker-compose não instalados: {{ _docker_plugins_error }}. Sem eles, 'docker buildx' e
+          'docker compose' não funcionam.
+
+- name: Verificar se o service dir runit do docker existe (/etc/sv/docker)
+  ansible.builtin.stat:
+    path: /etc/sv/docker
+  register: docker_sv_dir
+  when: ansible_facts['distribution'] == "Void"
+
+- name: Verificar se o runsvdir ativo está disponível (/var/service)
+  ansible.builtin.stat:
+    path: /var/service/
+    follow: true
+  register: docker_runsvdir
+  when: ansible_facts['distribution'] == "Void"
+
+- name: Habilitar serviço docker (Runit/Void)
+  ansible.builtin.file:
+    src: /etc/sv/docker
+    dest: /var/service/docker
+    state: link
+  # No Void o Ansible reporta service_mgr="service" (não "runit"); o mecanismo
+  # nativo é o symlink em /var/service. Só criamos o link se o service dir de
+  # origem existir E o runsvdir de destino estiver ativo. Em containers onde
+  # runit não é o PID 1, /var/service aponta para um alvo inexistente — nesse
+  # caso pulamos (nada a habilitar).
+  when:
+    - ansible_facts['distribution'] == "Void"
+    - docker_sv_dir.stat is defined and docker_sv_dir.stat.exists
+    - docker_runsvdir.stat is defined and docker_runsvdir.stat.exists
+  register: docker_link_result
+  failed_when:
+    - docker_link_result is failed
+    - "'No such file or directory' not in (docker_link_result.msg | default(''))"
+
+- name: Aviso quando o serviço docker não pôde ser habilitado
+  ansible.builtin.debug:
+    msg: >-
+      ⚠️ Serviço docker não habilitado (service dir ou runsvdir ausente — normal em containers).
+      Num host Void real: 'sudo ln -s /etc/sv/docker /var/service/'.
+  when:
+    - ansible_facts['distribution'] == "Void"
+    - not (docker_sv_dir.stat is defined and docker_sv_dir.stat.exists) or
+      not (docker_runsvdir.stat is defined and docker_runsvdir.stat.exists)

@@ -15,19 +15,44 @@
   tags: [python, uv]
   when: languages_features.python | default(true)
 
-- name: Garantir que pipx está instalado (via sistema)
-  ansible.builtin.package:
-    name: "{{ 'python3-pipx' if ansible_facts['os_family'] in ['Debian', 'Void'] else 'pipx' }}"
-    state: present
-  failed_when: false
-  tags: [python, pipx]
+- name: Instalar o pipx
   when: languages_features.python | default(true)
+  tags: [python, pipx]
+  block:
+    # Uma falha (sem EPEL no RHEL, sem o universe no Ubuntu, sem rede) só avisa, como no padrão de instalação
+    # resiliente: o play segue sem o pipx. O ensurepath só roda com o pipx instalado.
+    - name: Instalar o pipx e ajustar o PATH
+      when: ansible_facts['os_family'] in languages_pipx_package
+      block:
+        - name: Garantir que pipx está instalado (via sistema)
+          ansible.builtin.package:
+            name: "{{ languages_pipx_package[ansible_facts['os_family']] }}"
+            state: present
 
-- name: Garantir PATH do pipx
-  ansible.builtin.command: python3 -m pipx ensurepath
-  register: languages_pipx_path
-  changed_when: "'Added' in languages_pipx_path.stdout"
-  failed_when: false
-  become: false
-  tags: [python, pipx]
-  when: languages_features.python | default(true)
+        - name: Garantir PATH do pipx
+          ansible.builtin.command: python3 -m pipx ensurepath
+          register: languages_pipx_path
+          changed_when: "'Added' in languages_pipx_path.stdout"
+          failed_when: false
+          become: false
+      rescue:
+        # O erro real fica no stderr (apt, pacman, xbps), em failures (dnf), no module_stderr (o módulo quebrou) ou no
+        # msg; o aviso mostra a última linha do primeiro que tiver conteúdo.
+        - name: Avisar que o pipx não foi instalado
+          vars:
+            _languages_pipx_stderr: "{{ ansible_failed_result.stderr_lines | default([], true) | map('trim') | select | list }}"
+            _languages_pipx_failures: "{{ ansible_failed_result.failures | default([], true) | map('string') | map('trim') | select | list }}"
+            _languages_pipx_module: "{{ (ansible_failed_result.module_stderr | default('', true) | string).splitlines() | map('trim') | select | list }}"
+            _languages_pipx_msg: "{{ (ansible_failed_result.msg | default('', true) | string).splitlines() | map('trim') | select | list }}"
+            _languages_pipx_error: >-
+              {{ (_languages_pipx_stderr or _languages_pipx_failures or _languages_pipx_module or _languages_pipx_msg
+                  or ['erro desconhecido']) | last }}
+          ansible.builtin.debug:
+            msg: "⚠️ pipx não instalado no {{ ansible_facts['distribution'] }}: {{ _languages_pipx_error }}"
+
+    - name: Avisar que o pipx não tem pacote mapeado nesta distro
+      ansible.builtin.debug:
+        msg: >-
+          ⚠️ pipx não instalado: a família '{{ ansible_facts['os_family'] }}'
+          ({{ ansible_facts['distribution'] }}) não tem pacote em languages_pipx_package.
+      when: ansible_facts['os_family'] not in languages_pipx_package

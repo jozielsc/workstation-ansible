@@ -5,3 +5,10 @@ languages_go_package:
   RedHat: golang
   Void: go
   Archlinux: go
+
+# Pacote do pipx por os_family (nomes conferidos em 2026-10-16). Uma família fora deste mapa só gera aviso (python.yml).
+languages_pipx_package:
+  Debian: pipx
+  RedHat: pipx
+  Void: python3-pipx
+  Archlinux: python-pipx

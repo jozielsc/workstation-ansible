@@ -5,7 +5,6 @@ devtools_packages:
   - fzf
   - direnv
   - lsd
-  - python3-pipx
   - unzip
   - curl
   - wget

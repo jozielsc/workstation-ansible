@@ -8,17 +8,34 @@
   when: languages_features.node | default(true)
   tags: [node]
   block:
+    # Um Node.js já instalado por outro pacote (nodejs-lts-* no Arch, que conflita com o nodejs) faria a instalação do
+    # pacote nodejs falhar e parar o play: com um node que funciona, ela é pulada. O --version prova que ele roda (um
+    # shim quebrado ou um binário de outra libc não passa). Sem Node.js, uma falha na instalação é real e para o play.
+    - name: Verificar se o Node.js já está disponível
+      ansible.builtin.command:
+        argv: [node, --version]
+      register: _languages_node_query
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Informar que o Node.js existente foi mantido
+      ansible.builtin.debug:
+        msg: "ℹ️ Node.js {{ _languages_node_query.stdout | trim }} já disponível: a instalação do pacote nodejs é pulada."
+      when: _languages_node_query.rc == 0
+
     - name: Instalar Node.js (Sistema)
       ansible.builtin.package:
         name: nodejs
         state: present
+      when: _languages_node_query.rc != 0
 
     # O npm é um pacote separado no Debian/Ubuntu e no Arch, mas vem com o nodejs no Void e no Fedora, e o nodejs do
     # NodeSource também o traz (e declara conflito com o pacote npm da distro). Por isso o pacote só é instalado quando
-    # o comando ainda não existe.
+    # o comando ainda não funciona (mesma checagem do node).
     - name: Verificar se o npm já está disponível
       ansible.builtin.command:
-        argv: [sh, -c, command -v npm]
+        argv: [npm, --version]
       register: _languages_npm_query
       changed_when: false
       failed_when: false
@@ -47,3 +64,24 @@
                   or ['erro desconhecido']) | last }}
           ansible.builtin.debug:
             msg: "⚠️ npm não instalado no {{ ansible_facts['distribution'] }}: {{ _languages_npm_error }}"
+
+    # Um node quebrado que vem antes no PATH (um shim sem versão em /usr/local/bin, por exemplo) continua sendo o
+    # escolhido mesmo depois de instalar o pacote: a conferência final só avisa.
+    - name: Conferir o Node.js depois da instalação
+      ansible.builtin.command:
+        argv: [node, --version]
+      register: _languages_node_check
+      changed_when: false
+      failed_when: false
+      when: not ansible_check_mode
+
+    - name: Avisar que o node do PATH não funciona
+      vars:
+        _languages_node_check_stderr: "{{ _languages_node_check.stderr_lines | default([], true) | map('trim') | select | list }}"
+        _languages_node_check_error: >-
+          {{ (_languages_node_check_stderr or [_languages_node_check.msg | default('erro desconhecido', true)]) | last }}
+      ansible.builtin.debug:
+        msg: "⚠️ O node do PATH não funciona depois da instalação: {{ _languages_node_check_error }}"
+      when:
+        - not ansible_check_mode
+        - _languages_node_check.rc != 0

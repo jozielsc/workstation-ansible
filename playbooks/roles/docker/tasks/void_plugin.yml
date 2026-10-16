@@ -1,0 +1,27 @@
+---
+# Instala um plugin da CLI do Docker no Void (docker_void_plugin, do loop em void.yml), em
+# /usr/libexec/docker/cli-plugins/. Um plugin indisponível (outra arquitetura, mirror desatualizado) só avisa, sem
+# impedir o Docker nem o outro plugin, que é um pacote separado, com versão própria.
+- name: "Instalar o plugin do Docker: {{ docker_void_plugin }}"
+  block:
+    - name: "Instalar o pacote: {{ docker_void_plugin }}"
+      ansible.builtin.package:
+        name: "{{ docker_void_plugin }}"
+        state: present
+        # A instalação do Docker, logo antes, acabou de sincronizar o índice (update_cache: true).
+        update_cache: false
+  rescue:
+    # O erro real fica no stderr (xbps), no module_stderr (o módulo quebrou) ou no msg; o aviso mostra a última linha
+    # do primeiro que tiver conteúdo.
+    - name: "Avisar sobre o plugin não instalado: {{ docker_void_plugin }}"
+      vars:
+        _docker_plugin_stderr: "{{ ansible_failed_result.stderr_lines | default([], true) | map('trim') | select | list }}"
+        _docker_plugin_module: "{{ (ansible_failed_result.module_stderr | default('', true) | string).splitlines() | map('trim') | select | list }}"
+        _docker_plugin_msg: "{{ (ansible_failed_result.msg | default('', true) | string).splitlines() | map('trim') | select | list }}"
+        _docker_plugin_error: >-
+          {{ (_docker_plugin_stderr or _docker_plugin_module or _docker_plugin_msg or ['erro desconhecido']) | last
+             | regex_replace('\\.+$', '') }}
+      ansible.builtin.debug:
+        msg: >-
+          ⚠️ {{ docker_void_plugin }} não instalado: {{ _docker_plugin_error }}. Sem ele, 'docker
+          {{ docker_void_plugin | regex_replace('^docker-', '') }}' não funciona.

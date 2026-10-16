@@ -223,7 +223,7 @@ O callback de saída (`ansible.builtin.default`) não depende de collection.
 
 ## Matriz de suporte por plataforma
 
-Estado do código na v1.2.1 (2026-10). Atualize esta tabela quando a cobertura mudar. Uma distro de outra família para o play no início (passo 5 dos `pre_tasks` em [Playbook `site.yml`](#playbook-siteyml)), a menos que `allow_unsupported_distro` seja `true`.
+Estado do código na v2.0.0 (2026-10). Atualize esta tabela quando a cobertura mudar. Uma distro de outra família para o play no início (passo 5 dos `pre_tasks` em [Playbook `site.yml`](#playbook-siteyml)), a menos que `allow_unsupported_distro` seja `true`.
 
 | Componente | Debian/Ubuntu | Void | RedHat/Fedora | Arch |
 |---|---|---|---|---|

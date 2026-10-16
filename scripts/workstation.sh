@@ -18,6 +18,9 @@ REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 # shellcheck source=scripts/lib/quote.sh
 source "$SCRIPT_DIR/lib/quote.sh"
+# shellcheck source=scripts/lib/tags.sh
+source "$SCRIPT_DIR/lib/tags.sh"
+load_tags "$SCRIPT_DIR/lib/tags"
 
 # Cores e saída do Ansible em tempo real, inclusive quando a saída não é um terminal.
 export ANSIBLE_FORCE_COLOR=1
@@ -79,7 +82,24 @@ usage_error() {
     exit 2
 }
 
+# As tags e os apelidos de scripts/lib/tags, cada lista como "a, b, c" (usadas no help e nas mensagens de erro).
+tag_names_list() {
+    local names
+    names="$(printf '%s, ' "${TAG_NAMES[@]}")"
+    printf '%s' "${names%, }"
+}
+
+tag_aliases_list() {
+    local aliases
+    # shellcheck disable=SC2048,SC2086 # os apelidos de cada tag vêm separados por espaço e precisam ser divididos
+    aliases="$(printf '%s, ' ${TAG_ALIASES[*]})"
+    printf '%s' "${aliases%, }"
+}
+
 show_help() {
+    local tag_names tag_aliases
+    tag_names="$(tag_names_list)"
+    tag_aliases="$(tag_aliases_list)"
     cat <<EOF
 
 ${YELLOW}Workstation Ansible${RESET}
@@ -99,7 +119,8 @@ Uso: $PROG [comando] [opções] [-- argumentos do ansible-playbook]
   ${YELLOW}Opções:${RESET}
     --profile NOME       local, remote, tunnel, sandbox: perfil profiles/NOME.yml (default: default)
     --tags LISTA         local, remote, tunnel, sandbox: tags separadas por vírgula (default: all)
-                         devtools, languages, python, node, rust, go, docker, zsh, editors, ui, dotfiles
+                         ${tag_names}
+                         apelidos: ${tag_aliases}
     --dry-run            local, remote, tunnel, sandbox: modo simulação (--check --diff)
     --reuse              sandbox: roda no container que já existe, sem build nem recriação (2ª execução)
     --distro NOME        sandbox, sandbox-shell, sandbox-clean: void, ubuntu, fedora, arch (default: void)
@@ -230,6 +251,23 @@ require_ssh_user() {
 
 # O perfil vira "-e profile=<nome>", que o Ansible lê como uma lista key=value separada por espaços: "default x=y"
 # definiria outra variável. Só passam nomes simples com um arquivo profiles/<nome>.yml.
+# Uma tag com erro de digitação ou separada por espaço rodaria só as tarefas "always" e terminaria com sucesso: o
+# --tags só aceita as tags de scripts/lib/tags (ou "all"), separadas por vírgula.
+require_tags() {
+    local item
+    local -a items
+    case "$tags" in
+        ,*|*,|*,,*) usage_error "--tags '${tags}' tem um item vazio; separe as tags por vírgula, sem espaço" ;;
+    esac
+    IFS=',' read -r -a items <<< "$tags"
+    for item in "${items[@]}"; do
+        if [[ "$item" =~ [[:space:]] ]]; then
+            usage_error "--tags '${tags}' tem espaço; separe as tags por vírgula, sem espaço (ex.: --tags zsh,node)"
+        fi
+        tag_known "$item" || usage_error "tag desconhecida no --tags: '${item}' (disponíveis: all, $(tag_names_list); apelidos: $(tag_aliases_list))"
+    done
+}
+
 require_profile() {
     local available
     if [[ ! "$profile" =~ $NAME_RE ]] || [ ! -f "$REPO_DIR/profiles/${profile}.yml" ]; then
@@ -406,16 +444,19 @@ main() {
             ;;
         local)
             require_profile
+            require_tags
             run_local
             ;;
         remote)
             require_profile
+            require_tags
             require_value ip "$ip" name "Defina um único IP de destino" "$remote_usage"
             require_ssh_user "$remote_usage"
             run_remote
             ;;
         tunnel)
             require_profile
+            require_tags
             require_value ip "$ip" name "Defina um único IP de destino" "$tunnel_usage"
             require_value jump_ip "$jump_ip" name "Defina um único IP do Bastion" "$tunnel_usage"
             require_value jump_user "$jump_user" name "Defina um único usuário do Bastion" "$tunnel_usage"
@@ -424,6 +465,7 @@ main() {
             ;;
         sandbox)
             require_profile
+            require_tags
             require_distro
             run_sandbox
             ;;

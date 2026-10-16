@@ -118,6 +118,8 @@ Comportamento verificado com ansible-core 2.20:
 - `--list-tags` não mostra tags de tarefas incluídas dinamicamente.
 - `ui` tem `never`, então só roda quando uma de suas tags é pedida explicitamente. `--tags all` (padrão) não inclui `ui`.
 
+A lista de tags que o usuário vê fica num lugar só, `scripts/lib/tags` (`tag|descrição|apelidos`), carregado por `scripts/lib/tags.sh` (`load_tags`, `tag_known`). O `help` e o wizard montam a lista a partir dele, e o `scripts/workstation.sh` valida o `--tags` (`require_tags`, em `local`, `remote`, `tunnel` e `sandbox`, também com `--print`): cada item separado por vírgula precisa ser uma tag, um apelido ou `all`; um item vazio, um espaço ou uma tag desconhecida saem com código 2. `uv` e `pipx` ficam de fora, porque não rodam sozinhas (#15). O `tests/check_tags.py`, no `just lint`, falha se o arquivo divergir das tags de role do `site.yml` (sem `never`) somadas às dos includes de `roles/languages/tasks/main.yml`, ou se uma tag faltar nas seções de tags do `README.md` (PT e EN) ou do `docs/USAGE.md`.
+
 ## Roles
 
 ### Padrão de instalação resiliente (devtools, editors, ui)

@@ -26,7 +26,7 @@ default:
 # qualquer pasta: a lista é a do índice do git, não a do disco. Um script novo ainda sem `git add` só é checado no CI,
 # e um .sh apagado sem stage faz o shellcheck falhar com "does not exist". Fora de um clone git, o lint falha logo no
 # início, em vez de passar sem checar os scripts.
-[doc("Syntax-check, ansible-lint, yamllint e shellcheck (via uv): as mesmas checagens do CI.")]
+[doc("Syntax-check, ansible-lint, yamllint, shellcheck e lista de tags (via uv): as mesmas checagens do CI.")]
 lint: _require-uv _require-git
     @echo "{{ GREEN }}>> Verificando a sintaxe do playbook...{{ NORMAL }}"
     {{ uv_run }} ansible-playbook playbooks/site.yml --syntax-check -i localhost,
@@ -36,6 +36,8 @@ lint: _require-uv _require-git
     {{ uv_run }} yamllint --strict .
     @echo "{{ GREEN }}>> Executando shellcheck...{{ NORMAL }}"
     git ls-files -z '*.sh' | xargs -0 -r {{ uv_run }} shellcheck
+    @echo "{{ GREEN }}>> Conferindo a lista de tags (scripts/lib/tags)...{{ NORMAL }}"
+    {{ uv_run }} python tests/check_tags.py
 
 # O molecule é um teste adicional: não substitui o sandbox.
 [doc("Executa o cenário molecule (uv run molecule test; cenário pendente na #34).")]

@@ -185,11 +185,11 @@ Não pule etapas e não abra branch sem uma Issue por trás.
 
 ## Definição de pronto
 
-- `uv run just lint` (`ansible-playbook --syntax-check`, `ansible-lint`, `yamllint` e `shellcheck`, via uv) passa. É a mesma checagem do CI.
+- `uv run just lint` (`ansible-playbook --syntax-check`, `ansible-lint`, `yamllint`, `shellcheck` e a conferência da lista de tags, via uv) passa. É a mesma checagem do CI.
 - `uv run just test` (`uv run molecule test`) passa, quando o cenário Molecule existir (#34). Ele complementa o sandbox, não o substitui.
 - As tags afetadas foram executadas no sandbox, em `void` e `ubuntu` (`./scripts/workstation.sh sandbox --distro <d> --tags <tags>` ou `uv run just sandbox <d> <tags>`), sem falhas, e também em `fedora` e `arch` quando a mudança toca caminhos de RedHat ou Arch (pacotes em `vars/RedHat.yml`/`vars/Archlinux.yml`, ramos por `os_family`). Mudanças que alteram estado devem mostrar `changed=0` numa segunda execução (idempotência). Como o `sandbox` recria o container a cada chamada, a segunda execução é `./scripts/workstation.sh sandbox --distro <d> --tags <tags> --reuse`, que roda no container que ficou de pé, com o mesmo Ansible da primeira: se a primeira foi pelo `uv run just sandbox`, que usa o Ansible do `.venv`, rode a segunda com `uv run ./scripts/workstation.sh … --reuse`; se foi pelo script direto, que usa o do sistema, rode-o direto. Com versões diferentes de ansible-core ou das collections (#38), o `changed=0` não prova a idempotência.
 - Quando a mudança é específica de algo que o sandbox não cobre (RHEL/Rocky com EPEL, caminhos de serviço, máquina real sem as dependências que a imagem já traz), a limitação está registrada no PR.
-- A documentação afetada foi atualizada no mesmo PR: `docs/`, e também `README.md` e `USAGE.md` quando o comportamento visível muda. A lista de tags está sincronizada nos lugares listados no `CLAUDE.md`.
+- A documentação afetada foi atualizada no mesmo PR: `docs/`, e também `README.md` e `USAGE.md` quando o comportamento visível muda. Uma tag nova ou renomeada está no `scripts/lib/tags`, no `site.yml` e nas seções de tags do README e da USAGE (o `just lint` confere).
 - Nenhum documento descreve comportamento obsoleto. O item correspondente do `TECH_DEBT.md` foi removido, e a matriz e as seções do `ARCHITECTURE.md` refletem o novo estado.
 - Achados novos e descobertas sobre o sistema feitos durante o trabalho estão documentados em `docs/`, ou registrados como Issue quando são trabalho a fazer.
 - CI verde no PR (`gh pr checks <PR> --watch`). Hoje o CI roda o `uv run --locked just lint` (`.github/workflows/ci.yml`).

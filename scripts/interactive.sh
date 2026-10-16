@@ -21,6 +21,9 @@ REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 # shellcheck source=scripts/lib/quote.sh
 source "$SCRIPT_DIR/lib/quote.sh"
+# shellcheck source=scripts/lib/tags.sh
+source "$SCRIPT_DIR/lib/tags.sh"
+load_tags "$SCRIPT_DIR/lib/tags"
 
 show_banner() {
     # Sem TERM, o clear falha; com set -e, isso derrubaria o wizard no modo cli.
@@ -802,24 +805,11 @@ main() {
                 ;;
 
             tags)
-                local available_tags=(
-                    "devtools" "Base CLI tools (git, tmux, fzf, stow, btop)"
-                    "languages" "All programming languages (Python, Node, Rust, Go)"
-                    "python" "Python toolchain (UV + Pipx)"
-                    "node" "Node.js & NPM package manager"
-                    "rust" "Rustup & Cargo toolchain"
-                    "go" "Golang compiler & environment"
-                    "docker" "Docker engine & user permissions"
-                    "zsh" "Zsh shell, Oh-My-Zsh & P10k theme"
-                    "editors" "Neovim, lldb & clipboard support"
-                    "ui" "Opt-in Sway WM, Waybar & Nerd Fonts"
-                    "dotfiles" "Dotfiles symlinking via GNU Stow"
-                )
-
-                local tag_choices=()
-                for ((i=0; i<${#available_tags[@]}; i+=2)); do
-                    local tag_name="${available_tags[i]}"
-                    local tag_desc="${available_tags[i+1]}"
+                # A lista vem de scripts/lib/tags, a mesma do --tags e do help.
+                local tag_choices=() i
+                for i in "${!TAG_NAMES[@]}"; do
+                    local tag_name="${TAG_NAMES[i]}"
+                    local tag_desc="${TAG_DESCS[i]}"
                     local status="OFF"
                     for st in "${selected_tags_array[@]}"; do
                         if [ "$st" = "$tag_name" ]; then

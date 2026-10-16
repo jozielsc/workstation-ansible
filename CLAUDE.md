@@ -41,7 +41,7 @@ $W local -- -vvv             # args after -- are appended to ansible-playbook
 $W <command> ... --print     # print the exact commands without running them
 $W help                      # commands and options
 uv run just                  # list the dev recipes (just comes from the uv dev group)
-uv run just lint             # syntax-check + ansible-lint + yamllint + shellcheck (via uv)
+uv run just lint             # syntax-check + ansible-lint + yamllint + shellcheck + tag list check (via uv)
 uv run just test             # uv run molecule test (scenario pending: #34)
 uv run just check            # lint, then test
 uv run just sandbox ubuntu rust -vv  # shortcut for workstation.sh sandbox --distro ubuntu --tags rust -- -vv
@@ -81,6 +81,6 @@ Dev tools (ansible, ansible-lint, yamllint, shellcheck-py, molecule) come from t
 - Distro branching beyond package names uses `ansible_facts['os_family']` or `ansible_facts['distribution'] == "Void"` (e.g. `roles/docker/tasks/{debian,void}.yml`). On Void, Ansible reports `service_mgr` as `service`; services are enabled by symlinking `/etc/sv/<name>` into `/var/service`.
 - External installers are idempotent and tolerate network failures: rustup uses `creates:`/`stat` and falls back to the distro package; the lazygit binary compares `lazygit --version` with the latest release, downloads only when it is missing or older, turns a network/rate-limit/5xx failure into a warning and fails the play on any other error (no distro fallback).
 - `dotfiles` clones `dotfiles_repos` (default: `jozielsc/dotfiles` into `~/.dotfiles`) and stows each top-level directory with `--no-folding`. It deliberately does **not** use `stow --adopt` (that would overwrite tracked dotfiles with whatever is in `$HOME`); conflicts are reported and skipped instead of failing the play. Because it runs last, anything earlier roles write into `$HOME` (e.g. shell rc files) can turn into stow conflicts.
-- **The tag list exists in several places**: `site.yml`, the `help` of `scripts/workstation.sh`, the wizard's `available_tags` in `scripts/interactive.sh`, `README.md` (PT and EN sections), and `docs/USAGE.md`. When you add or rename a tag or a `scripts/workstation.sh` option, update all of them.
+- **Tag list**: the single source is `scripts/lib/tags` (`tag|description|aliases`), read by the `help`, the wizard and the `--tags` validation of `scripts/workstation.sh` (unknown tags exit 2). `tests/check_tags.py`, run by `just lint`, fails when it diverges from the role tags in `site.yml` plus the `languages` includes, or when `README.md` (PT and EN) or `docs/USAGE.md` miss a tag. When you add or rename a tag, update `site.yml`/the include, `scripts/lib/tags`, the README and USAGE. When you add a `scripts/workstation.sh` option, update its `help`, `docs/USAGE.md`, the README and this file.
 - `scripts/interactive.sh` is a dialog/whiptail/plain-CLI wizard (behind an engine-agnostic `ui_*` layer) that only assembles `scripts/workstation.sh` arguments (mode, profile, tags, dry-run, target) and runs the script. It has no provisioning logic of its own.
 - `scripts/workstation.sh` has one function per command (`run_local`, `run_remote`, …) and only validates options and builds the `ansible-playbook`/`docker` commands. It is a bash script (shebang), so it works when called from bash or zsh; the wizard requires bash ≥ 4.4.

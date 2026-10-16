@@ -1,0 +1,16 @@
+# Fonte única das tags que o scripts/workstation.sh aceita no --tags, que o help lista e que o wizard oferece.
+# Formato: tag|descrição (mostrada no wizard)|apelidos separados por espaço (também aceitos no --tags).
+# O "just lint" (tests/check_tags.py) confere esta lista com as tags de role do playbooks/site.yml e dos includes de
+# playbooks/roles/languages/tasks/main.yml, e confere que cada tag aparece no README.md (PT e EN) e no docs/USAGE.md.
+# uv e pipx não entram: hoje não rodam sozinhas (#15).
+devtools|Base CLI tools (git, tmux, fzf, stow, btop)|packages
+languages|All programming languages (Python, Node, Rust, Go)|
+python|Python toolchain (UV + Pipx)|
+node|Node.js & NPM package manager|
+rust|Rustup & Cargo toolchain|
+go|Golang compiler & environment|golang
+docker|Docker engine & user permissions|
+zsh|Zsh shell, Oh-My-Zsh & P10k theme|shell
+editors|Neovim, lldb & clipboard support|nvim
+ui|Opt-in Sway WM, Waybar & Nerd Fonts|visuals
+dotfiles|Dotfiles symlinking via GNU Stow|stow

@@ -15,6 +15,7 @@ scripts/workstation.sh local | remote | tunnel
 
 scripts/workstation.sh sandbox
   └─ docker build tests/sandbox/Dockerfile.<distro> → docker rm -f (container anterior) → docker run (tail -f)
+     (com --reuse: nada disso; usa o container que já existe, com docker start se estiver parado, e sai com erro se não existir)
   └─ ansible-playbook … -i "<container>," -c docker -u dev   (sem -K; com --dry-run, --check --diff)
 ```
 
@@ -65,7 +66,7 @@ Um único play, `hosts: all`, `become: true`, `gather_facts: false`: os fatos s�
 
 `pre_tasks`, todos com tag `always`, então rodam com qualquer `--tags`:
 
-1. `assert` de que `ansible_version.full` é pelo menos `min_ansible_core_version` (`2.13`, em `vars:` do play), com `run_once`. Roda no controlador, então, abaixo do mínimo, o play para antes de qualquer contato com o host, com uma mensagem que mostra a versão encontrada e aponta para [Collections Ansible necessárias no controlador](#collections-ansible-necessárias-no-controlador). As collections não são verificadas: não há um teste nativo para isso no Ansible, e checar com o `ansible-galaxy` poderia consultar outro Ansible que não o que roda o play. O erro de uma collection ausente não a cita (por exemplo, `Could not find a matching action for the "xbps" package manager`), mas está na tabela de collections abaixo, que mostra a causa (#37). A senha do sudo (`-K`) é pedida antes, quando o `ansible-playbook` começa; no `sandbox`, a imagem é construída e o container recriado antes.
+1. `assert` de que `ansible_version.full` é pelo menos `min_ansible_core_version` (`2.13`, em `vars:` do play), com `run_once`. Roda no controlador, então, abaixo do mínimo, o play para antes de qualquer contato com o host, com uma mensagem que mostra a versão encontrada e aponta para [Collections Ansible necessárias no controlador](#collections-ansible-necessárias-no-controlador). As collections não são verificadas: não há um teste nativo para isso no Ansible, e checar com o `ansible-galaxy` poderia consultar outro Ansible que não o que roda o play. O erro de uma collection ausente não a cita (por exemplo, `Could not find a matching action for the "xbps" package manager`), mas está na tabela de collections abaixo, que mostra a causa (#37). A senha do sudo (`-K`) é pedida antes, quando o `ansible-playbook` começa; no `sandbox` sem `--reuse`, a imagem é construída e o container recriado antes.
 2. `include_vars {{ playbook_dir }}/../profiles/{{ profile }}.yml`: falha se o perfil não existir.
 3. `include_vars {{ playbook_dir }}/../profiles/local.yml`, só quando o arquivo existe (`when: … is file or … is link`, avaliado no controller): overrides pessoais, fora do Git. Um `local.yml` que existe mas é inválido (YAML quebrado, conteúdo que não é dicionário, symlink quebrado) faz o play falhar logo no início.
 4. `setup` com `gather_subset: ['!all']` e `become: false`: só os fatos mínimos (`distribution`, `os_family`…), sem sudo, para que a checagem seguinte apareça mesmo num host sem `sudo` (por exemplo, Alpine com `doas`). Precisa de `python3` no host: sem ele, o play falha aqui com `No python interpreter found`, antes da mensagem.

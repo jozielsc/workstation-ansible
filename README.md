@@ -59,12 +59,17 @@ Quer testar o provisionamento antes de aplicar em sua máquina pessoal? Use o Sa
    ./scripts/workstation.sh sandbox --distro ubuntu
    ```
 
-3. **Acessar o terminal interativo do container mantido UP:**
+3. **Rodar de novo no mesmo container, sem recriá-lo (conferir a idempotência):**
+   ```bash
+   ./scripts/workstation.sh sandbox --distro ubuntu --reuse
+   ```
+
+4. **Acessar o terminal interativo do container mantido UP:**
    ```bash
    ./scripts/workstation.sh sandbox-shell
    ```
 
-4. **Remover o container ao concluir:**
+5. **Remover o container ao concluir:**
    ```bash
    ./scripts/workstation.sh sandbox-clean
    ```
@@ -182,12 +187,17 @@ Want to test provisioning safely before applying to your personal machine? Use t
    ./scripts/workstation.sh sandbox --distro ubuntu
    ```
 
-3. **Access the interactive container terminal (kept UP):**
+3. **Run again in the same container, without recreating it (idempotence check):**
+   ```bash
+   ./scripts/workstation.sh sandbox --distro ubuntu --reuse
+   ```
+
+4. **Access the interactive container terminal (kept UP):**
    ```bash
    ./scripts/workstation.sh sandbox-shell
    ```
 
-4. **Clean up when finished:**
+5. **Clean up when finished:**
    ```bash
    ./scripts/workstation.sh sandbox-clean
    ```

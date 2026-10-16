@@ -56,11 +56,12 @@ Testing is done in disposable Docker containers, never on the host:
 ```bash
 ./scripts/workstation.sh sandbox                              # Void Linux glibc (default)
 ./scripts/workstation.sh sandbox --distro ubuntu --tags rust  # test a single tag on Ubuntu
+./scripts/workstation.sh sandbox --distro ubuntu --tags rust --reuse  # rerun in the same container (idempotence)
 ./scripts/workstation.sh sandbox-shell --distro void          # inspect the container afterwards
 ./scripts/workstation.sh sandbox-clean --distro void
 ```
 
-`sandbox` builds `tests/sandbox/Dockerfile.<distro>`, recreates the container, and runs the playbook against it with `-c docker -u dev` (passwordless sudo, no `-K`). With `--dry-run` it runs in `--check --diff` against the freshly recreated container. The containers have no init system (runit/systemd not PID 1), so service-enablement paths are skipped there and are never exercised by the sandbox. Dockerfiles exist for `void`, `ubuntu`, `fedora` and `arch`. CI (`.github/workflows/ci.yml`) only runs `uv run --locked just lint` on PRs and pushes to `main`; the sandbox has no CI yet (#29).
+`sandbox` builds `tests/sandbox/Dockerfile.<distro>`, recreates the container, and runs the playbook against it with `-c docker -u dev` (passwordless sudo, no `-K`); `--reuse` skips the build and recreation and reruns in the existing container (the idempotence check). With `--dry-run` it runs in `--check --diff` against the recreated container, or against the existing one with `--reuse`. The containers have no init system (runit/systemd not PID 1), so service-enablement paths are skipped there and are never exercised by the sandbox. Dockerfiles exist for `void`, `ubuntu`, `fedora` and `arch`. CI (`.github/workflows/ci.yml`) only runs `uv run --locked just lint` on PRs and pushes to `main`; the sandbox has no CI yet (#29).
 
 Dev tools (ansible, ansible-lint, yamllint, shellcheck-py, molecule) come from the uv `dev` group in `pyproject.toml` (`uv sync`); run them via `uv run` / `uv run just lint|test|check`. The `justfile` only holds dev tasks; recipes run with `bash -euo pipefail` in the repo root, and `sandbox` just forwards to `scripts/workstation.sh` (no docker/ansible logic of its own). Molecule is an additional test layer: it does **not** replace the sandbox matrix (#29) or the lint CI unless the maintainer says so.
 

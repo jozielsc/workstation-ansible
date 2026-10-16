@@ -16,7 +16,7 @@ O script `scripts/workstation.sh` é a interface principal. Rode-o da raiz do re
 *   `./scripts/workstation.sh local`: Configura a máquina atual (localhost).
 *   `./scripts/workstation.sh remote --ip <IP> [--user <USER>]`: Configura uma máquina remota via SSH. O `--ip` é obrigatório e deve ser um único host. Hosts e usuários só aceitam letras, números e `.`, `_`, `-`, sem começar com `-`; o `--user` aceita também `@` (por exemplo, `jdoe@corp.example`). IPv6 e outra porta SSH não são aceitos: para eles, crie um alias (`Host`, com `HostName` e `Port`) no `~/.ssh/config` e passe o nome do alias. Sem `--user`, o usuário SSH é o usuário atual (`whoami`).
 *   `./scripts/workstation.sh tunnel --ip <IP> --jump-ip <JUMP_IP> --jump-user <JUMP_USER> [--user <USER>]`: Configura uma máquina através de um Bastion Host. `--ip`, `--jump-ip` e `--jump-user` são obrigatórios, com as mesmas regras de caracteres do `remote`.
-*   `./scripts/workstation.sh sandbox [--distro void|ubuntu|fedora|arch]`: Cria um container Docker isolado, executa o Ansible e o mantém ativo para testes.
+*   `./scripts/workstation.sh sandbox [--distro void|ubuntu|fedora|arch] [--reuse]`: Cria um container Docker isolado, executa o Ansible e o mantém ativo para testes. Cada chamada reconstrói a imagem e recria o container; com `--reuse`, roda o Ansible de novo no container que já existe (por exemplo, para conferir que uma segunda execução não muda nada).
 *   `./scripts/workstation.sh sandbox-shell [--distro …]`: Abre o terminal interativo (`bash`) no container sandbox da distro. Como no `sandbox` e no `sandbox-clean`, a distro precisa ter um Dockerfile em `tests/sandbox/`.
 *   `./scripts/workstation.sh sandbox-clean [--distro …]`: Para e remove o container sandbox da distro.
 *   `./scripts/workstation.sh help` / `help-docs`: Mostra os comandos e as opções / este manual.
@@ -42,7 +42,8 @@ As opções aceitam `--opção valor` e `--opção=valor`; um valor que começa 
     *   Exemplo: `./scripts/workstation.sh local --profile local`
 *   `--distro`: Escolhe a distribuição para o sandbox Docker (padrão: `void`, suporte: `void`, `ubuntu`, `fedora`, `arch`).
     *   Exemplo: `./scripts/workstation.sh sandbox --distro ubuntu`
-*   `--dry-run`: Executa em modo de simulação (Check Mode), mostrando o que seria alterado sem aplicar nada. No Fedora ≥ 41 sem o pacote `python3-libdnf5`, o dry-run para logo no início, porque a simulação não instala nada e as tarefas de pacote precisam dele: rode uma vez sem `--dry-run` (o provisionamento o instala) ou instale-o com `sudo dnf install python3-libdnf5`. Vale também para o `sandbox`, mas lá o container é recriado a cada execução (#51) e o playbook simula sobre a imagem limpa, então: no `fedora`, o dry-run **sempre** para nesse ponto, porque a imagem não traz o `python3-libdnf5` de propósito (#56); no `ubuntu`, sem `python3-apt`, os pacotes das roles com instalação em lote aparecem como `ok` em vez do que seria instalado, e as tarefas de pacote sem tolerância (Go e Node.js na role `languages`, a role `docker`) param o play pedindo o `python3-apt` (#52). A receita `uv run just sandbox` não repassa o `--dry-run` (os argumentos extras vão para o `ansible-playbook`); para simular no sandbox, use `./scripts/workstation.sh sandbox --dry-run`.
+*   `--dry-run`: Executa em modo de simulação (Check Mode), mostrando o que seria alterado sem aplicar nada. No Fedora ≥ 41 sem o pacote `python3-libdnf5`, o dry-run para logo no início, porque a simulação não instala nada e as tarefas de pacote precisam dele: rode uma vez sem `--dry-run` (o provisionamento o instala) ou instale-o com `sudo dnf install python3-libdnf5`. Vale também para o `sandbox`. Sem `--reuse`, o container é recriado e o playbook simula sobre a imagem limpa, então: no `fedora`, o dry-run **sempre** para nesse ponto, porque a imagem não traz o `python3-libdnf5` de propósito (#56); no `ubuntu`, sem `python3-apt`, os pacotes das roles com instalação em lote aparecem como `ok` em vez do que seria instalado, e as tarefas de pacote sem tolerância (Go e Node.js na role `languages`, a role `docker`) param o play pedindo o `python3-apt` (#52). Com `--reuse`, a simulação roda sobre o container já provisionado, que tem o que a execução anterior instalou (por exemplo, o `python3-libdnf5` no `fedora`). A receita `uv run just sandbox` não repassa o `--dry-run` nem o `--reuse` (os argumentos extras vão para o `ansible-playbook`); para essas opções, use `./scripts/workstation.sh sandbox` direto.
+*   `--reuse`: Só no `sandbox`. Roda no container que já existe, sem reconstruir a imagem nem recriar o container; um container parado é iniciado, e sem container o comando sai com erro. Como não há build, uma mudança no `Dockerfile` não chega a um container reaproveitado. Com `--dry-run`, simula sobre o sandbox já provisionado.
 *   `--print`: Mostra os comandos (`ansible-playbook`, `docker`) sem executá-los. O `ansible-playbook` aparece como `env ANSIBLE_CONFIG=… ansible-playbook …`, então pode ser colado e executado em qualquer pasta.
 *   `-- <argumentos>`: Tudo depois de `--` vai para o `ansible-playbook`. Exemplo: `./scripts/workstation.sh local -- -vvv`.
 
@@ -67,12 +68,17 @@ Para testar o provisionamento sem afetar sua máquina pessoal ou servidor, o pro
    ./scripts/workstation.sh sandbox --distro void --tags python
    ```
 
-4. **Acessar o terminal do container para inspecionar os pacotes instalados:**
+4. **Rodar de novo no mesmo container (conferir que a segunda execução tem `changed=0`):**
+   ```bash
+   ./scripts/workstation.sh sandbox --distro void --tags python --reuse
+   ```
+
+5. **Acessar o terminal do container para inspecionar os pacotes instalados:**
    ```bash
    ./scripts/workstation.sh sandbox-shell --distro void
    ```
 
-5. **Limpar o container ao finalizar:**
+6. **Limpar o container ao finalizar:**
    ```bash
    ./scripts/workstation.sh sandbox-clean --distro void
    ```
